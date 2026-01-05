@@ -1,0 +1,11 @@
+name = "factory"
+version = "1.0.0"
+description = "Multi-language engineering pipeline with real TCR, integration testing, and no interactive prompts"
+licences = ["Apache-2.0"]
+
+[dependencies]
+gleam_stdlib = ">= 0.44.0 and < 2.0.0"
+simplifile = ">= 1.7.0 and < 2.0.0"
+
+[dev-dependencies]
+gleeunit = ">= 1.0.0 and < 2.0.0"
