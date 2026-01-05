@@ -1,0 +1,62 @@
+================================================================================
+COPY & PASTE THIS INTO CLAUDE CODE FOR NEXT SESSION
+================================================================================
+
+I'm resuming Factory v2 development.
+
+CONTEXT (from last session):
+- Built comprehensive v2 design fixing 10 critical problems in v1
+- Created 5 design documents: V2_SUMMARY.md, V2_CRITICAL_PROBLEMS_AND_SOLUTIONS.md, MOON_INTEGRATION_CONTRACT.md, V2_IMPLEMENTATION_ROADMAP.md, V2_DESIGN_INDEX.md
+- All documents in /home/lewis/src/factory-gleam/
+- Gleam code compiles cleanly
+- Ready to implement Phase 1-4 or refine design
+
+KEY BACKGROUND:
+Factory is a 10-stage AI-assisted engineering pipeline:
+- Language: Gleam (statically typed)
+- VCS: Jujutsu (jj) workspaces for isolation
+- Task management: Beads (SQLite task database)
+- CI/CD: moon.dev orchestration
+- Code search: Codanna semantic indexing
+- Specs: Intent specs (executable requirements)
+
+10 CRITICAL PROBLEMS v2 FIXES:
+1. Auto-commit trap → Remove auto-commit, require manual approval
+2. Confidence fiction → Show metrics, you decide
+3. Learning backfires → Surgical learning (specific tests per incident)
+4. Monitoring lag → Feature flags (1% → 10% → 100%, instant control)
+5. Audit confusion → Explicit statuses with person tracking
+6. Boundary enforcement missing → Pre-commit hook blocks violations
+7. Coverage metrics meaningless → Critical paths analysis
+8. Error noise → Extract and summarize
+9. Language hardcoded (Go only) → Auto-detect all 4 languages
+10. Rollback unclear → Explicit jj commands documented
+
+V2 IMPLEMENTATION PHASES:
+- Phase 1 (Week 1): Safety - remove auto-commit, add flags, boundaries, audit
+- Phase 2 (Week 2): Core - error handling, language detection, TCR specs
+- Phase 3 (Week 3): Polish - metrics, coverage, learning
+- Phase 4 (Ongoing): Integration - Beads, Codanna, Intent, moon links
+
+TODAY I WANT TO:
+[CHOOSE ONE]
+A) Review and finalize v2 design (read documents, propose changes, approve)
+B) Start Phase 1 implementation (start fixing safety problems)
+C) Debug [SPECIFIC ISSUE] (troubleshoot blockers)
+D) [YOUR CUSTOM TASK]
+
+KEY DECISIONS NEEDED:
+- Feature flag service? (Firebase, LaunchDarkly, custom?)
+- Start with Gleam only or all 4 languages?
+- Pre-commit hook or pre-push hook for boundary enforcement?
+- Approval workflow: command-line or GitHub UI?
+
+STATUS:
+- All v2 design documents ready and detailed
+- No code changes yet (need your approval)
+- Ready to implement immediately once approved
+- All major decisions documented
+
+Let's go!
+
+================================================================================

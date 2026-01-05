@@ -1,180 +1,280 @@
-// CLI module - Command parsing and execution
-// NO INTERACTIVE PROMPTS - All parameters from command line
+// Unified CLI module using glint framework
+// Single source of truth for all CLI operations
+// Uses: glint, argv, spinner, stdin, shellout, glitzer
+// NO alternatives - this is the only way to parse CLI
 
+import gleam/io
+import gleam/option.{type Option, None, Some}
 import gleam/result
+import argv
+import glint
+import glint/flag as glint_flag
 import domain
 
-/// Parsed CLI command
+/// All possible Factory commands
 pub type Command {
-  New(slug: String, language: String)
-  Run(slug: String)
-  Stage(slug: String, stage_name: String)
-  Range(slug: String, start_stage: String, end_stage: String)
-  List
-  Status(slug: String)
-  Clean(slug: String)
-  Init(repo_path: String)
-  Provision(repo_path: String, language: String)
-  Help
-  InvalidCommand(reason: String)
+  NewTask(slug: String, contract_path: Option(String), interactive: Bool)
+  RunStage(slug: String, stage_name: String, dry_run: Bool, from: Option(String), to: Option(String))
+  ApproveTask(slug: String, strategy: Option(String), force: Bool)
+  ShowTask(slug: String, detailed: Bool)
+  ListTasks(priority: Option(String), status: Option(String))
+  Help(topic: Option(String))
+  Version
 }
 
-/// Parse command-line arguments into a Command
-pub fn parse_args(args: List(String)) -> Result(Command, String) {
-  case args {
-    [] -> Ok(Help)
-    ["help"] -> Ok(Help)
-    ["--help"] -> Ok(Help)
-    ["-h"] -> Ok(Help)
+/// Parse CLI arguments using glint
+/// This is the ONLY parser - no alternatives
+pub fn parse() -> Result(Command, String) {
+  let app =
+    glint.new()
+    |> glint.add(
+      ["new"],
+      glint.command(fn(input) {
+        use slug <- glint.string_flag(
+          "slug",
+          glint_flag.Flag()
+          |> glint_flag.description("Task ID (e.g., bd-52.1)")
+          |> glint_flag.required(),
+        )(input)
+        use contract <- glint.optional_string_flag(
+          "contract",
+          glint_flag.Flag()
+          |> glint_flag.description("Path to contract.yaml"),
+        )(input)
+        use interactive <- glint.bool_flag(
+          "interactive",
+          glint_flag.Flag()
+          |> glint_flag.short_help("Enable interactive mode")
+          |> glint_flag.default(False),
+        )(input)
 
-    ["new", slug] -> {
-      // Validate slug
-      case domain.validate_slug(slug) {
-        Ok(_) -> Ok(New(slug, "go"))
-        Error(err) -> Error(err)
-      }
-    }
+        Ok(NewTask(slug, contract, interactive))
+      }),
+    )
+    |> glint.add(
+      ["stage"],
+      glint.command(fn(input) {
+        use slug <- glint.string_flag(
+          "slug",
+          glint_flag.Flag() |> glint_flag.required(),
+        )(input)
+        use stage <- glint.string_flag(
+          "stage",
+          glint_flag.Flag() |> glint_flag.required(),
+        )(input)
+        use dry_run <- glint.bool_flag(
+          "dry-run",
+          glint_flag.Flag()
+          |> glint_flag.short_help("Show what would execute"),
+        )(input)
+        use from <- glint.optional_string_flag(
+          "from",
+          glint_flag.Flag()
+          |> glint_flag.description("Start from this stage"),
+        )(input)
+        use to <- glint.optional_string_flag(
+          "to",
+          glint_flag.Flag()
+          |> glint_flag.description("Run until this stage"),
+        )(input)
 
-    ["new", slug, lang] -> {
-      // Validate slug and language
-      use _ <- result.try(case domain.validate_slug(slug) {
-        Ok(_) -> Ok(Nil)
-        Error(err) -> Error(err)
-      })
-      use _ <- result.try(case domain.parse_language(lang) {
-        Ok(_) -> Ok(Nil)
-        Error(err) -> Error(err)
-      })
-      Ok(New(slug, lang))
-    }
+        Ok(RunStage(slug, stage, dry_run, from, to))
+      }),
+    )
+    |> glint.add(
+      ["approve"],
+      glint.command(fn(input) {
+        use slug <- glint.string_flag(
+          "slug",
+          glint_flag.Flag() |> glint_flag.required(),
+        )(input)
+        use strategy <- glint.optional_string_flag(
+          "strategy",
+          glint_flag.Flag()
+          |> glint_flag.description("gradual, staged, or immediate"),
+        )(input)
+        use force <- glint.bool_flag(
+          "force",
+          glint_flag.Flag()
+          |> glint_flag.short_help("Skip safety checks"),
+        )(input)
 
-    ["run", slug] -> {
-      case domain.validate_slug(slug) {
-        Ok(_) -> Ok(Run(slug))
-        Error(err) -> Error(err)
-      }
-    }
+        Ok(ApproveTask(slug, strategy, force))
+      }),
+    )
+    |> glint.add(
+      ["show"],
+      glint.command(fn(input) {
+        use slug <- glint.string_flag(
+          "slug",
+          glint_flag.Flag() |> glint_flag.required(),
+        )(input)
+        use detailed <- glint.bool_flag(
+          "detailed",
+          glint_flag.Flag()
+          |> glint_flag.short_help("Show full details"),
+        )(input)
 
-    ["stage", slug, stage_name] -> {
-      case domain.validate_slug(slug) {
-        Ok(_) -> {
-          case domain.get_stage(stage_name) {
-            Ok(_) -> Ok(Stage(slug, stage_name))
-            Error(err) -> Error(err)
-          }
-        }
-        Error(err) -> Error(err)
-      }
-    }
+        Ok(ShowTask(slug, detailed))
+      }),
+    )
+    |> glint.add(
+      ["list"],
+      glint.command(fn(input) {
+        use priority <- glint.optional_string_flag(
+          "priority",
+          glint_flag.Flag() |> glint_flag.description("P1, P2, or P3"),
+        )(input)
+        use status <- glint.optional_string_flag(
+          "status",
+          glint_flag.Flag()
+          |> glint_flag.description("open, in_progress, or done"),
+        )(input)
 
-    ["range", slug, start_stage, end_stage] -> {
-      case domain.validate_slug(slug) {
-        Ok(_) -> {
-          case domain.filter_stages(start_stage, end_stage) {
-            Ok(_) -> Ok(Range(slug, start_stage, end_stage))
-            Error(err) -> Error(err)
-          }
-        }
-        Error(err) -> Error(err)
-      }
-    }
+        Ok(ListTasks(priority, status))
+      }),
+    )
+    |> glint.add(
+      ["help"],
+      glint.command(fn(input) {
+        use topic <- glint.optional_string_flag(
+          "topic",
+          glint_flag.Flag() |> glint_flag.description("Help topic"),
+        )(input)
+        Ok(Help(topic))
+      }),
+    )
+    |> glint.add(
+      ["version"],
+      glint.command(fn(_input) { Ok(Version) }),
+    )
 
-    ["list"] -> Ok(List)
-
-    ["status", slug] -> {
-      case domain.validate_slug(slug) {
-        Ok(_) -> Ok(Status(slug))
-        Error(err) -> Error(err)
-      }
-    }
-
-    ["clean", slug] -> {
-      case domain.validate_slug(slug) {
-        Ok(_) -> Ok(Clean(slug))
-        Error(err) -> Error(err)
-      }
-    }
-
-    ["init"] -> Ok(Init("."))
-    ["init", path] -> Ok(Init(path))
-
-    ["provision", path] -> Ok(Provision(path, "go"))
-    ["provision", path, lang] -> {
-      case domain.parse_language(lang) {
-        Ok(_) -> Ok(Provision(path, lang))
-        Error(err) -> Error(err)
-      }
-    }
-
-    [cmd, ..] -> Error("Unknown command: " <> cmd)
+  case argv.load().arguments {
+    [] -> Ok(Help(None))
+    args ->
+      glint.run(app, args)
+      |> result.map_error(fn(_) { "Failed to parse arguments" })
   }
 }
 
-/// Format command for display
-pub fn command_to_string(cmd: Command) -> String {
+/// Execute parsed command
+pub fn execute(cmd: Command) -> Result(Nil, String) {
   case cmd {
-    New(slug, lang) -> "new " <> slug <> " " <> lang
-    Run(slug) -> "run " <> slug
-    Stage(slug, stage) -> "stage " <> slug <> " " <> stage
-    Range(slug, start, end) -> "range " <> slug <> " " <> start <> " " <> end
-    List -> "list"
-    Status(slug) -> "status " <> slug
-    Clean(slug) -> "clean " <> slug
-    Init(path) -> "init " <> path
-    Provision(path, lang) -> "provision " <> path <> " " <> lang
-    Help -> "help"
-    InvalidCommand(reason) -> "invalid: " <> reason
+    NewTask(slug, contract, interactive) ->
+      execute_new(slug, contract, interactive)
+
+    RunStage(slug, stage, dry_run, from, to) ->
+      execute_stage(slug, stage, dry_run, from, to)
+
+    ApproveTask(slug, strategy, force) ->
+      execute_approve(slug, strategy, force)
+
+    ShowTask(slug, detailed) -> execute_show(slug, detailed)
+
+    ListTasks(priority, status) -> execute_list(priority, status)
+
+    Help(topic) -> {
+      show_help(topic)
+      Ok(Nil)
+    }
+
+    Version -> {
+      show_version()
+      Ok(Nil)
+    }
   }
 }
 
-/// Generate help text
+// Implementation functions (placeholders until filled in)
+
+fn execute_new(
+  slug: String,
+  _contract: Option(String),
+  _interactive: Bool,
+) -> Result(Nil, String) {
+  use _ <- result.try(domain.validate_slug(slug))
+  io.println("Creating task: " <> slug)
+  Ok(Nil)
+}
+
+fn execute_stage(
+  slug: String,
+  stage: String,
+  _dry_run: Bool,
+  _from: Option(String),
+  _to: Option(String),
+) -> Result(Nil, String) {
+  use _ <- result.try(domain.validate_slug(slug))
+  io.println("Running stage " <> stage <> " for " <> slug)
+  Ok(Nil)
+}
+
+fn execute_approve(
+  slug: String,
+  _strategy: Option(String),
+  _force: Bool,
+) -> Result(Nil, String) {
+  use _ <- result.try(domain.validate_slug(slug))
+  io.println("Approving task: " <> slug)
+  Ok(Nil)
+}
+
+fn execute_show(slug: String, _detailed: Bool) -> Result(Nil, String) {
+  use _ <- result.try(domain.validate_slug(slug))
+  io.println("Showing task: " <> slug)
+  Ok(Nil)
+}
+
+fn execute_list(_priority: Option(String), _status: Option(String)) -> Result(Nil, String) {
+  io.println("Listing tasks")
+  Ok(Nil)
+}
+
+fn show_help(topic: Option(String)) -> Nil {
+  case topic {
+    None -> io.println(help_text())
+    Some(t) -> io.println("Help for: " <> t)
+  }
+}
+
+fn show_version() -> Nil {
+  io.println(
+    "Factory Gleam v1.0.0\nBuilt for contract-driven CI/CD\n"
+    <> "Docs: ./ARCHITECTURE.md",
+  )
+}
+
+/// Help text
 pub fn help_text() -> String {
-  "Factory - Multi-language engineering pipeline
+  "Factory - Contract-driven CI/CD Pipeline
 
 USAGE:
-  factory <command> [options]
+  factory <COMMAND> [FLAGS]
 
 COMMANDS:
-  new <slug> [language]      Create new task (language: go|gleam|rust|python)
-  run <slug>                 Run full 10-stage pipeline headless
-  stage <slug> <stage>       Run single stage
-  range <slug> <start> <end> Run stage range
-  list                       List all active tasks
-  status <slug>              Show task status
-  clean <slug>               Remove task worktree
-  init [path]                Initialize factory in repo
-  provision [path] [lang]    Auto-detect and provision repo
+  new      Create new task
+           factory new --slug bd-52.1 [--contract path] [--interactive]
 
-OPTIONS:
-  --help, -h                 Show this help message
+  stage    Run pipeline stage
+           factory stage --slug bd-52.1 --stage implement [--dry-run] [--from X] [--to Y]
 
-EXAMPLE:
-  factory new my-feature gleam
-  factory run my-feature
-  factory status my-feature
-  factory clean my-feature
+  approve  Approve for deployment
+           factory approve --slug bd-52.1 [--strategy gradual] [--force]
 
-All commands are non-interactive - safe for AI automation.
-"
-}
+  show     Show task details
+           factory show --slug bd-52.1 [--detailed]
 
-/// Check if command is a write operation (modifies state)
-pub fn is_write_command(cmd: Command) -> Bool {
-  case cmd {
-    New(_, _) -> True
-    Clean(_) -> True
-    Init(_) -> True
-    Provision(_, _) -> True
-    _ -> False
-  }
-}
+  list     List all tasks
+           factory list [--priority P1|P2|P3] [--status open|in_progress|done]
 
-/// Check if command is a read-only operation
-pub fn is_readonly_command(cmd: Command) -> Bool {
-  case cmd {
-    List -> True
-    Status(_) -> True
-    Help -> True
-    _ -> False
-  }
+  help     Show this help [--topic COMMAND]
+  version  Show version
+
+EXAMPLES:
+  factory new --slug bd-52.1
+  factory stage --slug bd-52.1 --stage implement --dry-run
+  factory approve --slug bd-52.1 --strategy gradual
+  factory list --priority P1
+
+Documentation: ./ARCHITECTURE.md"
 }
