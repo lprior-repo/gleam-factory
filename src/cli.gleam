@@ -1,14 +1,14 @@
-// Unified CLI module using glint framework
+// Unified CLI module
 // Single source of truth for all CLI operations
-// Uses: glint, argv, spinner, stdin, shellout, glitzer
+// Uses: argv, clip, spinner, stdin, shellout
 // NO alternatives - this is the only way to parse CLI
 
 import gleam/io
 import gleam/option.{type Option, None, Some}
 import gleam/result
+import gleam/list
+import gleam/string
 import argv
-import glint
-import glint/flag as glint_flag
 import domain
 
 /// All possible Factory commands
@@ -22,138 +22,36 @@ pub type Command {
   Version
 }
 
-/// Parse CLI arguments using glint
+/// Parse CLI arguments from argv
 /// This is the ONLY parser - no alternatives
 pub fn parse() -> Result(Command, String) {
-  let app =
-    glint.new()
-    |> glint.add(
-      ["new"],
-      glint.command(fn(input) {
-        use slug <- glint.string_flag(
-          "slug",
-          glint_flag.Flag()
-          |> glint_flag.description("Task ID (e.g., bd-52.1)")
-          |> glint_flag.required(),
-        )(input)
-        use contract <- glint.optional_string_flag(
-          "contract",
-          glint_flag.Flag()
-          |> glint_flag.description("Path to contract.yaml"),
-        )(input)
-        use interactive <- glint.bool_flag(
-          "interactive",
-          glint_flag.Flag()
-          |> glint_flag.short_help("Enable interactive mode")
-          |> glint_flag.default(False),
-        )(input)
-
-        Ok(NewTask(slug, contract, interactive))
-      }),
-    )
-    |> glint.add(
-      ["stage"],
-      glint.command(fn(input) {
-        use slug <- glint.string_flag(
-          "slug",
-          glint_flag.Flag() |> glint_flag.required(),
-        )(input)
-        use stage <- glint.string_flag(
-          "stage",
-          glint_flag.Flag() |> glint_flag.required(),
-        )(input)
-        use dry_run <- glint.bool_flag(
-          "dry-run",
-          glint_flag.Flag()
-          |> glint_flag.short_help("Show what would execute"),
-        )(input)
-        use from <- glint.optional_string_flag(
-          "from",
-          glint_flag.Flag()
-          |> glint_flag.description("Start from this stage"),
-        )(input)
-        use to <- glint.optional_string_flag(
-          "to",
-          glint_flag.Flag()
-          |> glint_flag.description("Run until this stage"),
-        )(input)
-
-        Ok(RunStage(slug, stage, dry_run, from, to))
-      }),
-    )
-    |> glint.add(
-      ["approve"],
-      glint.command(fn(input) {
-        use slug <- glint.string_flag(
-          "slug",
-          glint_flag.Flag() |> glint_flag.required(),
-        )(input)
-        use strategy <- glint.optional_string_flag(
-          "strategy",
-          glint_flag.Flag()
-          |> glint_flag.description("gradual, staged, or immediate"),
-        )(input)
-        use force <- glint.bool_flag(
-          "force",
-          glint_flag.Flag()
-          |> glint_flag.short_help("Skip safety checks"),
-        )(input)
-
-        Ok(ApproveTask(slug, strategy, force))
-      }),
-    )
-    |> glint.add(
-      ["show"],
-      glint.command(fn(input) {
-        use slug <- glint.string_flag(
-          "slug",
-          glint_flag.Flag() |> glint_flag.required(),
-        )(input)
-        use detailed <- glint.bool_flag(
-          "detailed",
-          glint_flag.Flag()
-          |> glint_flag.short_help("Show full details"),
-        )(input)
-
-        Ok(ShowTask(slug, detailed))
-      }),
-    )
-    |> glint.add(
-      ["list"],
-      glint.command(fn(input) {
-        use priority <- glint.optional_string_flag(
-          "priority",
-          glint_flag.Flag() |> glint_flag.description("P1, P2, or P3"),
-        )(input)
-        use status <- glint.optional_string_flag(
-          "status",
-          glint_flag.Flag()
-          |> glint_flag.description("open, in_progress, or done"),
-        )(input)
-
-        Ok(ListTasks(priority, status))
-      }),
-    )
-    |> glint.add(
-      ["help"],
-      glint.command(fn(input) {
-        use topic <- glint.optional_string_flag(
-          "topic",
-          glint_flag.Flag() |> glint_flag.description("Help topic"),
-        )(input)
-        Ok(Help(topic))
-      }),
-    )
-    |> glint.add(
-      ["version"],
-      glint.command(fn(_input) { Ok(Version) }),
-    )
-
   case argv.load().arguments {
     [] -> Ok(Help(None))
-    args ->
-      glint.run(app, args)
-      |> result.map_error(fn(_) { "Failed to parse arguments" })
+    ["help"] -> Ok(Help(None))
+    ["help", topic] -> Ok(Help(Some(topic)))
+    ["version"] -> Ok(Version)
+
+    ["new", "--slug", slug] -> Ok(NewTask(slug, None, False))
+    ["new", "--slug", slug, "--contract", contract] -> Ok(NewTask(slug, Some(contract), False))
+    ["new", "--slug", slug, "--interactive"] -> Ok(NewTask(slug, None, True))
+
+    ["stage", "--slug", slug, "--stage", stage] -> Ok(RunStage(slug, stage, False, None, None))
+    ["stage", "--slug", slug, "--stage", stage, "--dry-run"] -> Ok(RunStage(slug, stage, True, None, None))
+    ["stage", "--slug", slug, "--stage", stage, "--from", from] -> Ok(RunStage(slug, stage, False, Some(from), None))
+    ["stage", "--slug", slug, "--stage", stage, "--to", to] -> Ok(RunStage(slug, stage, False, None, Some(to)))
+
+    ["approve", "--slug", slug] -> Ok(ApproveTask(slug, None, False))
+    ["approve", "--slug", slug, "--strategy", strategy] -> Ok(ApproveTask(slug, Some(strategy), False))
+    ["approve", "--slug", slug, "--force"] -> Ok(ApproveTask(slug, None, True))
+
+    ["show", "--slug", slug] -> Ok(ShowTask(slug, False))
+    ["show", "--slug", slug, "--detailed"] -> Ok(ShowTask(slug, True))
+
+    ["list"] -> Ok(ListTasks(None, None))
+    ["list", "--priority", p] -> Ok(ListTasks(Some(p), None))
+    ["list", "--status", s] -> Ok(ListTasks(None, Some(s)))
+
+    [cmd, ..] -> Error("Unknown command: " <> cmd)
   }
 }
 

@@ -13,44 +13,26 @@ import stages
 import persistence
 
 pub fn main() {
-  // For now, print welcome message
-  // Full implementation would parse args via gleam_stdlib
-  io.println("Factory - Multi-language engineering pipeline (Gleam Edition)")
-  io.println("  domain.gleam  ✓ Language, Task, Stage types")
-  io.println("  process.gleam   ✓ Command execution")
-  io.println("  tcr.gleam     ✓ Test && Commit || Revert")
-  io.println("  stages.gleam  ✓ Real language-specific stages")
-  io.println("  integration.gleam ✓ Merge and verify")
-  io.println("  persistence.gleam ✓ JSON status tracking")
-  io.println("  worktree.gleam ✓ Workspace isolation")
-  io.println("  repo.gleam    ✓ Repository detection")
-  io.println("  cli.gleam     ✓ Command parsing (no prompts)")
-  io.println("")
-  io.println("Usage: factory <command> [options]")
-  io.println("  factory new <slug> [language]")
-  io.println("  factory run <slug>")
-  io.println("  factory stage <slug> <stage-name>")
-  io.println("  factory range <slug> <start> <end>")
-  io.println("  factory list")
-  io.println("  factory status <slug>")
-  io.println("  factory clean <slug>")
+  // Parse CLI and execute
+  case cli.parse() {
+    Ok(cmd) ->
+      case cli.execute(cmd) {
+        Ok(Nil) -> Nil
+        Error(err) -> {
+          io.println("Error: " <> err)
+        }
+      }
+    Error(err) -> {
+      io.println("Error: " <> err)
+      io.println("")
+      io.println(cli.help_text())
+    }
+  }
 }
 
-/// Execute a command (would be called from main with parsed args)
-pub fn execute_command(cmd: cli.Command, repo_root: String) -> Result(String, String) {
-  case cmd {
-    cli.New(slug, lang) -> execute_new(slug, lang, repo_root)
-    cli.Run(slug) -> execute_run(slug, repo_root)
-    cli.Stage(slug, stage) -> execute_stage(slug, stage, repo_root)
-    cli.Range(slug, start, end) -> execute_range(slug, start, end, repo_root)
-    cli.List -> execute_list(repo_root)
-    cli.Status(slug) -> execute_status(slug, repo_root)
-    cli.Clean(slug) -> execute_clean(slug, repo_root)
-    cli.Init(path) -> execute_init(path)
-    cli.Provision(path, lang) -> execute_provision(path, lang)
-    cli.Help -> Ok(cli.help_text())
-    cli.InvalidCommand(reason) -> Error(reason)
-  }
+/// Execute a command using new CLI interface
+pub fn execute_command(cmd: cli.Command) -> Result(Nil, String) {
+  cli.execute(cmd)
 }
 
 fn execute_new(
