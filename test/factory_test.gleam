@@ -2138,17 +2138,21 @@ pub fn fs_read_text_file_nonexistent_returns_error_test() {
 // ACP CLIENT TESTS
 // ============================================================================
 
-/// Test cancel sends session/cancel notification to abort running prompts.
+/// Test cancel sends session/cancel notification with sessionId param.
 ///
 /// Drives:
-/// 1. cancel(client, session_id) -> Result(Nil, String)
-/// 2. Sends JSON-RPC notification: {"method": "session/cancel", "params": {"sessionId": session_id}}
-/// 3. Notifications have no result (fire-and-forget)
-pub fn acp_cancel_sends_session_cancel_notification_test() {
-  let session_id = "test-session-123"
+/// 1. acp_cancel(session_id) -> Result(String, String) returns JSON notification
+/// 2. JSON format: {"jsonrpc":"2.0","method":"session/cancel","params":{"sessionId":"..."}}
+/// 3. sessionId field must match input
+pub fn acp_cancel_returns_session_cancel_json_notification_test() {
+  let session_id = "test-session-456"
 
   case process.acp_cancel(session_id) {
-    Ok(Nil) -> Nil
+    Ok(json) -> {
+      should.be_true(contains_substring(json, "\"method\":\"session/cancel\""))
+      should.be_true(contains_substring(json, "\"sessionId\":\"" <> session_id <> "\""))
+      should.be_true(contains_substring(json, "\"jsonrpc\":\"2.0\""))
+    }
     Error(_) -> should.fail()
   }
 }
