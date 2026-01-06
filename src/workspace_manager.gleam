@@ -13,6 +13,7 @@ pub type WorkspaceManagerMessage {
   RegisterWorkspace(workspace: Workspace)
   GetWorkspace(id: WorkspaceId, reply_with: Subject(Result(Workspace, String)))
   ListWorkspaces(reply_with: Subject(Result(List(Workspace), String)))
+  DestroyWorkspace(id: WorkspaceId, reply_with: Subject(Result(Nil, String)))
 }
 
 /// Error type for workspace manager initialization.
@@ -66,6 +67,19 @@ fn handle_message(
       process.send(reply_with, result)
       actor.continue(state)
     }
+    DestroyWorkspace(id, reply_with) -> {
+      case dict.has_key(state.workspaces, id) {
+        True -> {
+          let new_workspaces = dict.delete(state.workspaces, id)
+          process.send(reply_with, Ok(Nil))
+          actor.continue(WorkspaceManagerState(workspaces: new_workspaces))
+        }
+        False -> {
+          process.send(reply_with, Error("Workspace not found"))
+          actor.continue(state)
+        }
+      }
+    }
   }
 }
 
@@ -95,5 +109,21 @@ pub fn query_workspace(
   case process.receive(reply_subject, 5000) {
     Ok(response) -> response
     Error(Nil) -> Error("Query timeout")
+  }
+}
+
+/// Destroys a workspace by removing it from the workspace manager state.
+///
+/// Returns Ok(Nil) if the workspace was successfully destroyed,
+/// or Error(msg) if the workspace was not found or the operation times out.
+pub fn destroy_workspace(
+  manager_subject: Subject(WorkspaceManagerMessage),
+  workspace_id: WorkspaceId,
+) -> Result(Nil, String) {
+  let reply_subject = process.new_subject()
+  process.send(manager_subject, DestroyWorkspace(id: workspace_id, reply_with: reply_subject))
+  case process.receive(reply_subject, 5000) {
+    Ok(response) -> response
+    Error(Nil) -> Error("Destroy timeout")
   }
 }
