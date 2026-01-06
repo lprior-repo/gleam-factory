@@ -1990,7 +1990,26 @@ pub fn create_workspace_reflink_uses_cp_reflink_command_test() {
 // SIGNAL BUS TESTS
 // ============================================================================
 
-/// Test signal_bus subscribe stores subscription correctly.
-pub fn signal_bus_subscribe_stores_subscription_test() {
-  should.fail()
+/// Test unsubscribe removes subscription and stops broadcasts.
+pub fn signal_bus_unsubscribe_removes_subscription_test() {
+  let assert Ok(bus) = signal_bus.start_link()
+
+  let subscriber = erl_process.new_subject()
+  let selector = erl_process.new_selector() |> erl_process.select(subscriber)
+
+  let assert Ok(Nil) = signal_bus.subscribe(bus, signal_bus.TestPassing, subscriber)
+  signal_bus.publish(bus, signal_bus.TestPassing)
+
+  case erl_process.selector_receive(selector, 100) {
+    Ok(_) -> Nil
+    Error(_) -> should.fail()
+  }
+
+  let assert Ok(Nil) = signal_bus.unsubscribe(bus, signal_bus.TestPassing, subscriber)
+  signal_bus.publish(bus, signal_bus.TestPassing)
+
+  case erl_process.selector_receive(selector, 100) {
+    Ok(_) -> should.fail()
+    Error(_) -> Nil
+  }
 }
