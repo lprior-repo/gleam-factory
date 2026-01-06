@@ -1986,3 +1986,11 @@ pub fn create_workspace_reflink_uses_cp_reflink_command_test() {
   }
 }
 
+// ============================================================================
+// SIGNAL BUS TESTS
+// ============================================================================
+
+/// Test signal_bus subscribe stores subscription correctly.
+pub fn signal_bus_subscribe_stores_subscription_test() {
+  should.fail()
+}
