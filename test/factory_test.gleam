@@ -3,6 +3,7 @@ import gleeunit/should
 import domain
 import persistence
 import validation
+import cli
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -207,6 +208,15 @@ pub fn validate_priority_rejects_invalid_p4_test() {
 pub fn validate_priority_rejects_empty_string_test() {
   validation.validate_priority("")
   |> should.be_error
+}
+
+// ============================================================================
+// CLI TESTS
+// ============================================================================
+
+pub fn parse_args_new_with_short_slug_flag_test() {
+  cli.parse_args(["new", "-s", "my_task"])
+  |> should.be_ok
 }
 
 // ============================================================================
