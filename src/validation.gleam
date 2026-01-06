@@ -1,5 +1,21 @@
 import gleam/string
 
+pub type Priority {
+  P1
+  P2
+  P3
+}
+
+pub fn validate_priority(p: String) -> Result(Priority, String) {
+  case string.lowercase(p) {
+    "p1" | "1" -> Ok(P1)
+    "p2" | "2" -> Ok(P2)
+    "p3" | "3" -> Ok(P3)
+    "" -> Error("Priority cannot be empty")
+    _ -> Error("Invalid priority")
+  }
+}
+
 pub fn validate_slug_format(slug: String) -> Result(String, String) {
   let slug_length = string.length(slug)
 
