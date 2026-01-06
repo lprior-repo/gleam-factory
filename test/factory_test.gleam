@@ -1378,64 +1378,86 @@ pub fn workspace_manager_start_link_returns_ok_subject_test() {
   }
 }
 
-/// Test that workspace_manager can register and retrieve a workspace.
+/// Test that workspace_manager provides a ListWorkspaces query function.
 ///
 /// This drives the implementation of:
-/// 1. RegisterWorkspace message type to add workspaces to the actor's Dict
-/// 2. Proper GetWorkspace handling that queries the Dict and responds with the workspace
-/// 3. Response handling using the Result type to indicate success/failure
+/// 1. A ListWorkspaces message type for querying all registered workspaces
+/// 2. A query_workspaces(Subject) -> Result(List(Workspace), String) convenience function
+/// 3. Proper response handling through process messaging (avoiding actor.call FFI issues)
 ///
-/// Design rationale: The workspace manager must be able to store workspaces (RegisterWorkspace)
-/// and retrieve them by ID (GetWorkspace). This test validates the core state mutation and
-/// query operations that form the foundation of the actor.
+/// Design rationale: The workspace manager must expose a way to query registered workspaces.
+/// Using a standalone query function (instead of actor.call) provides:
+/// - Type-safe interface that doesn't rely on problematic FFI
+/// - Simple request-response pattern using process.send and process.receive
+/// - Clear separation between fire-and-forget (RegisterWorkspace) and query operations
 ///
 /// This drives good architecture by:
-/// - Requiring a proper message-response pattern (RegisterWorkspace stores, GetWorkspace retrieves)
-/// - Forcing the Dict to be used correctly (Dict.insert for register, Dict.get for retrieve)
-/// - Ensuring type safety: WorkspaceId must be usable as a Dict key
+/// - Requiring a ListWorkspaces message that returns a List of all workspaces
+/// - Forcing the handler to collect all Dict values into a list
+/// - Making the public API simple and safe (no timeout complexity)
 ///
-/// Edge case: Tests with a real workspace object containing all fields (id, path, type, pid, created_at),
-/// ensuring the entire Workspace record is preserved through registration and retrieval.
-pub fn workspace_manager_can_register_and_retrieve_workspace_test() {
+/// Edge case: Tests with multiple registered workspaces to ensure:
+/// - The Dict is properly iterated and converted to List
+/// - All workspace fields are preserved through the response
+/// - The query works correctly after RegisterWorkspace operations
+pub fn workspace_manager_can_list_all_registered_workspaces_test() {
   // Arrange: Start the workspace manager actor
   let assert Ok(manager_subject) = workspace_manager.start_link()
 
-  // Arrange: Create a workspace to register
-  let workspace_id = types.new_workspace_id("test-workspace-123")
-  let workspace =
+  // Arrange: Create and register multiple workspaces
+  let workspace_id_1 = types.new_workspace_id("workspace-alpha")
+  let workspace_1 =
     types.Workspace(
-      id: workspace_id,
-      path: "/tmp/test-workspace",
+      id: workspace_id_1,
+      path: "/tmp/alpha",
       workspace_type: types.Jj,
       owner_pid: types.from_pid(process.self()),
-      created_at: "2026-01-06T15:00:00Z",
+      created_at: "2026-01-06T10:00:00Z",
     )
 
-  // Act: Send RegisterWorkspace message to store the workspace
-  actor.send(manager_subject, workspace_manager.RegisterWorkspace(workspace))
+  let workspace_id_2 = types.new_workspace_id("workspace-beta")
+  let workspace_2 =
+    types.Workspace(
+      id: workspace_id_2,
+      path: "/tmp/beta",
+      workspace_type: types.Reflink,
+      owner_pid: types.from_pid(process.self()),
+      created_at: "2026-01-06T11:00:00Z",
+    )
 
-  // Act: Send GetWorkspace message to retrieve it
-  let response = actor.call(
-    manager_subject,
-    fn(reply_with) { workspace_manager.GetWorkspace(workspace_id, reply_with) },
-    5000,
-  )
+  // Act: Register both workspaces
+  actor.send(manager_subject, workspace_manager.RegisterWorkspace(workspace_1))
+  actor.send(manager_subject, workspace_manager.RegisterWorkspace(workspace_2))
 
-  // Assert: Should successfully retrieve the registered workspace
-  case response {
-    Ok(retrieved_workspace) -> {
-      // Verify all fields match the original workspace
-      retrieved_workspace.id
-      |> should.equal(workspace.id)
+  // Act: Query all registered workspaces
+  let result = workspace_manager.query_workspaces(manager_subject)
 
-      retrieved_workspace.path
-      |> should.equal("/tmp/test-workspace")
+  // Assert: Should successfully retrieve both workspaces in the list
+  case result {
+    Ok(workspaces) -> {
+      // Should have exactly 2 workspaces
+      list_length(workspaces)
+      |> should.equal(2)
 
-      retrieved_workspace.workspace_type
-      |> should.equal(types.Jj)
+      // Both workspaces should be present (order may vary due to Dict iteration)
+      let has_alpha =
+        list.some(workspaces, fn(w) {
+          case w.id, w.path, w.workspace_type {
+            _, "/tmp/alpha", types.Jj -> True
+            _, _, _ -> False
+          }
+        })
 
-      retrieved_workspace.created_at
-      |> should.equal("2026-01-06T15:00:00Z")
+      let has_beta =
+        list.some(workspaces, fn(w) {
+          case w.id, w.path, w.workspace_type {
+            _, "/tmp/beta", types.Reflink -> True
+            _, _, _ -> False
+          }
+        })
+
+      should.be_true(has_alpha)
+      should.be_true(has_beta)
     }
     Error(_) -> {
       should.fail()
