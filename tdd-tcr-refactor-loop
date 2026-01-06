@@ -1063,10 +1063,10 @@ run_auditor() {
 
     prompt=$(auditor_prompt "$iteration" "$last_result")
 
-    log_info "Invoking auditor AI (new session, haiku-4.5)..."
+    log_info "Invoking auditor AI (new session, sonnet-4.5)..."
     AUDITOR_SESSION_ID=$(uuidgen)
     auditor_output=$(claude -p \
-        --model haiku \
+        --model sonnet \
         --session-id "$AUDITOR_SESSION_ID" \
         --allowedTools "Read Write Edit Glob Grep Bash(gleam:*) Skill" \
         --append-system-prompt "You are the AUDITOR. You may ONLY modify files in test/. Any attempt to modify src/ will fail. Focus on writing ONE failing test that drives good design. If all requirements are met, output REQUIREMENTS_COMPLETE. IMPORTANT: Use /gleam-code-generator skill for all Gleam code generation." \
@@ -1102,13 +1102,13 @@ run_implementer() {
     local ai_learnings
     ai_learnings=$(load_ai_learnings)
 
-    # Determine if we should escalate to Sonnet
+    # Determine if we should escalate to Opus
     local use_escalation=false
-    local model="haiku"
+    local model="sonnet"
     if [ $CONSECUTIVE_FAILURES -ge $ESCALATION_THRESHOLD ]; then
         use_escalation=true
-        model="sonnet"
-        log_warning "Escalating to Sonnet model after $CONSECUTIVE_FAILURES consecutive failures"
+        model="opus"
+        log_warning "Escalating to Opus model after $CONSECUTIVE_FAILURES consecutive failures"
     fi
 
     while [ $attempt -le $MAX_IMPL_ATTEMPTS ]; do
@@ -1226,10 +1226,10 @@ run_reviewer() {
 
     prompt=$(reviewer_prompt)
 
-    log_info "Invoking reviewer AI (new session, haiku-4.5)..."
+    log_info "Invoking reviewer AI (new session, sonnet-4.5)..."
     REVIEWER_SESSION_ID=$(uuidgen)
     REVIEWER_OUTPUT=$(claude -p \
-        --model haiku \
+        --model sonnet \
         --session-id "$REVIEWER_SESSION_ID" \
         --allowedTools "Read Write Edit Glob Grep Bash(gleam:*) Skill" \
         --append-system-prompt "You are the REVIEWER doing final review. You may modify both src/ and test/. All tests MUST pass. Focus on production readiness and polish. You MUST output ACCEPTANCE_CRITERIA_MET: true or ACCEPTANCE_CRITERIA_MET: false in your response. IMPORTANT: Use /gleam-code-generator skill for all Gleam code generation." \

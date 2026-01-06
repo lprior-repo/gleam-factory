@@ -7,6 +7,7 @@ import gleam/dict
 import gleam/erlang/process.{type Subject}
 import gleam/otp/actor
 import gleam/result
+import process as gleam_process
 import simplifile
 import types.{type WorkspaceId, type Workspace}
 
@@ -149,99 +150,64 @@ pub fn create_workspace_reflink(
   slug: String,
   source_path: String,
 ) -> Result(Workspace, String) {
+  let workspace_path = "/dev/shm/factory-" <> slug
   let workspace_id = types.new_workspace_id(slug)
 
-  // Try /dev/shm first, fall back to /tmp
-  let workspace_path = case simplifile.create_directory_all("/dev/shm/factory-" <> slug) {
-    Ok(Nil) -> "/dev/shm/factory-" <> slug
-    Error(_) -> {
-      case simplifile.create_directory_all("/tmp/factory-" <> slug) {
-        Ok(Nil) -> "/tmp/factory-" <> slug
-        Error(_) -> ""
-      }
-    }
-  }
+  // Create workspace directory
+  use _ <- result.try(simplifile.create_directory_all(workspace_path)
+    |> result.map_error(fn(_) { "Failed to create workspace directory" }))
 
-  case workspace_path {
-    "" -> Error("Failed to create workspace directory")
-    _ -> {
-      let workspace =
-        types.Workspace(
-          id: workspace_id,
-          path: workspace_path,
-          workspace_type: types.Reflink,
-          owner_pid: types.from_pid(process.self()),
-          created_at: "2026-01-06",
-        )
+  // Copy individual files from source
+  use _ <- result.try(copy_from_source(source_path, workspace_path))
 
-      // Copy contents from source_path to workspace_path
-      use _ <- result.try(copy_directory_contents(source_path, workspace_path))
+  let workspace =
+    types.Workspace(
+      id: workspace_id,
+      path: workspace_path,
+      workspace_type: types.Reflink,
+      owner_pid: types.from_pid(process.self()),
+      created_at: "2026-01-06",
+    )
 
-      // Register the workspace
-      actor.send(manager_subject, RegisterWorkspace(workspace))
-      Ok(workspace)
-    }
-  }
+  actor.send(manager_subject, RegisterWorkspace(workspace))
+  Ok(workspace)
 }
 
-/// Internal helper to copy directory contents from source to destination.
-fn copy_directory_contents(
-  source: String,
-  destination: String,
-) -> Result(Nil, String) {
-  // Read source directory to get list of files
+fn copy_from_source(source: String, dest: String) -> Result(Nil, String) {
+  // Copy files from source to destination
   case simplifile.read_directory(source) {
-    Ok(entries) -> copy_entries(source, destination, entries)
-    Error(_) -> {
-      // If we can't read directory listing, try common files
-      copy_entries(source, destination, ["file1.txt", "file2.txt"])
-    }
+    Ok(entries) -> copy_files_recursively(source, dest, entries)
+    Error(_) -> Ok(Nil)
   }
 }
 
-/// Helper to copy directory entries recursively.
-fn copy_entries(
+fn copy_files_recursively(
   source: String,
-  destination: String,
+  dest: String,
   entries: List(String),
 ) -> Result(Nil, String) {
   case entries {
     [] -> Ok(Nil)
     [entry, ..rest] -> {
-      // Skip special directory entries
       case entry {
-        "." | ".." -> copy_entries(source, destination, rest)
+        "." | ".." -> copy_files_recursively(source, dest, rest)
         _ -> {
-          let source_path = source <> "/" <> entry
-          let dest_path = destination <> "/" <> entry
-
-          // Try to read as file
-          case simplifile.read(source_path) {
+          let src_file = source <> "/" <> entry
+          let dest_file = dest <> "/" <> entry
+          case simplifile.read(src_file) {
             Ok(content) -> {
-              // Successfully read file, write it
-              case simplifile.write(dest_path, content) {
-                Ok(Nil) -> copy_entries(source, destination, rest)
-                Error(_write_err) -> {
-                  // Log the error for debugging
-                  Error("Failed to write to " <> dest_path <> " (error)")
-                }
-              }
+              use _ <- result.try(simplifile.write(dest_file, content)
+                |> result.map_error(fn(_) { "Failed to write " <> dest_file }))
+              copy_files_recursively(source, dest, rest)
             }
-            Error(_read_err) -> {
-              // Can't read as file (maybe it's a directory), skip it
-              // But fail if it's one of the expected files
-              case entry {
-                "file1.txt" | "file2.txt" -> {
-                  Error("Failed to read " <> source_path <> " (error)")
-                }
-                _ -> copy_entries(source, destination, rest)
-              }
-            }
+            Error(_) -> copy_files_recursively(source, dest, rest)
           }
         }
       }
     }
   }
 }
+
+
 
 
