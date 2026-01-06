@@ -4,6 +4,7 @@ import gleam/erlang/process.{type Pid}
 import gleam/int
 import gleam/json
 import gleam/list
+import gleam/option
 import gleam/string
 
 /// ProcessId wraps a process identifier to provide type-safe process references.
@@ -114,7 +115,7 @@ fn is_valid_hex(input: String) -> Bool {
 
 /// AcpClient represents an Agent Communication Protocol HTTP client.
 pub type AcpClient {
-  AcpClient(base_url: String)
+  AcpClient(base_url: String, capabilities: option.Option(List(String)))
 }
 
 /// AcpNotification represents an Agent Communication Protocol notification.
@@ -177,4 +178,19 @@ pub fn can_cancel(
     Ok(_) -> Ok(False)
     Error(_) -> Error("Session not found")
   }
+}
+
+/// Extracts agent capabilities from AcpClient if present.
+pub fn get_agent_capabilities(client: AcpClient) -> option.Option(List(String)) {
+  client.capabilities
+}
+
+/// Updates AcpClient with discovered capabilities.
+pub fn set_capabilities(client: AcpClient, caps: List(String)) -> AcpClient {
+  AcpClient(..client, capabilities: option.Some(caps))
+}
+
+/// Extracts base_url from AcpClient.
+pub fn get_base_url(client: AcpClient) -> String {
+  client.base_url
 }

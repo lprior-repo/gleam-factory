@@ -189,7 +189,7 @@ pub fn run_command_safe(
 
 /// Send ACP cancel notification for session via HTTP transport
 pub fn acp_send_cancel(client: types.AcpClient, session_id: String) -> Result(Nil, String) {
-  let types.AcpClient(base_url) = client
+  let base_url = types.get_base_url(client)
   use json_body <- result.try(
     types.encode_acp_notification(types.AcpNotification(session_id:, method: "session/cancel"))
     |> result.map_error(fn(_) { "Failed to encode notification" })
@@ -221,4 +221,17 @@ fn map_simplifile_error(result: Result(String, simplifile.FileError)) -> Result(
     Ok(content) -> Ok(content)
     Error(_) -> Error("File read failed")
   }
+}
+
+/// Initialize ACP connection and retrieve agent capabilities
+pub fn acp_initialize(client: types.AcpClient, version: String) -> Result(types.AcpClient, String) {
+  let base_url = types.get_base_url(client)
+  run_command("curl", ["-X", "POST", "-d", "{\"version\":\"" <> version <> "\"}", base_url], "")
+  |> result.try(fn(r) {
+    case r {
+      Success(_, _, 0) -> Ok(types.set_capabilities(client, []))
+      Success(_, _, code) -> Error("http request failed with exit code " <> string.inspect(code))
+      Failure(err, _) -> Error(err)
+    }
+  })
 }
