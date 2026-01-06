@@ -4,6 +4,9 @@ import domain
 import persistence
 import audit
 import validation
+import errors
+import gleam/option.{None, Some}
+import gleam/string
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -281,6 +284,246 @@ pub fn get_stage_history_filters_stage_events_test() {
 pub fn validate_email_valid_with_at_symbol_test() {
   validation.validate_email("user@example.com")
   |> should.equal(Ok("user@example.com"))
+}
+
+pub fn validate_email_format_valid_email_test() {
+  // Test that validate_email_format exists and accepts a valid email
+  // A valid email: has exactly one @, text before and after @, and a dot after @
+  validation.validate_email_format("user@example.com")
+  |> should.equal(Ok("user@example.com"))
+}
+
+pub fn validate_email_format_rejects_no_at_symbol_test() {
+  // Email without @ symbol should be rejected
+  validation.validate_email_format("userexample.com")
+  |> should.be_error
+}
+
+pub fn validate_email_format_rejects_multiple_at_symbols_test() {
+  // Email with multiple @ symbols should be rejected
+  validation.validate_email_format("user@name@example.com")
+  |> should.be_error
+}
+
+pub fn validate_email_format_rejects_empty_local_part_test() {
+  // Email with no text before @ should be rejected
+  validation.validate_email_format("@example.com")
+  |> should.be_error
+}
+
+pub fn validate_email_format_rejects_empty_domain_part_test() {
+  // Email with no text after @ should be rejected
+  validation.validate_email_format("user@")
+  |> should.be_error
+}
+
+pub fn validate_email_format_rejects_domain_without_dot_test() {
+  // Email with no dot in domain part should be rejected
+  validation.validate_email_format("user@localhost")
+  |> should.be_error
+}
+
+// ============================================================================
+// ERRORS MODULE TESTS
+// ============================================================================
+
+pub fn extract_root_cause_finds_error_prefix_pattern_test() {
+  // Given output containing an "Error:" pattern
+  let output = "Starting build...
+Compiling module...
+Error: undefined variable 'foo'
+  at line 42
+  in module.gleam
+Done."
+
+  // When we extract the root cause
+  let result = errors.extract_root_cause(output)
+
+  // Then we should get Some with the error line and context
+  case result {
+    Some(cause) -> {
+      // Should contain the error line
+      should.be_true(contains_substring(cause, "Error: undefined variable 'foo'"))
+    }
+    None -> should.fail()
+  }
+}
+
+pub fn extract_root_cause_finds_lowercase_error_pattern_test() {
+  // Given output containing a lowercase "error:" pattern (common in many tools)
+  let output = "Running tests...
+test_main.go:15: error: assertion failed
+expected 42, got 0
+Build failed."
+
+  // When we extract the root cause
+  let result = errors.extract_root_cause(output)
+
+  // Then we should find the lowercase error pattern
+  case result {
+    Some(cause) -> {
+      should.be_true(contains_substring(cause, "error: assertion failed"))
+    }
+    None -> should.fail()
+  }
+}
+
+pub fn extract_root_cause_finds_panic_pattern_test() {
+  // Given output containing a "panic:" pattern (common in Go, Rust runtime errors)
+  let output = "Starting application...
+Initializing database...
+panic: runtime error: index out of range [5] with length 3
+goroutine 1 [running]:
+main.processItems()
+	/app/main.go:42 +0x123"
+
+  // When we extract the root cause
+  let result = errors.extract_root_cause(output)
+
+  // Then we should find the panic pattern
+  case result {
+    Some(cause) -> {
+      should.be_true(contains_substring(cause, "panic: runtime error"))
+    }
+    None -> should.fail()
+  }
+}
+
+pub fn extract_root_cause_includes_context_lines_test() {
+  // Given output with an error followed by context lines
+  let output = "Starting build...
+Error: cannot find module 'foo'
+  at /src/main.gleam:15
+  imported from /src/app.gleam:3
+  dependency tree: main -> app -> foo
+More unrelated output here..."
+
+  // When we extract the root cause
+  let result = errors.extract_root_cause(output)
+
+  // Then we should get the error line PLUS up to 3 lines of context
+  case result {
+    Some(cause) -> {
+      // Should contain the error line
+      should.be_true(contains_substring(cause, "Error: cannot find module"))
+      // Should contain at least some context (first context line)
+      should.be_true(contains_substring(cause, "at /src/main.gleam:15"))
+      // Should contain second context line
+      should.be_true(contains_substring(cause, "imported from"))
+      // Should contain third context line
+      should.be_true(contains_substring(cause, "dependency tree"))
+    }
+    None -> should.fail()
+  }
+}
+
+pub fn summarize_error_truncates_to_max_lines_test() {
+  // Given output with multiple lines of error information
+  let output = "Running tests...
+Error: test failed
+  expected: 42
+  actual: 0
+  at test_math.gleam:15
+  in function: test_addition
+  stack trace follows
+Build complete with errors."
+
+  // When we summarize with max 3 lines
+  let result = errors.summarize_error(output, 3)
+
+  // Then the result should have at most 3 lines
+  let line_count = count_lines(result)
+  should.be_true(line_count <= 3)
+
+  // And it should still contain relevant error info
+  should.be_true(contains_substring(result, "Error"))
+}
+
+fn count_lines(text: String) -> Int {
+  text
+  |> string.split("\n")
+  |> list_length
+}
+
+pub fn classify_error_detects_compile_error_test() {
+  // Given output from a compiler with typical compilation error patterns
+  let output = "Compiling project...
+error: Syntax error on line 42
+  --> src/main.gleam:42:5
+  |
+42 |     let x =
+  |             ^ expected expression
+"
+
+  // When we classify the error
+  let result = errors.classify_error(output)
+
+  // Then it should be classified as a CompileError
+  result
+  |> should.equal(errors.CompileError)
+}
+
+pub fn classify_error_detects_test_failure_test() {
+  // Given output from a test runner showing test failures (typical patterns: FAILED, failed)
+  let output = "Running test suite...
+test_math_test.gleam: FAILED
+  assertion failed: expected 42, got 0
+1 test FAILED, 5 passed"
+
+  // When we classify the error
+  let result = errors.classify_error(output)
+
+  // Then it should be classified as TestFailure (not CompileError)
+  result
+  |> should.equal(errors.TestFailure)
+}
+
+pub fn classify_error_detects_runtime_panic_test() {
+  // Given output containing a panic pattern (Go, Rust, or other runtime panics)
+  let output = "Starting application...
+panic: runtime error: index out of range [5] with length 3
+goroutine 1 [running]:
+main.processItems()"
+
+  // When we classify the error
+  let result = errors.classify_error(output)
+
+  // Then it should be classified as RuntimePanic (distinct from CompileError or TestFailure)
+  result
+  |> should.equal(errors.RuntimePanic)
+}
+
+pub fn classify_error_detects_timeout_test() {
+  // Given output containing a timeout pattern (common in test runners and CI systems)
+  let output = "Running tests...
+test_long_operation_test: Timeout after 30s
+  Operation did not complete in time
+Build terminated."
+
+  // When we classify the error
+  let result = errors.classify_error(output)
+
+  // Then it should be classified as Timeout
+  // Requirements specify ErrorType should include: CompileError, TestFailure, RuntimePanic, Timeout, Unknown
+  result
+  |> should.equal(errors.Timeout)
+}
+
+pub fn classify_error_returns_unknown_for_unrecognized_output_test() {
+  // Given output that doesn't match any known error pattern
+  // (no "Error:", "error:", "panic:", "FAILED", "failed", or timeout patterns)
+  let output = "Build completed successfully.
+All operations finished.
+No issues detected.
+Exiting with status 0."
+
+  // When we classify the error
+  let result = errors.classify_error(output)
+
+  // Then it should be classified as Unknown (per requirements)
+  // Requirements state: ErrorType should be: CompileError, TestFailure, RuntimePanic, Timeout, Unknown
+  result
+  |> should.equal(errors.Unknown)
 }
 
 // ============================================================================
