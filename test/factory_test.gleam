@@ -1015,3 +1015,159 @@ pub fn bead_assigned_signal_has_required_fields_test() {
     }
   }
 }
+
+pub fn patch_proposed_signal_has_required_fields_test() {
+  // Arrange: Create a PatchProposed signal with all required fields
+  let signal = signals.PatchProposed(
+    diff: "--- a/src/main.gleam\n+++ b/src/main.gleam\n@@ -1,3 +1,3 @@",
+    author_pid: "pid-12345",
+    workspace: "/home/dev/workspace",
+    hash: "commit-abc123",
+  )
+
+  // Assert: Pattern match to verify all fields are present and accessible
+  case signal {
+    signals.PatchProposed(diff, author_pid, workspace, hash) -> {
+      diff |> should.equal("--- a/src/main.gleam\n+++ b/src/main.gleam\n@@ -1,3 +1,3 @@")
+      author_pid |> should.equal("pid-12345")
+      workspace |> should.equal("/home/dev/workspace")
+      hash |> should.equal("commit-abc123")
+    }
+  }
+}
+
+pub fn patch_accepted_signal_has_required_fields_test() {
+  // Arrange: Create a PatchAccepted signal with all required fields
+  let signal = signals.PatchAccepted(
+    hash: "commit-def456",
+    merged_at: "2026-01-06T14:00:00Z",
+  )
+
+  // Assert: Pattern match to verify all fields are present and accessible
+  case signal {
+    signals.PatchAccepted(hash, merged_at) -> {
+      hash |> should.equal("commit-def456")
+      merged_at |> should.equal("2026-01-06T14:00:00Z")
+    }
+  }
+}
+
+pub fn patch_rejected_signal_has_required_fields_test() {
+  // Arrange: Create a PatchRejected signal with all required fields
+  let signal = signals.PatchRejected(
+    reason: "Code review failed: missing error handling",
+  )
+
+  // Assert: Pattern match to verify the field is present and accessible
+  case signal {
+    signals.PatchRejected(reason) -> {
+      reason |> should.equal("Code review failed: missing error handling")
+    }
+  }
+}
+
+pub fn golden_master_updated_signal_has_required_fields_test() {
+  // Arrange: Create a GoldenMasterUpdated signal with all required fields
+  let signal = signals.GoldenMasterUpdated(
+    old_hash: "golden-old-hash123",
+    new_hash: "golden-new-hash456",
+  )
+
+  // Assert: Pattern match to verify all fields are present and accessible
+  case signal {
+    signals.GoldenMasterUpdated(old_hash, new_hash) -> {
+      old_hash |> should.equal("golden-old-hash123")
+      new_hash |> should.equal("golden-new-hash456")
+    }
+  }
+}
+
+pub fn evolution_signal_has_required_fields_test() {
+  // Arrange: Create an Evolution signal with all required fields
+  let signal = signals.Evolution(
+    new_hash: "evolved-hash789",
+    cause: "Test failure triggered evolution",
+  )
+
+  // Assert: Pattern match to verify all fields are present and accessible
+  case signal {
+    signals.Evolution(new_hash, cause) -> {
+      new_hash |> should.equal("evolved-hash789")
+      cause |> should.equal("Test failure triggered evolution")
+    }
+  }
+}
+
+pub fn loop_spawned_signal_has_required_fields_test() {
+  // Arrange: Create a LoopSpawned signal with all required fields
+  let signal = signals.LoopSpawned(
+    loop_id: "loop-spawn-001",
+    task_id: "task-001",
+    phase: "tdd-setup",
+  )
+
+  // Assert: Pattern match to verify all fields are present and accessible
+  case signal {
+    signals.LoopSpawned(loop_id, task_id, phase) -> {
+      loop_id |> should.equal("loop-spawn-001")
+      task_id |> should.equal("task-001")
+      phase |> should.equal("tdd-setup")
+    }
+  }
+}
+
+pub fn loop_complete_signal_has_required_fields_test() {
+  // Arrange: Create a LoopComplete signal with all required fields
+  let signal = signals.LoopComplete(
+    loop_id: "loop-complete-001",
+    task_id: "task-001",
+    commits: 5,
+    reverts: 2,
+    duration_ms: 45000,
+  )
+
+  // Assert: Pattern match to verify all fields are present and accessible
+  case signal {
+    signals.LoopComplete(loop_id, task_id, commits, reverts, duration_ms) -> {
+      loop_id |> should.equal("loop-complete-001")
+      task_id |> should.equal("task-001")
+      commits |> should.equal(5)
+      reverts |> should.equal(2)
+      duration_ms |> should.equal(45000)
+    }
+  }
+}
+
+pub fn loop_failed_signal_has_required_fields_test() {
+  // Arrange: Create a LoopFailed signal with all required fields
+  let signal = signals.LoopFailed(
+    loop_id: "loop-fail-001",
+    reason: "Maximum retries exceeded",
+  )
+
+  // Assert: Pattern match to verify all fields are present and accessible
+  case signal {
+    signals.LoopFailed(loop_id, reason) -> {
+      loop_id |> should.equal("loop-fail-001")
+      reason |> should.equal("Maximum retries exceeded")
+    }
+  }
+}
+
+pub fn resource_exhausted_signal_has_required_fields_test() {
+  // Arrange: Create a ResourceExhausted signal with all required fields
+  let signal = signals.ResourceExhausted(
+    resource: "disk_space",
+    current: 99,
+    limit: 100,
+  )
+
+  // Assert: Pattern match to verify all fields are present and accessible
+  case signal {
+    signals.ResourceExhausted(resource, current, limit) -> {
+      resource |> should.equal("disk_space")
+      current |> should.equal(99)
+      limit |> should.equal(100)
+    }
+  }
+}
