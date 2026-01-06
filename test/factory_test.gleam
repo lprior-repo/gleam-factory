@@ -1999,3 +1999,30 @@ pub fn workspace_strategy_auto_resolves_to_reflink_when_dev_shm_exists_test() {
     types.Jj -> Nil
   }
 }
+
+// ============================================================================
+// WORKSPACE JJ TESTS
+// ============================================================================
+
+/// Test create_workspace_jj creates isolated jj workspace with bookmark.
+pub fn create_workspace_jj_creates_isolated_jj_workspace_test() {
+  let slug = "jj-workspace-test"
+  let temp_source = "/tmp/factory-test-jj-src-" <> slug
+
+  case simplifile.create_directory(temp_source) {
+    Ok(Nil) -> Nil
+    Error(_) -> should.fail()
+  }
+
+  let assert Ok(manager_subject) = workspace_manager.start_link()
+
+  case workspace_manager.create_workspace_jj(manager_subject, slug, temp_source) {
+    Ok(workspace) -> {
+      workspace.workspace_type |> should.equal(types.Jj)
+
+      let _ = process.run_command("rm", ["-rf", temp_source], "/tmp")
+      Nil
+    }
+    Error(_) -> should.fail()
+  }
+}
