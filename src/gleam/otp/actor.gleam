@@ -71,14 +71,14 @@ pub fn call(
   callback: fn(Subject(reply)) -> msg,
   timeout: Int,
 ) -> reply {
-  call_erlang(subject, timeout, callback)
+  call_erlang(subject, callback, timeout)
 }
 
 @external(erlang, "gleam@erlang@process", "call")
 fn call_erlang(
-  subject: Subject(msg),
-  timeout: Int,
-  callback: fn(Subject(reply)) -> msg,
+  _subject: Subject(msg),
+  _callback: fn(Subject(reply)) -> msg,
+  _timeout: Int,
 ) -> reply {
   panic as "This is an external function - not implemented in Gleam"
 }
