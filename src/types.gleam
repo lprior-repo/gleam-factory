@@ -2,6 +2,7 @@
 
 import gleam/erlang/process.{type Pid}
 import gleam/int
+import gleam/json
 import gleam/list
 import gleam/string
 
@@ -119,6 +120,23 @@ pub type AcpClient {
 /// AcpNotification represents an Agent Communication Protocol notification.
 pub type AcpNotification {
   AcpNotification(session_id: String, method: String)
+}
+
+/// Encodes AcpNotification to JSON string.
+pub fn encode_acp_notification(
+  notification: AcpNotification,
+) -> Result(String, Nil) {
+  let AcpNotification(session_id, method) = notification
+  json.object([
+    #("jsonrpc", json.string("2.0")),
+    #("method", json.string(method)),
+    #(
+      "params",
+      json.object([#("meta", json.object([#("sessionId", json.string(session_id))]))]),
+    ),
+  ])
+  |> json.to_string
+  |> Ok
 }
 
 /// SessionStatus represents the state of an ACP session.
