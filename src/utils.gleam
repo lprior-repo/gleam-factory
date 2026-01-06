@@ -176,3 +176,17 @@ pub fn print_error_context(
     io.println("  " <> key <> ": " <> value)
   })
 }
+
+/// Truncate a string to a maximum length with ellipsis
+pub fn truncate_string(s: String, max_len: Int) -> String {
+  let len = string.length(s)
+  case len <= max_len {
+    True -> s
+    False ->
+      case max_len {
+        0 -> ""
+        1 -> string.slice(s, 0, 1)
+        _ -> string.slice(s, 0, max_len - 3) <> "..."
+      }
+  }
+}
