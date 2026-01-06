@@ -14,16 +14,148 @@
 # - Must maintain all passing tests
 # - Focuses on: DRY, patterns, idioms, architecture
 #
-# Usage: ./tdd-tcr-refactor-loop "Feature description or requirements"
+# Usage:
+#   ./tdd-tcr-refactor-loop "Feature description or requirements"
+#   ./tdd-tcr-refactor-loop --bead <bead-id>      # Use bead issue as requirements
+#   ./tdd-tcr-refactor-loop -b <bead-id>          # Short form
+#   ./tdd-tcr-refactor-loop --all                 # Process ALL open beads (sorted by priority)
+#   ./tdd-tcr-refactor-loop -a                    # Short form for --all
 #
 
 set -eo pipefail
+
+#---------------------------------------------------------------------------
+# Bead Issue Integration
+#---------------------------------------------------------------------------
+BEADS_DIR=".beads"
+CURRENT_BEAD_ID=""
+BEAD_MODE=false
+ALL_BEADS_MODE=false
+BEAD_JSON=""
+BEAD_TITLE=""
+
+# Track results across all beads
+declare -a COMPLETED_BEADS=()
+declare -a FAILED_BEADS=()
+declare -a SKIPPED_BEADS=()
+
+# Find bead by ID in .beads/*.jsonl files
+find_bead() {
+    local bead_id="$1"
+    local bead_json=""
+
+    for jsonl_file in "$BEADS_DIR"/*.jsonl; do
+        [ -f "$jsonl_file" ] || continue
+        bead_json=$(grep -h "\"id\":\"$bead_id\"" "$jsonl_file" 2>/dev/null | head -1)
+        if [ -n "$bead_json" ]; then
+            echo "$bead_json"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Get all open beads sorted by priority (P0 first, then P1, P2, etc.)
+get_all_open_beads() {
+    local all_beads=""
+
+    for jsonl_file in "$BEADS_DIR"/*.jsonl; do
+        [ -f "$jsonl_file" ] || continue
+        # Get all lines with status "open", extract id and priority for sorting
+        while IFS= read -r line; do
+            if echo "$line" | jq -e 'select(.status == "open")' >/dev/null 2>&1; then
+                local id=$(echo "$line" | jq -r '.id')
+                local priority=$(echo "$line" | jq -r '.priority // 99')
+                echo "$priority $id"
+            fi
+        done < "$jsonl_file"
+    done | sort -n | cut -d' ' -f2
+}
+
+# Count open beads
+count_open_beads() {
+    get_all_open_beads | wc -l
+}
+
+# Extract field from bead JSON
+bead_field() {
+    local json="$1"
+    local field="$2"
+    echo "$json" | jq -r ".$field // empty" 2>/dev/null
+}
+
+# Update bead status in the jsonl file
+update_bead_status() {
+    local bead_id="$1"
+    local new_status="$2"
+    local close_reason="${3:-}"
+
+    for jsonl_file in "$BEADS_DIR"/*.jsonl; do
+        [ -f "$jsonl_file" ] || continue
+        if grep -q "\"id\":\"$bead_id\"" "$jsonl_file" 2>/dev/null; then
+            local tmp_file=$(mktemp)
+            local now=$(date -Iseconds)
+
+            while IFS= read -r line; do
+                if echo "$line" | grep -q "\"id\":\"$bead_id\""; then
+                    # Update status
+                    line=$(echo "$line" | jq -c ".status = \"$new_status\" | .updated_at = \"$now\"")
+                    # Add close fields if closing
+                    if [ "$new_status" = "closed" ] && [ -n "$close_reason" ]; then
+                        line=$(echo "$line" | jq -c ".closed_at = \"$now\" | .close_reason = \"$close_reason\"")
+                    fi
+                fi
+                echo "$line"
+            done < "$jsonl_file" > "$tmp_file"
+
+            mv "$tmp_file" "$jsonl_file"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Build requirements string from bead fields
+build_requirements_from_bead() {
+    local bead_json="$1"
+    local title=$(bead_field "$bead_json" "title")
+    local description=$(bead_field "$bead_json" "description")
+    local acceptance=$(bead_field "$bead_json" "acceptance_criteria")
+
+    cat <<EOF
+## $title
+
+$description
+
+### Acceptance Criteria
+$acceptance
+EOF
+}
+
+# Parse --bead/-b argument
+parse_bead_args() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --bead|-b)
+                BEAD_MODE=true
+                CURRENT_BEAD_ID="$2"
+                shift 2
+                ;;
+            *)
+                # Not a bead arg, return remaining args
+                echo "$@"
+                return
+                ;;
+        esac
+    done
+}
 
 # Dependency checks
 check_dependencies() {
     local missing=()
     command -v claude >/dev/null 2>&1 || missing+=("claude")
     command -v uuidgen >/dev/null 2>&1 || missing+=("uuidgen")
+    command -v jq >/dev/null 2>&1 || missing+=("jq")
     git rev-parse --git-dir >/dev/null 2>&1 || missing+=("git (not in a repository)")
 
     if [ ${#missing[@]} -gt 0 ]; then
@@ -78,8 +210,75 @@ MAX_IMPL_ATTEMPTS=3
 MAX_ITERATIONS=15
 REFACTOR_INTERVAL=3  # Run architect every N successful implementations
 
-# Handle requirements from file or argument
-if [ -f "$1" ]; then
+# Handle requirements from bead, file, or argument
+REQUIREMENTS=""
+REQUIREMENTS_SOURCE=""
+
+# Setup a single bead for processing
+setup_bead() {
+    local bead_id="$1"
+    CURRENT_BEAD_ID="$bead_id"
+    BEAD_MODE=true
+
+    BEAD_JSON=$(find_bead "$CURRENT_BEAD_ID")
+    if [ -z "$BEAD_JSON" ]; then
+        echo "Error: Bead '$CURRENT_BEAD_ID' not found in $BEADS_DIR/"
+        return 1
+    fi
+
+    BEAD_STATUS=$(bead_field "$BEAD_JSON" "status")
+    if [ "$BEAD_STATUS" != "open" ]; then
+        echo "Skipping bead '$CURRENT_BEAD_ID' - status is '$BEAD_STATUS' (not 'open')"
+        return 2
+    fi
+
+    REQUIREMENTS=$(build_requirements_from_bead "$BEAD_JSON")
+    REQUIREMENTS_SOURCE="bead: $CURRENT_BEAD_ID"
+    BEAD_TITLE=$(bead_field "$BEAD_JSON" "title")
+
+    # Reset statistics for this bead
+    TCR_COMMITS=0
+    TCR_REVERTS=0
+    REFACTOR_COUNT=0
+    SUCCESSFUL_IMPLS=0
+
+    return 0
+}
+
+# Check for --all mode first
+if [ "$1" = "--all" ] || [ "$1" = "-a" ]; then
+    ALL_BEADS_MODE=true
+    BEAD_MODE=true
+# Check for single bead mode
+elif [ "$1" = "--bead" ] || [ "$1" = "-b" ]; then
+    BEAD_MODE=true
+    CURRENT_BEAD_ID="$2"
+
+    if [ -z "$CURRENT_BEAD_ID" ]; then
+        echo "Error: --bead requires a bead ID"
+        exit 1
+    fi
+
+    BEAD_JSON=$(find_bead "$CURRENT_BEAD_ID")
+    if [ -z "$BEAD_JSON" ]; then
+        echo "Error: Bead '$CURRENT_BEAD_ID' not found in $BEADS_DIR/"
+        exit 1
+    fi
+
+    BEAD_STATUS=$(bead_field "$BEAD_JSON" "status")
+    if [ "$BEAD_STATUS" != "open" ]; then
+        echo "Warning: Bead '$CURRENT_BEAD_ID' has status '$BEAD_STATUS' (not 'open')"
+        read -p "Continue anyway? [y/N] " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            exit 1
+        fi
+    fi
+
+    REQUIREMENTS=$(build_requirements_from_bead "$BEAD_JSON")
+    REQUIREMENTS_SOURCE="bead: $CURRENT_BEAD_ID"
+    BEAD_TITLE=$(bead_field "$BEAD_JSON" "title")
+elif [ -f "$1" ]; then
     REQUIREMENTS=$(cat "$1")
     REQUIREMENTS_SOURCE="file: $1"
 else
@@ -645,6 +844,31 @@ EOF
 }
 
 reviewer_prompt() {
+    local bead_context=""
+    if [ "$BEAD_MODE" = true ]; then
+        local acceptance=$(bead_field "$BEAD_JSON" "acceptance_criteria")
+        bead_context=$(cat <<BEADEOF
+
+═══════════════════════════════════════════════════════════════════════════════
+                    BEAD ACCEPTANCE CRITERIA (MUST VERIFY)
+═══════════════════════════════════════════════════════════════════════════════
+
+Bead ID: $CURRENT_BEAD_ID
+Title: $BEAD_TITLE
+
+ACCEPTANCE CRITERIA:
+$acceptance
+
+YOU MUST EXPLICITLY VERIFY EACH ACCEPTANCE CRITERION AND OUTPUT:
+- ACCEPTANCE_CRITERIA_MET: true/false
+- For each criterion, explain HOW it was verified (test name, code location, etc.)
+- If ANY criterion is NOT met, set ACCEPTANCE_CRITERIA_MET: false
+
+═══════════════════════════════════════════════════════════════════════════════
+BEADEOF
+)
+    fi
+
     cat <<EOF
 You are the REVIEWER. The TDD-TCR-REFACTOR loop has completed.
 
@@ -653,6 +877,7 @@ TEST COMMAND: $TEST_CMD
 
 ORIGINAL REQUIREMENTS:
 $REQUIREMENTS
+$bead_context
 
 FINAL STATISTICS:
 - Total iterations: completed
@@ -677,10 +902,20 @@ CONSTRAINTS:
 - This is the FINAL review - be thorough
 - Focus on production readiness
 
-OUTPUT:
+OUTPUT FORMAT (REQUIRED):
 1. Summary of what was built
 2. Any final changes made
-3. Any remaining concerns or TODOs
+3. ACCEPTANCE_CRITERIA_MET: true OR ACCEPTANCE_CRITERIA_MET: false
+4. Verification details for each acceptance criterion
+5. Any remaining concerns or TODOs
+
+LEARNINGS (for future AI sessions):
+After your review, output a section called "## AI LEARNINGS" that captures:
+- What worked well in this implementation
+- What patterns should be reused
+- What pitfalls to avoid
+- Specific Gleam/language idioms discovered
+This will be saved to help future AI sessions on this codebase.
 EOF
 }
 
@@ -702,9 +937,10 @@ run_auditor() {
 
     prompt=$(auditor_prompt "$iteration" "$last_result")
 
-    log_info "Invoking auditor AI (new session)..."
+    log_info "Invoking auditor AI (new session, haiku-4.5)..."
     AUDITOR_SESSION_ID=$(uuidgen)
     auditor_output=$(claude -p \
+        --model claude-haiku-4-5-20250514 \
         --session-id "$AUDITOR_SESSION_ID" \
         --allowedTools "Read Write Edit Glob Grep Bash(gleam:*)" \
         --append-system-prompt "You are the AUDITOR. You may ONLY modify files in test/. Any attempt to modify src/ will fail. Focus on writing ONE failing test that drives good design. If all requirements are met, output REQUIREMENTS_COMPLETE." \
@@ -747,9 +983,10 @@ run_implementer() {
         # Pass auditor's reasoning to implementer
         prompt=$(implementer_prompt "$test_output" "$attempt" "$LAST_AUDITOR_REASONING")
 
-        log_info "Invoking implementer AI (new session)..."
+        log_info "Invoking implementer AI (new session, haiku-4.5)..."
         IMPLEMENTER_SESSION_ID=$(uuidgen)
         impl_output=$(claude -p \
+            --model claude-haiku-4-5-20250514 \
             --session-id "$IMPLEMENTER_SESSION_ID" \
             --allowedTools "Read Write Edit Glob Grep Bash(gleam:*)" \
             --append-system-prompt "You are the IMPLEMENTER under TCR discipline. You may ONLY modify files in src/. If tests fail, your changes will be REVERTED. Write MINIMUM code to pass the test." \
@@ -801,9 +1038,10 @@ run_architect() {
 
     prompt=$(architect_prompt "$iteration" "$session_history")
 
-    log_info "Invoking architect AI (new session)..."
+    log_info "Invoking architect AI (new session, haiku-4.5)..."
     ARCHITECT_SESSION_ID=$(uuidgen)
     architect_output=$(claude -p \
+        --model claude-haiku-4-5-20250514 \
         --session-id "$ARCHITECT_SESSION_ID" \
         --allowedTools "Read Write Edit Glob Grep Bash(gleam:*)" \
         --append-system-prompt "You are the ARCHITECT. You may modify both src/ and test/. Your job is to REFACTOR the code for quality and maintainability. ALL TESTS MUST STILL PASS. Focus on CUPID, code minimization, and idiomatic patterns. Every line must earn its place." \
@@ -831,6 +1069,9 @@ run_architect() {
     lock_all
 }
 
+REVIEWER_VERDICT=""
+REVIEWER_OUTPUT=""
+
 run_reviewer() {
     log_reviewer "Final Production Polish"
     draw_dashboard "FINAL"
@@ -839,13 +1080,51 @@ run_reviewer() {
 
     prompt=$(reviewer_prompt)
 
-    log_info "Invoking reviewer AI (new session)..."
+    log_info "Invoking reviewer AI (new session, haiku-4.5)..."
     REVIEWER_SESSION_ID=$(uuidgen)
-    claude -p \
+    REVIEWER_OUTPUT=$(claude -p \
+        --model claude-haiku-4-5-20250514 \
         --session-id "$REVIEWER_SESSION_ID" \
         --allowedTools "Read Write Edit Glob Grep Bash(gleam:*)" \
-        --append-system-prompt "You are the REVIEWER doing final review. You may modify both src/ and test/. All tests MUST pass. Focus on production readiness and polish." \
-        "$prompt" 2>&1
+        --append-system-prompt "You are the REVIEWER doing final review. You may modify both src/ and test/. All tests MUST pass. Focus on production readiness and polish. You MUST output ACCEPTANCE_CRITERIA_MET: true or ACCEPTANCE_CRITERIA_MET: false in your response." \
+        "$prompt" 2>&1)
+
+    echo "$REVIEWER_OUTPUT"
+
+    # Extract acceptance criteria verdict
+    if echo "$REVIEWER_OUTPUT" | grep -q "ACCEPTANCE_CRITERIA_MET: true"; then
+        REVIEWER_VERDICT="passed"
+        log_success "Reviewer confirms: ACCEPTANCE CRITERIA MET"
+    elif echo "$REVIEWER_OUTPUT" | grep -q "ACCEPTANCE_CRITERIA_MET: false"; then
+        REVIEWER_VERDICT="failed"
+        log_error "Reviewer reports: ACCEPTANCE CRITERIA NOT MET"
+    else
+        REVIEWER_VERDICT="unknown"
+        log_warning "Reviewer did not clearly state acceptance criteria verdict"
+    fi
+
+    # Save AI learnings if present
+    if echo "$REVIEWER_OUTPUT" | grep -q "## AI LEARNINGS"; then
+        log_info "Saving AI learnings to .ai-learnings.md..."
+        local learnings_file=".ai-learnings.md"
+        local timestamp=$(date -Iseconds)
+        local bead_info=""
+        if [ "$BEAD_MODE" = true ]; then
+            bead_info="Bead: $CURRENT_BEAD_ID ($BEAD_TITLE)"
+        fi
+
+        {
+            echo ""
+            echo "---"
+            echo ""
+            echo "## Session: $timestamp"
+            [ -n "$bead_info" ] && echo "$bead_info"
+            echo "Stats: $TCR_COMMITS commits, $TCR_REVERTS reverts, $REFACTOR_COUNT refactors"
+            echo ""
+            echo "$REVIEWER_OUTPUT" | sed -n '/## AI LEARNINGS/,/^## /p' | head -n -1
+        } >> "$learnings_file"
+        log_success "AI learnings saved to $learnings_file"
+    fi
 
     log_info "Verifying tests still pass after review..."
     if run_tests; then
@@ -865,22 +1144,118 @@ run_reviewer() {
 # Main Loop
 #---------------------------------------------------------------------------
 
-main() {
-    check_dependencies
+# Show usage help
+show_usage() {
+    echo "Usage: ./tdd-tcr-refactor-loop \"Feature requirements\""
+    echo "       ./tdd-tcr-refactor-loop --bead <bead-id>"
+    echo "       ./tdd-tcr-refactor-loop -b <bead-id>"
+    echo "       ./tdd-tcr-refactor-loop --all"
+    echo "       ./tdd-tcr-refactor-loop -a"
+    echo ""
+    echo "Examples:"
+    echo "  ./tdd-tcr-refactor-loop \"Add a function to validate email addresses\""
+    echo "  ./tdd-tcr-refactor-loop --bead factory-gleam-00s"
+    echo "  ./tdd-tcr-refactor-loop --all    # Process ALL open beads by priority"
+    echo ""
+    echo "This script enforces full Red-Green-Refactor TDD:"
+    echo "  - RED:     Auditor writes failing test"
+    echo "  - GREEN:   Implementer makes it pass (TCR enforced)"
+    echo "  - REFACTOR: Architect improves design every $REFACTOR_INTERVAL cycles"
+    echo "  - REVIEW:  Final polish at the end"
+    echo ""
+    echo "Bead mode automatically:"
+    echo "  - Updates bead status to 'in_progress' when starting"
+    echo "  - Updates bead status to 'closed' on success"
+    echo "  - Updates bead status to 'failed' on failure"
+    exit 1
+}
 
-    if [ -z "$REQUIREMENTS" ]; then
-        echo "Usage: ./tdd-tcr-refactor-loop \"Feature requirements\""
-        echo ""
-        echo "Example:"
-        echo "  ./tdd-tcr-refactor-loop \"Add a function to validate email addresses\""
-        echo ""
-        echo "This script enforces full Red-Green-Refactor TDD:"
-        echo "  - RED:     Auditor writes failing test"
-        echo "  - GREEN:   Implementer makes it pass (TCR enforced)"
-        echo "  - REFACTOR: Architect improves design every $REFACTOR_INTERVAL cycles"
-        echo "  - REVIEW:  Final polish at the end"
-        exit 1
+# Show all-beads summary banner
+show_all_beads_banner() {
+    local total_beads="$1"
+
+    clear
+    echo ""
+    echo -e "${MAGENTA}"
+    echo '  ╔════════════════════════════════════════════════════════════════════╗'
+    echo '  ║                                                                    ║'
+    echo '  ║      █████╗ ██╗     ██╗         ██████╗ ███████╗ █████╗ ██████╗   ║'
+    echo '  ║     ██╔══██╗██║     ██║         ██╔══██╗██╔════╝██╔══██╗██╔══██╗  ║'
+    echo '  ║     ███████║██║     ██║         ██████╔╝█████╗  ███████║██║  ██║  ║'
+    echo '  ║     ██╔══██║██║     ██║         ██╔══██╗██╔══╝  ██╔══██║██║  ██║  ║'
+    echo '  ║     ██║  ██║███████╗███████╗    ██████╔╝███████╗██║  ██║██████╔╝  ║'
+    echo '  ║     ╚═╝  ╚═╝╚══════╝╚══════╝    ╚═════╝ ╚══════╝╚═╝  ╚═╝╚═════╝   ║'
+    echo '  ║                                                                    ║'
+    echo '  ║              Processing ALL Open Beads by Priority                 ║'
+    echo '  ║                                                                    ║'
+    echo '  ╚════════════════════════════════════════════════════════════════════╝'
+    echo -e "${NC}"
+    echo ""
+    echo -e "  ${CYAN}Total open beads:${NC} ${BOLD}$total_beads${NC}"
+    echo -e "  ${CYAN}Processing order:${NC} P0 (Critical) → P1 (High) → P2 (Medium) → P3 (Low)"
+    echo ""
+    echo -e "${DIM}$(draw_line '─')${NC}"
+    echo ""
+}
+
+# Show final summary of all beads processed
+show_all_beads_summary() {
+    echo ""
+    echo -e "${CYAN}"
+    echo '  ╔════════════════════════════════════════════════════════════════════╗'
+    echo '  ║                                                                    ║'
+    echo '  ║     ███████╗██╗   ██╗███╗   ███╗███╗   ███╗ █████╗ ██████╗ ██╗   ██╗║'
+    echo '  ║     ██╔════╝██║   ██║████╗ ████║████╗ ████║██╔══██╗██╔══██╗╚██╗ ██╔╝║'
+    echo '  ║     ███████╗██║   ██║██╔████╔██║██╔████╔██║███████║██████╔╝ ╚████╔╝ ║'
+    echo '  ║     ╚════██║██║   ██║██║╚██╔╝██║██║╚██╔╝██║██╔══██║██╔══██╗  ╚██╔╝  ║'
+    echo '  ║     ███████║╚██████╔╝██║ ╚═╝ ██║██║ ╚═╝ ██║██║  ██║██║  ██║   ██║   ║'
+    echo '  ║     ╚══════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   ║'
+    echo '  ║                                                                    ║'
+    echo '  ╚════════════════════════════════════════════════════════════════════╝'
+    echo -e "${NC}"
+    echo ""
+    echo -e "${DIM}$(draw_line '─')${NC}"
+    echo -e "  ${BOLD}📊 ALL BEADS PROCESSING COMPLETE${NC}"
+    echo -e "${DIM}$(draw_line '─')${NC}"
+    echo ""
+
+    echo -e "  ${GREEN}✓ COMPLETED (${#COMPLETED_BEADS[@]}):${NC}"
+    if [ ${#COMPLETED_BEADS[@]} -gt 0 ]; then
+        for bead in "${COMPLETED_BEADS[@]}"; do
+            echo -e "    ${GREEN}•${NC} $bead"
+        done
+    else
+        echo -e "    ${DIM}(none)${NC}"
     fi
+    echo ""
+
+    echo -e "  ${RED}✗ FAILED (${#FAILED_BEADS[@]}):${NC}"
+    if [ ${#FAILED_BEADS[@]} -gt 0 ]; then
+        for bead in "${FAILED_BEADS[@]}"; do
+            echo -e "    ${RED}•${NC} $bead"
+        done
+    else
+        echo -e "    ${DIM}(none)${NC}"
+    fi
+    echo ""
+
+    echo -e "  ${YELLOW}○ SKIPPED (${#SKIPPED_BEADS[@]}):${NC}"
+    if [ ${#SKIPPED_BEADS[@]} -gt 0 ]; then
+        for bead in "${SKIPPED_BEADS[@]}"; do
+            echo -e "    ${YELLOW}•${NC} $bead"
+        done
+    else
+        echo -e "    ${DIM}(none)${NC}"
+    fi
+    echo ""
+    echo -e "${DIM}$(draw_line '─')${NC}"
+}
+
+# Process a single bead - returns 0 on success, 1 on failure
+process_single_bead() {
+    # Mark bead as in_progress when starting
+    log_info "Marking bead '$CURRENT_BEAD_ID' as in_progress..."
+    update_bead_status "$CURRENT_BEAD_ID" "in_progress"
 
     # Fancy startup banner
     clear
@@ -917,6 +1292,12 @@ main() {
     echo -e "  ${CYAN}Test Command:${NC}    $TEST_CMD"
     echo -e "  ${CYAN}Source:${NC}          $REQUIREMENTS_SOURCE"
     echo -e "  ${CYAN}Max Iterations:${NC}  $MAX_ITERATIONS"
+    if [ "$BEAD_MODE" = true ]; then
+        echo -e "  ${MAGENTA}Bead ID:${NC}         $CURRENT_BEAD_ID"
+        echo -e "  ${MAGENTA}Bead Title:${NC}      $BEAD_TITLE"
+        local priority=$(bead_field "$BEAD_JSON" "priority")
+        echo -e "  ${MAGENTA}Priority:${NC}        P$priority"
+    fi
     echo -e "${DIM}$(draw_line '─')${NC}"
     echo ""
 
@@ -998,8 +1379,28 @@ main() {
             # Final review
             run_reviewer
 
+            # Mark bead based on reviewer verdict
+            if [ "$BEAD_MODE" = true ]; then
+                if [ "$REVIEWER_VERDICT" = "passed" ]; then
+                    log_success "Marking bead '$CURRENT_BEAD_ID' as closed (acceptance criteria verified)!"
+                    local close_msg="Completed via TDD-TCR-REFACTOR loop. Acceptance criteria verified by reviewer. Commits: $TCR_COMMITS, Reverts: $TCR_REVERTS, Refactors: $REFACTOR_COUNT"
+                    update_bead_status "$CURRENT_BEAD_ID" "closed" "$close_msg"
+                    COMPLETED_BEADS+=("$CURRENT_BEAD_ID: $BEAD_TITLE")
+                elif [ "$REVIEWER_VERDICT" = "failed" ]; then
+                    log_error "Marking bead '$CURRENT_BEAD_ID' as failed (acceptance criteria NOT met)"
+                    update_bead_status "$CURRENT_BEAD_ID" "failed" "Reviewer determined acceptance criteria were NOT met. Commits: $TCR_COMMITS"
+                    FAILED_BEADS+=("$CURRENT_BEAD_ID: $BEAD_TITLE")
+                else
+                    # Unknown verdict - be conservative, mark as needing review
+                    log_warning "Marking bead '$CURRENT_BEAD_ID' as needs_review (verdict unclear)"
+                    local close_msg="Completed via TDD-TCR-REFACTOR loop but acceptance criteria verdict unclear. Manual review needed. Commits: $TCR_COMMITS"
+                    update_bead_status "$CURRENT_BEAD_ID" "needs_review" "$close_msg"
+                    COMPLETED_BEADS+=("$CURRENT_BEAD_ID: $BEAD_TITLE (needs_review)")
+                fi
+            fi
+
             unlock_all
-            exit 0
+            return 0  # Success
         fi
 
         git add -A
@@ -1051,18 +1452,119 @@ main() {
             echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"
             echo ""
 
+            # Mark bead as closed (max iterations is still a completion, maybe partial)
+            if [ "$BEAD_MODE" = true ]; then
+                if [ $TCR_COMMITS -gt 0 ]; then
+                    log_success "Marking bead '$CURRENT_BEAD_ID' as closed (max iterations reached)"
+                    local close_msg="Partial completion via TDD-TCR-REFACTOR loop (max $MAX_ITERATIONS iterations). Commits: $TCR_COMMITS, Reverts: $TCR_REVERTS"
+                    update_bead_status "$CURRENT_BEAD_ID" "closed" "$close_msg"
+                    COMPLETED_BEADS+=("$CURRENT_BEAD_ID: $BEAD_TITLE (partial)")
+                else
+                    log_error "Marking bead '$CURRENT_BEAD_ID' as failed (no successful commits)"
+                    update_bead_status "$CURRENT_BEAD_ID" "failed" "No successful commits after $MAX_ITERATIONS iterations"
+                    FAILED_BEADS+=("$CURRENT_BEAD_ID: $BEAD_TITLE")
+                fi
+            fi
+
             unlock_all
-            exit 0
+            return 0  # Finished (even if partial)
         fi
 
         log_info "Automatically continuing to iteration $iteration..."
     done
 }
 
+#---------------------------------------------------------------------------
+# Main Entry Point
+#---------------------------------------------------------------------------
+
+main() {
+    check_dependencies
+
+    # Handle --all mode: process all open beads
+    if [ "$ALL_BEADS_MODE" = true ]; then
+        local bead_ids
+        bead_ids=$(get_all_open_beads)
+        local total_beads=$(echo "$bead_ids" | grep -c . || echo 0)
+
+        if [ "$total_beads" -eq 0 ]; then
+            echo "No open beads found in $BEADS_DIR/"
+            exit 0
+        fi
+
+        show_all_beads_banner "$total_beads"
+
+        local bead_num=0
+        while IFS= read -r bead_id; do
+            [ -z "$bead_id" ] && continue
+            bead_num=$((bead_num + 1))
+
+            echo ""
+            echo -e "${MAGENTA}╔════════════════════════════════════════════════════════════════════╗${NC}"
+            echo -e "${MAGENTA}║  BEAD ${bead_num}/${total_beads}: ${bead_id}${NC}"
+            echo -e "${MAGENTA}╚════════════════════════════════════════════════════════════════════╝${NC}"
+            echo ""
+
+            # Setup the bead
+            if ! setup_bead "$bead_id"; then
+                local setup_result=$?
+                if [ $setup_result -eq 2 ]; then
+                    # Skipped (not open)
+                    SKIPPED_BEADS+=("$bead_id: not open")
+                else
+                    # Error finding bead
+                    FAILED_BEADS+=("$bead_id: not found")
+                fi
+                continue
+            fi
+
+            # Process the bead
+            if process_single_bead; then
+                log_success "Bead '$CURRENT_BEAD_ID' completed!"
+            else
+                log_error "Bead '$CURRENT_BEAD_ID' failed!"
+                FAILED_BEADS+=("$CURRENT_BEAD_ID: $BEAD_TITLE")
+            fi
+
+            echo ""
+            echo -e "${DIM}$(draw_line '─')${NC}"
+            echo -e "  ${CYAN}Progress:${NC} $bead_num / $total_beads beads processed"
+            echo -e "${DIM}$(draw_line '─')${NC}"
+
+        done <<< "$bead_ids"
+
+        show_all_beads_summary
+        exit 0
+    fi
+
+    # Handle single bead or requirements mode
+    if [ -z "$REQUIREMENTS" ] && [ "$BEAD_MODE" = false ]; then
+        show_usage
+    fi
+
+    # Single bead or requirements mode
+    if [ "$BEAD_MODE" = true ] && [ -n "$CURRENT_BEAD_ID" ]; then
+        process_single_bead
+        exit $?
+    fi
+
+    # Plain requirements mode (original behavior)
+    process_single_bead
+    exit $?
+}
+
 cleanup() {
+    local exit_code=$?
     log_info "Cleaning up locks..."
     chmod -R u+w "$SRC_DIR/" 2>/dev/null || true
     chmod -R u+w "$TEST_DIR/" 2>/dev/null || true
+
+    # If bead mode and exiting with error (interrupted or failed), mark bead as failed
+    if [ "$BEAD_MODE" = true ] && [ $exit_code -ne 0 ]; then
+        log_error "Marking bead '$CURRENT_BEAD_ID' as failed (exit code: $exit_code)"
+        update_bead_status "$CURRENT_BEAD_ID" "failed" "Loop terminated with exit code $exit_code. Commits: $TCR_COMMITS, Reverts: $TCR_REVERTS"
+    fi
+
     # Keep history file for debugging, but could add: rm -f "$HISTORY_FILE"
 }
 
