@@ -32,8 +32,10 @@ pub fn create_worktree(
   // STEP 1: Create base directory
   use _ <- result.try(
     process.run_command("mkdir", ["-p", workspaces_base], repo_root)
-    |> result.map_error(fn(_) { "Could not create workspaces directory" })
-    |> result.map(fn(_) { Nil }),
+    |> result.try(fn(cmd_result) {
+      process.check_success(cmd_result)
+      |> result.map_error(fn(_) { "Could not create workspaces directory" })
+    }),
   )
 
   // STEP 2: Create jj workspace
@@ -45,31 +47,39 @@ pub fn create_worktree(
       worktree_name,
       worktree_path,
     ], repo_root)
-    |> result.map_error(fn(_) {
-      "Could not create jj workspace: " <> worktree_name
-    })
-    |> result.map(fn(_) { Nil }),
+    |> result.try(fn(cmd_result) {
+      process.check_success(cmd_result)
+      |> result.map_error(fn(_) {
+        "Could not create jj workspace: " <> worktree_name
+      })
+    }),
   )
 
   // STEP 3: Create bookmark for git compatibility
   use _ <- result.try(
     process.run_command("jj", ["-R", worktree_path, "bookmark", "create", branch], repo_root)
-    |> result.map_error(fn(_) { "Could not create branch bookmark" })
-    |> result.map(fn(_) { Nil }),
+    |> result.try(fn(cmd_result) {
+      process.check_success(cmd_result)
+      |> result.map_error(fn(_) { "Could not create branch bookmark" })
+    }),
   )
 
   // STEP 4: Create symlink in .factory for easy access
   let symlink_dir = repo_root <> "/.factory"
   use _ <- result.try(
     process.run_command("mkdir", ["-p", symlink_dir], repo_root)
-    |> result.map_error(fn(_) { "Could not create .factory directory" })
-    |> result.map(fn(_) { Nil }),
+    |> result.try(fn(cmd_result) {
+      process.check_success(cmd_result)
+      |> result.map_error(fn(_) { "Could not create .factory directory" })
+    }),
   )
 
   use _ <- result.try(
     process.run_command("ln", ["-sf", worktree_path, symlink_dir <> "/" <> slug], repo_root)
-    |> result.map_error(fn(_) { "Could not create symlink" })
-    |> result.map(fn(_) { Nil }),
+    |> result.try(fn(cmd_result) {
+      process.check_success(cmd_result)
+      |> result.map_error(fn(_) { "Could not create symlink" })
+    }),
   )
 
   Ok(Worktree(
@@ -126,8 +136,10 @@ pub fn remove_worktree(slug: String, repo_root: String) -> Result(Nil, String) {
   // STEP 2: Remove the worktree directory
   use _ <- result.try(
     process.run_command("rm", ["-rf", wt.path], repo_root)
-    |> result.map_error(fn(_) { "Could not remove worktree directory" })
-    |> result.map(fn(_) { Nil }),
+    |> result.try(fn(cmd_result) {
+      process.check_success(cmd_result)
+      |> result.map_error(fn(_) { "Could not remove worktree directory" })
+    }),
   )
 
   // STEP 3: Remove the symlink

@@ -34,17 +34,15 @@ pub fn run_command(
 /// Execute a raw shell command string
 fn run_shell(cmd: String) -> Result(CommandResult, String) {
   // Execute shell command via /bin/sh -c
-  // shellout.command returns Ok for success, Error for failure
+  // shellout.command returns Ok(stdout) for success, Error(#(exit_code, stderr)) for failure
   case shellout.command("sh", ["-c", cmd], "", []) {
     Ok(stdout) -> {
       // Success - exit code 0
       Ok(Success(stdout, "", 0))
     }
-    Error(_) -> {
-      // Error - non-zero exit code
-      // We can't easily get the actual exit code with shellout,
-      // so we return a Failure to indicate the command failed
-      Error("Command failed")
+    Error(#(exit_code, stderr)) -> {
+      // Error - non-zero exit code with error message
+      Ok(Failure(stderr, exit_code))
     }
   }
 }
@@ -89,6 +87,15 @@ pub fn get_error(result: CommandResult) -> Result(Nil, String) {
     Success(_, _, _) -> Ok(Nil)
     Failure(err, code) ->
       Error("Command failed with code " <> string.inspect(code) <> ": " <> err)
+  }
+}
+
+/// Convert CommandResult to a Result, checking for success
+pub fn check_success(result: CommandResult) -> Result(Nil, String) {
+  case result {
+    Success(_, _, _) -> Ok(Nil)
+    Failure(err, code) ->
+      Error("Command failed with exit code " <> string.inspect(code) <> ": " <> err)
   }
 }
 

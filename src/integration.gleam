@@ -22,7 +22,7 @@ pub fn test_integration(
   // STEP 1: Create temporary merge branch
   let temp_branch = "temp-integration-test-" <> task.slug
 
-  use _ <- result.try(
+  use cmd_result <- result.try(
     process.run_command("jj", [
       "-R",
       repo_root,
@@ -32,12 +32,14 @@ pub fn test_integration(
       "-r",
       base_branch,
     ], repo_root)
+  )
+  use _ <- result.try(
+    process.check_success(cmd_result)
     |> result.map_error(fn(_) { "Could not create temp branch" })
-    |> result.map(fn(_) { Nil }),
   )
 
   // STEP 2: Merge task branch into temp branch
-  use _ <- result.try(
+  use cmd_result <- result.try(
     process.run_command("jj", [
       "-R",
       repo_root,
@@ -46,10 +48,12 @@ pub fn test_integration(
       "-r",
       temp_branch,
     ], repo_root)
-    |> result.map_error(fn(err) {
-      "Could not merge " <> task.branch <> " into temp branch: " <> err
+  )
+  use _ <- result.try(
+    process.check_success(cmd_result)
+    |> result.map_error(fn(_) {
+      "Could not merge " <> task.branch <> " into temp branch"
     })
-    |> result.map(fn(_) { Nil }),
   )
 
   // STEP 3: Run full test suite in merged state

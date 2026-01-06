@@ -96,7 +96,7 @@ fn run_stage_with_revert(
 /// Get current jj state hash
 fn get_jj_state(worktree_path: String) -> Result(String, String) {
   // Execute: jj -R <path> log -r @ -T 'commit_id'
-  process.run_command("jj", [
+  use cmd_result <- result.try(process.run_command("jj", [
     "-R",
     worktree_path,
     "log",
@@ -104,13 +104,12 @@ fn get_jj_state(worktree_path: String) -> Result(String, String) {
     "@",
     "-T",
     "commit_id",
-  ], "")
-  |> result.try(fn(result) {
-    case result {
-      process.Success(output, _, _) -> Ok(string.trim(output))
-      process.Failure(err, _) -> Error("Failed to get jj state: " <> err)
-    }
-  })
+  ], ""))
+
+  case cmd_result {
+    process.Success(output, _, _) -> Ok(string.trim(output))
+    process.Failure(err, _) -> Error("Failed to get jj state: " <> err)
+  }
 }
 
 /// Commit changes to jj journal
@@ -118,16 +117,17 @@ fn commit_changes(worktree_path: String, stage_name: String) -> Result(String, S
   let message = "factory: " <> stage_name <> " passed"
 
   // STEP 1: Describe current changes with message
-  use _ <- result.try(
+  use describe_result <- result.try(
     process.run_command("jj", ["-R", worktree_path, "describe", "-m", message], "")
+  )
+  use _ <- result.try(
+    process.check_success(describe_result)
     |> result.map_error(fn(_) { "Failed to describe changes" })
-    |> result.map(fn(_) { Nil })
   )
 
   // STEP 2: Create new working copy for next changes
   use result_new <- result.try(
     process.run_command("jj", ["-R", worktree_path, "new"], "")
-    |> result.map_error(fn(_) { "Failed to create new workspace commit" })
   )
 
   // Extract commit ID from output
@@ -144,15 +144,16 @@ fn revert_changes(
 ) -> Result(Nil, String) {
   // Execute: jj -R <path> restore --from <original_hash>
   // This reverts all working directory changes to the specified state
-  process.run_command("jj", [
+  use cmd_result <- result.try(process.run_command("jj", [
     "-R",
     worktree_path,
     "restore",
     "--from",
     original_hash,
-  ], "")
+  ], ""))
+
+  process.check_success(cmd_result)
   |> result.map_error(fn(_) { "Failed to revert changes" })
-  |> result.map(fn(_) { Nil })
 }
 
 /// Determine if stage should be retried after failure
