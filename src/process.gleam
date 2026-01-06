@@ -2,6 +2,7 @@
 
 import gleam/list as gleam_list
 import gleam/string
+import simplifile
 
 /// Result of command execution
 pub type CommandResult {
@@ -181,5 +182,18 @@ pub fn run_command_safe(
   case command_exists(cmd) {
     Ok(_) -> run_command(cmd, args, cwd)
     Error(e) -> Error(e)
+  }
+}
+
+/// Read text file content
+pub fn fs_read_text_file(path: String) -> Result(String, String) {
+  simplifile.read(path)
+  |> map_simplifile_error
+}
+
+fn map_simplifile_error(result: Result(String, simplifile.FileError)) -> Result(String, String) {
+  case result {
+    Ok(content) -> Ok(content)
+    Error(_) -> Error("File read failed")
   }
 }
