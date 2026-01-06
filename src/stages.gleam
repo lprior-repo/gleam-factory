@@ -5,6 +5,49 @@ import gleam/result
 import domain
 import process
 
+/// Validate that a stage transition is valid (forward-only in pipeline)
+pub fn validate_stage_transition(
+  from_stage: String,
+  to_stage: String,
+) -> Result(Nil, String) {
+  let pipeline = domain.standard_pipeline()
+
+  // Find indices of both stages
+  let from_idx = find_stage_index(pipeline, from_stage)
+  let to_idx = find_stage_index(pipeline, to_stage)
+
+  case from_idx, to_idx {
+    Ok(fi), Ok(ti) ->
+      case fi < ti {
+        True -> Ok(Nil)
+        False -> Error("invalid stage transition: cannot move from " <> from_stage <> " to " <> to_stage)
+      }
+    Error(_), _ -> Error("unknown stage: " <> from_stage)
+    _, Error(_) -> Error("unknown stage: " <> to_stage)
+  }
+}
+
+/// Find position of stage in pipeline (0-indexed)
+fn find_stage_index(pipeline: List(domain.Stage), name: String) -> Result(Int, Nil) {
+  find_stage_index_helper(pipeline, name, 0)
+}
+
+fn find_stage_index_helper(
+  pipeline: List(domain.Stage),
+  name: String,
+  index: Int,
+) -> Result(Int, Nil) {
+  case pipeline {
+    [] -> Error(Nil)
+    [domain.Stage(n, _, _, _), ..rest] -> {
+      case n == name {
+        True -> Ok(index)
+        False -> find_stage_index_helper(rest, name, index + 1)
+      }
+    }
+  }
+}
+
 /// Execute a stage with real language-specific tools
 pub fn execute_stage(
   stage_name: String,
