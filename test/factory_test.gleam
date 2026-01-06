@@ -1312,3 +1312,29 @@ pub fn workspace_manager_start_link_returns_ok_subject_test() {
     Error(_) -> should.fail()
   }
 }
+
+/// Test that WorkspaceId opaque type has a public constructor.
+///
+/// This drives the implementation of a public constructor for WorkspaceId in types.gleam:
+/// pub fn new_workspace_id(id: String) -> WorkspaceId
+///
+/// Why this matters: WorkspaceId is opaque (internal constructor hidden from callers).
+/// To use it, tests and other code need a public function to construct WorkspaceId values.
+/// Without this, there's no way for external code to create workspace identifiers.
+///
+/// Good design: Opaque types should always have public constructors.
+/// Opaque hides the implementation detail, but the type must be constructible.
+pub fn types_workspace_id_new_constructor_exists_test() {
+  // Arrange: Prepare an ID string
+  let id_string = "workspace-123"
+
+  // Act: Create a WorkspaceId using the public constructor
+  // This will fail to compile until types.new_workspace_id is implemented
+  let workspace_id = types.new_workspace_id(id_string)
+
+  // Assert: We should be able to create it and use it
+  // (We can't inspect it due to opacity, but it should be creatable)
+  let _unused = workspace_id
+  Nil
+}
+
