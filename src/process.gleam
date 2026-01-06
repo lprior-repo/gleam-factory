@@ -1,5 +1,6 @@
 // Shell module - Execute external commands
 
+import gleam/list as gleam_list
 import gleam/string
 
 /// Result of command execution
@@ -21,16 +22,81 @@ pub fn run_command(
     _ -> cmd <> " " <> string.join(args, " ")
   }
 
-  // Create shell command that changes to cwd first
+  // Create shell command that changes to cwd first and captures exit code
   let shell_cmd = case cwd {
-    "" -> full_cmd
-    _ -> "cd " <> cwd <> " && " <> full_cmd
+    "" -> full_cmd <> " 2>&1; echo $?"
+    _ -> "cd " <> cwd <> " && " <> full_cmd <> " 2>&1; echo $?"
   }
 
   // Execute via os:cmd
   let output = os_cmd(shell_cmd)
-  Ok(Success(output, "", 0))
+
+  // Extract exit code from last non-empty line
+  let lines = output
+    |> string.split("\n")
+    |> gleam_list.filter(fn(line) { string.trim(line) != "" })
+
+  case lines {
+    [] -> Ok(Success("", "", 0))
+    _ -> {
+      let reversed = reverse_list(lines)
+      case reversed {
+        [exit_str, ..rest_reversed] -> {
+          let trimmed_exit = string.trim(exit_str)
+          case string.to_utf_codepoints(trimmed_exit) |> parse_int_from_codepoints {
+            Ok(exit_code) -> {
+              let stdout_lines = reverse_list(rest_reversed)
+              let combined = string.join(stdout_lines, "\n")
+              case exit_code {
+                0 -> Ok(Success(combined, "", 0))
+                code -> Ok(Failure(combined, code))
+              }
+            }
+            Error(_) -> Ok(Success(output, "", 0))
+          }
+        }
+        [] -> Ok(Success("", "", 0))
+      }
+    }
+  }
 }
+
+fn reverse_list(list: List(a)) -> List(a) {
+  reverse_acc(list, [])
+}
+
+fn reverse_acc(list: List(a), acc: List(a)) -> List(a) {
+  case list {
+    [] -> acc
+    [x, ..xs] -> reverse_acc(xs, [x, ..acc])
+  }
+}
+
+fn parse_int_from_codepoints(codepoints: List(UtfCodepoint)) -> Result(Int, Nil) {
+  codepoints
+  |> string.from_utf_codepoints
+  |> parse_int_string
+}
+
+fn parse_int_string(s: String) -> Result(Int, Nil) {
+  try_parse_int(s)
+}
+
+fn try_parse_int(s: String) -> Result(Int, Nil) {
+  case s {
+    "" -> Error(Nil)
+    _ -> {
+      // Try to parse using Erlang FFI with exception handling
+      case catch_parse(s) {
+        Ok(i) -> Ok(i)
+        Error(_) -> Error(Nil)
+      }
+    }
+  }
+}
+
+@external(erlang, "factory@process_ffi", "parse_int_safe")
+fn catch_parse(s: String) -> Result(Int, Nil)
 
 /// Execute a raw shell command using Erlang's os:cmd (expects charlist)
 @external(erlang, "os", "cmd")

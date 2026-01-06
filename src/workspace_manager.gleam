@@ -7,6 +7,7 @@ import gleam/dict
 import gleam/erlang/process.{type Subject, self}
 import gleam/result
 import otp_actor as actor
+import process as shell_process
 import simplifile
 import types.{type WorkspaceId, type Workspace}
 
@@ -184,6 +185,13 @@ pub fn resolve_auto_strategy() -> types.WorkspaceType {
   }
 }
 
+fn check_cmd_success(result: shell_process.CommandResult, error_msg: String) -> Result(Nil, String) {
+  case result {
+    shell_process.Success(_, _, _) -> Ok(Nil)
+    shell_process.Failure(stderr, _) -> Error(error_msg <> ": " <> stderr)
+  }
+}
+
 /// Creates a new jj workspace with isolated jj bookmark.
 ///
 /// Returns Ok(workspace) if successful, or Error(msg) if creation fails.
@@ -192,15 +200,20 @@ pub fn create_workspace_jj(
   slug: String,
   source_path: String,
 ) -> Result(types.Workspace, String) {
-  let workspace_path = source_path <> "/.jj-workspaces/" <> slug
-  let workspace_id = types.new_workspace_id(slug)
+  let bookmark = "feat/" <> slug
+  let workspace_path = source_path <> "/../" <> slug
 
-  // Create jj workspace directory structure
-  use _ <- result.try(
-    simplifile.create_directory_all(workspace_path)
-    |> result.map_error(fn(e) { "mkdir failed: " <> simplifile.describe_error(e) })
+  use add_result <- result.try(
+    shell_process.run_command("jj", ["workspace", "add", "--name", slug, workspace_path], source_path)
   )
+  use _ <- result.try(check_cmd_success(add_result, "jj workspace add failed"))
 
+  use bookmark_result <- result.try(
+    shell_process.run_command("jj", ["-R", workspace_path, "bookmark", "create", bookmark], source_path)
+  )
+  use _ <- result.try(check_cmd_success(bookmark_result, "jj bookmark create failed"))
+
+  let workspace_id = types.new_workspace_id(slug)
   let workspace =
     types.Workspace(
       id: workspace_id,

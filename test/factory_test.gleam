@@ -2006,8 +2006,24 @@ pub fn workspace_strategy_auto_resolves_to_reflink_when_dev_shm_exists_test() {
 
 /// Test create_workspace_jj creates isolated jj workspace with bookmark.
 pub fn create_workspace_jj_creates_isolated_bookmark_test() {
-  let slug = "jj-bm-test"
+  let timestamp = case process.run_command("date", ["+%s"], "") {
+    Ok(process.Success(ts, _, _)) -> string.trim(ts)
+    _ -> "0"
+  }
+  let slug = "jj-bm-test-" <> timestamp
   let temp_source = "/tmp/factory-jj-bm-" <> slug
+
+  // Cleanup: forget workspace if source exists, then remove directories
+  let _ = case simplifile.verify_is_directory(temp_source) {
+    Ok(True) -> {
+      let _ = process.run_command("jj", ["-R", temp_source, "workspace", "forget", slug], "/tmp")
+      Nil
+    }
+    _ -> Nil
+  }
+
+  let _ = process.run_command("rm", ["-rf", temp_source], "/tmp")
+  let _ = process.run_command("rm", ["-rf", temp_source <> "/../" <> slug], "/tmp")
 
   case simplifile.create_directory_all(temp_source) {
     Ok(Nil) -> Nil
@@ -2039,6 +2055,7 @@ pub fn create_workspace_jj_creates_isolated_bookmark_test() {
       }
 
       let _ = process.run_command("rm", ["-rf", temp_source], "/tmp")
+      let _ = process.run_command("rm", ["-rf", workspace.path], "/tmp")
       Nil
     }
     Error(_) -> should.fail()
