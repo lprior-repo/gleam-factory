@@ -2133,3 +2133,22 @@ pub fn fs_read_text_file_nonexistent_returns_error_test() {
     Error(_) -> Nil
   }
 }
+
+// ============================================================================
+// ACP CLIENT TESTS
+// ============================================================================
+
+/// Test cancel sends session/cancel notification to abort running prompts.
+///
+/// Drives:
+/// 1. cancel(client, session_id) -> Result(Nil, String)
+/// 2. Sends JSON-RPC notification: {"method": "session/cancel", "params": {"sessionId": session_id}}
+/// 3. Notifications have no result (fire-and-forget)
+pub fn acp_cancel_sends_session_cancel_notification_test() {
+  let session_id = "test-session-123"
+
+  case process.acp_cancel(session_id) {
+    Ok(Nil) -> Nil
+    Error(_) -> should.fail()
+  }
+}
