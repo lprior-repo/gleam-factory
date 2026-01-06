@@ -1145,12 +1145,45 @@ reviewer_prompt() {
     fi
 
     cat <<EOF
-REVIEW:$PROJECT_LANG c:$TEST_CMD cm:$TCR_COMMITS rv:$TCR_REVERTS
-REQ:$REQUIREMENTS
-$([ -n "$acceptance" ] && echo "AC[$CURRENT_BEAD_ID]:$acceptance")
-TASK:review src/ test/, verify requirements met, check security edge-cases API consistency, run tests
-CUE:#V from contract.cue - MUST output valid JSON
-OUT:{"s":"p","m":true,"v":[{"c":"criterion","m":true|false,"e":"file:line"}],"cf":0.9-1.0,"l":"50w learnings"} or {"s":"f","m":false,...,"cf":0.0-0.9}
+<role>REVIEWER</role>
+<context>lang:$PROJECT_LANG cmd:$TEST_CMD commits:$TCR_COMMITS reverts:$TCR_REVERTS</context>
+
+<requirements>
+$REQUIREMENTS
+</requirements>
+
+$([ -n "$acceptance" ] && echo "<acceptance_criteria bead=\"$CURRENT_BEAD_ID\">
+$acceptance
+</acceptance_criteria>")
+
+<review_checklist>
+1. REQUIREMENTS: Are all stated requirements implemented?
+2. TESTS: Do tests cover the requirements? Do they all pass?
+3. CODE QUALITY: Is the code clean, readable, and idiomatic Gleam?
+4. SECURITY: Any injection risks, unsafe operations, or data leaks?
+5. EDGE CASES: Are boundary conditions handled? Empty inputs? Errors?
+6. API DESIGN: Is the public API intuitive and consistent with existing code?
+7. TYPES: Are types used effectively? Opaque types where needed?
+8. ERROR HANDLING: Are errors handled gracefully with Result types?
+</review_checklist>
+
+<verification_process>
+1. Read all source files modified in this session
+2. Read all test files to understand coverage
+3. Verify each acceptance criterion is met with evidence (file:line)
+4. Run tests to confirm everything passes
+5. Note any learnings for future sessions
+</verification_process>
+
+<output_format>
+CUE schema #V - MUST output valid JSON at end of response:
+
+If PASS (all criteria met):
+{"s":"p","m":true,"v":[{"c":"criterion name","m":true,"e":"src/file.gleam:42"}],"cf":0.95,"l":"key learnings"}
+
+If FAIL (criteria not met):
+{"s":"f","m":false,"v":[{"c":"criterion name","m":false,"e":"missing implementation"}],"cf":0.3,"l":"what needs fixing"}
+</output_format>
 EOF
 }
 

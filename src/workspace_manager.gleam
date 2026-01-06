@@ -5,9 +5,10 @@
 
 import gleam/dict
 import gleam/erlang/process.{type Subject}
+import gleam/int
 import gleam/otp/actor
 import simplifile
-import types.{type WorkspaceId, type Workspace}
+import types.{type WorkspaceId, type Workspace, WorkspaceType}
 
 /// Message type for workspace manager actor.
 pub type WorkspaceManagerMessage {
