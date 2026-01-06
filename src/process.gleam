@@ -1,7 +1,6 @@
 // Shell module - Execute external commands
 
 import gleam/list as gleam_list
-import gleam/option
 import gleam/result
 import gleam/string
 import simplifile

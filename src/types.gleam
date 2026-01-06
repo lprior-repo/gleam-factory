@@ -114,18 +114,19 @@ fn is_valid_hex(input: String) -> Bool {
 }
 
 /// AcpClient represents an Agent Communication Protocol HTTP client.
-pub opaque type AcpClient {
-  AcpClient(base_url: String, capabilities: option.Option(List(String)))
+pub type AcpClient {
+  AcpClient(base_url: String)
+  AcpClientWithCaps(base_url: String, capabilities: List(String))
 }
 
 /// Creates a new AcpClient with no capabilities set.
 pub fn new_acp_client(base_url: String) -> AcpClient {
-  AcpClient(base_url:, capabilities: option.None)
+  AcpClient(base_url:)
 }
 
 /// Creates AcpClient with capabilities.
 pub fn new_acp_client_with_capabilities(base_url: String, capabilities: List(String)) -> AcpClient {
-  AcpClient(base_url:, capabilities: option.Some(capabilities))
+  AcpClientWithCaps(base_url:, capabilities:)
 }
 
 /// AcpNotification represents an Agent Communication Protocol notification.
@@ -193,14 +194,23 @@ pub fn can_cancel(
 
 /// Extracts base_url from AcpClient.
 pub fn get_base_url(client: AcpClient) -> String {
-  client.base_url
+  case client {
+    AcpClient(base_url:) -> base_url
+    AcpClientWithCaps(base_url:, ..) -> base_url
+  }
 }
 
 /// Extracts capabilities from AcpClient.
-pub fn get_capabilities(
-  client: AcpClient,
-) -> option.Option(List(String)) {
-  client.capabilities
+pub fn get_capabilities(client: AcpClient) -> option.Option(List(String)) {
+  case client {
+    AcpClient(..) -> option.None
+    AcpClientWithCaps(capabilities:, ..) -> option.Some(capabilities)
+  }
+}
+
+/// Stores capabilities in AcpClient, returning updated client.
+pub fn store_capabilities(client: AcpClient, caps: List(String)) -> AcpClient {
+  AcpClientWithCaps(base_url: get_base_url(client), capabilities: caps)
 }
 
 /// Parses ACP initialize response JSON extracting capabilities list.
