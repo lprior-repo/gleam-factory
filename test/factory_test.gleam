@@ -11,6 +11,7 @@ import gleeunit
 import gleeunit/should
 import persistence
 import signals
+import types
 import validation
 
 pub fn main() -> Nil {
@@ -1245,4 +1246,34 @@ pub fn gleam_erlang_is_available_as_dependency_test() {
   // The import 'gleam/erlang' at the top of this file will fail to compile
   // if gleam_erlang is not in gleam.toml. This test just confirms we got here.
   Nil
+}
+
+// ============================================================================
+// PROCESS ID TESTS
+// ============================================================================
+
+/// Test that ProcessId opaque type can be created from a Pid and converted back
+/// This test validates that ProcessId wraps Pid correctly:
+/// - from_pid/1 converts a Pid to ProcessId (type-safe wrapping)
+/// - to_pid/1 converts ProcessId back to a Pid (unwrapping)
+/// - The conversion preserves the Pid value through round-trip
+///
+/// This drives the need for:
+/// 1. An opaque ProcessId type defined in src/types.gleam
+/// 2. A from_pid(Pid) -> ProcessId function
+/// 3. A to_pid(ProcessId) -> Pid function
+pub fn process_id_wraps_pid_correctly_test() {
+  // Arrange: Create a simple test pid value
+  // We use a placeholder tuple to represent a Pid (Erlang pids are normally {#Ref, _, _})
+  // This tests the structure without requiring actual BEAM process interaction
+  let test_pid_string = "test_pid"
+
+  // Act: Convert to ProcessId and back
+  // The implementation should store the Pid internally and retrieve it
+  let process_id = types.from_pid(test_pid_string)
+  let retrieved_pid = types.to_pid(process_id)
+
+  // Assert: Round-trip conversion preserves the Pid value
+  retrieved_pid
+  |> should.equal(test_pid_string)
 }
