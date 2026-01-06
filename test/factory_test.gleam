@@ -1,15 +1,15 @@
-import gleeunit
-import gleeunit/should
-import domain
-import persistence
 import audit
-import validation
-import errors
 import cli
 import config
-import signals
+import domain
+import errors
 import gleam/option.{None, Some}
 import gleam/string
+import gleeunit
+import gleeunit/should
+import persistence
+import signals
+import validation
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -77,13 +77,14 @@ pub fn get_stage_invalid_test() {
 // ============================================================================
 
 pub fn task_to_record_preserves_slug_test() {
-  let task = domain.Task(
-    slug: "test-123",
-    language: domain.Go,
-    status: domain.Created,
-    worktree_path: "/tmp/test",
-    branch: "feat/test-123",
-  )
+  let task =
+    domain.Task(
+      slug: "test-123",
+      language: domain.Go,
+      status: domain.Created,
+      worktree_path: "/tmp/test",
+      branch: "feat/test-123",
+    )
 
   let record = persistence.task_to_record(task)
   record.slug
@@ -91,13 +92,14 @@ pub fn task_to_record_preserves_slug_test() {
 }
 
 pub fn task_to_record_preserves_language_test() {
-  let task = domain.Task(
-    slug: "test",
-    language: domain.Rust,
-    status: domain.Created,
-    worktree_path: "/tmp/test",
-    branch: "feat/test",
-  )
+  let task =
+    domain.Task(
+      slug: "test",
+      language: domain.Rust,
+      status: domain.Created,
+      worktree_path: "/tmp/test",
+      branch: "feat/test",
+    )
 
   let record = persistence.task_to_record(task)
   record.language
@@ -105,14 +107,15 @@ pub fn task_to_record_preserves_language_test() {
 }
 
 pub fn record_to_task_preserves_language_test() {
-  let record = persistence.TaskRecord(
-    slug: "test",
-    language: "python",
-    status: "created",
-    created_at: "2025-01-04T00:00:00Z",
-    updated_at: "2025-01-04T00:00:00Z",
-    stages: [],
-  )
+  let record =
+    persistence.TaskRecord(
+      slug: "test",
+      language: "python",
+      status: "created",
+      created_at: "2025-01-04T00:00:00Z",
+      updated_at: "2025-01-04T00:00:00Z",
+      stages: [],
+    )
 
   case persistence.record_to_task(record) {
     Ok(task) -> task.language |> should.equal(domain.Python)
@@ -121,14 +124,15 @@ pub fn record_to_task_preserves_language_test() {
 }
 
 pub fn record_to_task_invalid_language_test() {
-  let record = persistence.TaskRecord(
-    slug: "test",
-    language: "java",
-    status: "created",
-    created_at: "2025-01-04T00:00:00Z",
-    updated_at: "2025-01-04T00:00:00Z",
-    stages: [],
-  )
+  let record =
+    persistence.TaskRecord(
+      slug: "test",
+      language: "java",
+      status: "created",
+      created_at: "2025-01-04T00:00:00Z",
+      updated_at: "2025-01-04T00:00:00Z",
+      stages: [],
+    )
 
   persistence.record_to_task(record)
   |> should.be_error
@@ -193,12 +197,10 @@ pub fn get_actor_returns_string_test() {
 }
 
 pub fn create_entry_sets_fields_correctly_test() {
-  let entry = audit.create_entry(
-    audit.TaskCreated,
-    "test-slug",
-    "Test task created",
-    [#("language", "gleam")],
-  )
+  let entry =
+    audit.create_entry(audit.TaskCreated, "test-slug", "Test task created", [
+      #("language", "gleam"),
+    ])
 
   entry.task_slug
   |> should.equal("test-slug")
@@ -332,7 +334,8 @@ pub fn validate_email_format_rejects_domain_without_dot_test() {
 
 pub fn extract_root_cause_finds_error_prefix_pattern_test() {
   // Given output containing an "Error:" pattern
-  let output = "Starting build...
+  let output =
+    "Starting build...
 Compiling module...
 Error: undefined variable 'foo'
   at line 42
@@ -346,7 +349,10 @@ Done."
   case result {
     Some(cause) -> {
       // Should contain the error line
-      should.be_true(contains_substring(cause, "Error: undefined variable 'foo'"))
+      should.be_true(contains_substring(
+        cause,
+        "Error: undefined variable 'foo'",
+      ))
     }
     None -> should.fail()
   }
@@ -354,7 +360,8 @@ Done."
 
 pub fn extract_root_cause_finds_lowercase_error_pattern_test() {
   // Given output containing a lowercase "error:" pattern (common in many tools)
-  let output = "Running tests...
+  let output =
+    "Running tests...
 test_main.go:15: error: assertion failed
 expected 42, got 0
 Build failed."
@@ -373,7 +380,8 @@ Build failed."
 
 pub fn extract_root_cause_finds_panic_pattern_test() {
   // Given output containing a "panic:" pattern (common in Go, Rust runtime errors)
-  let output = "Starting application...
+  let output =
+    "Starting application...
 Initializing database...
 panic: runtime error: index out of range [5] with length 3
 goroutine 1 [running]:
@@ -394,7 +402,8 @@ main.processItems()
 
 pub fn extract_root_cause_includes_context_lines_test() {
   // Given output with an error followed by context lines
-  let output = "Starting build...
+  let output =
+    "Starting build...
 Error: cannot find module 'foo'
   at /src/main.gleam:15
   imported from /src/app.gleam:3
@@ -422,7 +431,8 @@ More unrelated output here..."
 
 pub fn summarize_error_truncates_to_max_lines_test() {
   // Given output with multiple lines of error information
-  let output = "Running tests...
+  let output =
+    "Running tests...
 Error: test failed
   expected: 42
   actual: 0
@@ -450,7 +460,8 @@ fn count_lines(text: String) -> Int {
 
 pub fn classify_error_detects_compile_error_test() {
   // Given output from a compiler with typical compilation error patterns
-  let output = "Compiling project...
+  let output =
+    "Compiling project...
 error: Syntax error on line 42
   --> src/main.gleam:42:5
   |
@@ -468,7 +479,8 @@ error: Syntax error on line 42
 
 pub fn classify_error_detects_test_failure_test() {
   // Given output from a test runner showing test failures (typical patterns: FAILED, failed)
-  let output = "Running test suite...
+  let output =
+    "Running test suite...
 test_math_test.gleam: FAILED
   assertion failed: expected 42, got 0
 1 test FAILED, 5 passed"
@@ -483,7 +495,8 @@ test_math_test.gleam: FAILED
 
 pub fn classify_error_detects_runtime_panic_test() {
   // Given output containing a panic pattern (Go, Rust, or other runtime panics)
-  let output = "Starting application...
+  let output =
+    "Starting application...
 panic: runtime error: index out of range [5] with length 3
 goroutine 1 [running]:
 main.processItems()"
@@ -498,7 +511,8 @@ main.processItems()"
 
 pub fn classify_error_detects_timeout_test() {
   // Given output containing a timeout pattern (common in test runners and CI systems)
-  let output = "Running tests...
+  let output =
+    "Running tests...
 test_long_operation_test: Timeout after 30s
   Operation did not complete in time
 Build terminated."
@@ -515,7 +529,8 @@ Build terminated."
 pub fn classify_error_returns_unknown_for_unrecognized_output_test() {
   // Given output that doesn't match any known error pattern
   // (no "Error:", "error:", "panic:", "FAILED", "failed", or timeout patterns)
-  let output = "Build completed successfully.
+  let output =
+    "Build completed successfully.
 All operations finished.
 No issues detected.
 Exiting with status 0."
@@ -559,7 +574,9 @@ pub fn parse_args_new_command_with_flexible_flag_order_test() {
   // Assert: should return a NewTask command with both slug and contract
   // The order of flags should NOT matter
   result
-  |> should.equal(Ok(cli.NewTask("my-task", Some("path/to/contract.md"), False)))
+  |> should.equal(
+    Ok(cli.NewTask("my-task", Some("path/to/contract.md"), False)),
+  )
 }
 
 /// Test that 'new' command without required --slug flag returns an error
@@ -575,7 +592,9 @@ pub fn parse_args_new_command_missing_slug_returns_error_test() {
   case result {
     Error(msg) -> {
       // The error message should clearly indicate that --slug is required
-      should.be_true(contains_substring(msg, "slug") || contains_substring(msg, "required"))
+      should.be_true(
+        contains_substring(msg, "slug") || contains_substring(msg, "required"),
+      )
     }
     Ok(_) -> should.fail()
   }
@@ -607,7 +626,9 @@ pub fn parse_args_new_command_with_short_contract_flag_test() {
   // Assert: should return a NewTask command with both slug and contract
   // -c should be equivalent to --contract
   result
-  |> should.equal(Ok(cli.NewTask("my-task", Some("path/to/contract.md"), False)))
+  |> should.equal(
+    Ok(cli.NewTask("my-task", Some("path/to/contract.md"), False)),
+  )
 }
 
 /// Test that 'stage' command requires both --slug and --stage flags
@@ -625,7 +646,10 @@ pub fn parse_args_stage_command_missing_stage_returns_error_test() {
   case result {
     Error(msg) -> {
       // The error message should clearly say --stage is required
-      should.be_true(contains_substring(msg, "--stage") && contains_substring(msg, "required"))
+      should.be_true(
+        contains_substring(msg, "--stage")
+        && contains_substring(msg, "required"),
+      )
     }
     Ok(_) -> should.fail()
   }
@@ -646,7 +670,9 @@ pub fn parse_args_list_command_rejects_invalid_priority_test() {
     Error(msg) -> {
       // The error message should indicate that the priority value is invalid
       // and ideally mention the valid values (P1, P2, P3)
-      should.be_true(contains_substring(msg, "priority") || contains_substring(msg, "P1"))
+      should.be_true(
+        contains_substring(msg, "priority") || contains_substring(msg, "P1"),
+      )
     }
     Ok(_) -> should.fail()
   }
@@ -667,7 +693,9 @@ pub fn parse_args_list_command_rejects_invalid_status_test() {
     Error(msg) -> {
       // The error message should indicate that the status value is invalid
       // and ideally mention valid values (open, in_progress, done)
-      should.be_true(contains_substring(msg, "status") || contains_substring(msg, "open"))
+      should.be_true(
+        contains_substring(msg, "status") || contains_substring(msg, "open"),
+      )
     }
     Ok(_) -> should.fail()
   }
@@ -689,7 +717,10 @@ pub fn parse_args_approve_command_rejects_invalid_strategy_test() {
     Error(msg) -> {
       // The error message should indicate that the strategy value is invalid
       // and ideally mention valid values (immediate, gradual, canary)
-      should.be_true(contains_substring(msg, "strategy") || contains_substring(msg, "immediate"))
+      should.be_true(
+        contains_substring(msg, "strategy")
+        || contains_substring(msg, "immediate"),
+      )
     }
     Ok(_) -> should.fail()
   }
@@ -751,7 +782,9 @@ pub fn parse_args_show_command_missing_slug_returns_error_test() {
   // Assert: should return Error indicating --slug is required
   case result {
     Error(msg) -> {
-      should.be_true(contains_substring(msg, "--slug") && contains_substring(msg, "required"))
+      should.be_true(
+        contains_substring(msg, "--slug") && contains_substring(msg, "required"),
+      )
     }
     Ok(_) -> should.fail()
   }
@@ -850,7 +883,9 @@ pub fn parse_args_stage_command_with_short_slug_test() {
 pub fn parse_args_stage_command_missing_slug_returns_error_test() {
   case cli.parse_args(["stage", "--stage", "implement"]) {
     Error(msg) -> {
-      should.be_true(contains_substring(msg, "--slug") && contains_substring(msg, "required"))
+      should.be_true(
+        contains_substring(msg, "--slug") && contains_substring(msg, "required"),
+      )
     }
     Ok(_) -> should.fail()
   }
@@ -885,7 +920,9 @@ pub fn parse_args_approve_command_missing_slug_returns_error_test() {
   case result {
     Error(msg) -> {
       // The error message should clearly say --slug is required
-      should.be_true(contains_substring(msg, "--slug") && contains_substring(msg, "required"))
+      should.be_true(
+        contains_substring(msg, "--slug") && contains_substring(msg, "required"),
+      )
     }
     Ok(_) -> should.fail()
   }
@@ -922,11 +959,12 @@ pub fn default_config_returns_config_with_sensible_defaults_test() {
 /// and makes it easier to change the internal representation later.
 pub fn get_data_dir_returns_data_directory_test() {
   // Arrange: create a config with a known data_dir
-  let cfg = config.Config(
-    data_dir: "/custom/data/path",
-    default_priority: config.P1,
-    verbose: True,
-  )
+  let cfg =
+    config.Config(
+      data_dir: "/custom/data/path",
+      default_priority: config.P1,
+      verbose: True,
+    )
 
   // Act: get the data directory using the accessor
   let result = config.get_data_dir(cfg)
@@ -960,12 +998,13 @@ fn contains_substring_ffi(haystack: String, needle: String) -> Bool
 
 pub fn test_failure_signal_has_required_fields_test() {
   // Arrange: Create a TestFailure signal with all required fields
-  let signal = signals.TestFailure(
-    file: "src/test_module.gleam",
-    error: "assertion failed: expected 42, got 0",
-    context_hash: "abc123def456",
-    timestamp: "2026-01-06T12:34:56Z",
-  )
+  let signal =
+    signals.TestFailure(
+      file: "src/test_module.gleam",
+      error: "assertion failed: expected 42, got 0",
+      context_hash: "abc123def456",
+      timestamp: "2026-01-06T12:34:56Z",
+    )
 
   // Assert: Pattern match to verify all fields are present and accessible
   case signal {
@@ -980,10 +1019,11 @@ pub fn test_failure_signal_has_required_fields_test() {
 
 pub fn test_passing_signal_has_required_fields_test() {
   // Arrange: Create a TestPassing signal with all required fields
-  let signal = signals.TestPassing(
-    hash: "pass123def456",
-    timestamp: "2026-01-06T12:45:00Z",
-  )
+  let signal =
+    signals.TestPassing(
+      hash: "pass123def456",
+      timestamp: "2026-01-06T12:45:00Z",
+    )
 
   // Assert: Pattern match to verify all fields are present and accessible
   case signal {
@@ -996,13 +1036,14 @@ pub fn test_passing_signal_has_required_fields_test() {
 
 pub fn bead_assigned_signal_has_required_fields_test() {
   // Arrange: Create a BeadAssigned signal with all required fields
-  let signal = signals.BeadAssigned(
-    task_id: "task-001",
-    spec: "Implement user authentication",
-    requirements: ["RFC 2818 compliance", "JWT support"],
-    priority: "P1",
-    assigned_at: "2026-01-06T13:00:00Z",
-  )
+  let signal =
+    signals.BeadAssigned(
+      task_id: "task-001",
+      spec: "Implement user authentication",
+      requirements: ["RFC 2818 compliance", "JWT support"],
+      priority: "P1",
+      assigned_at: "2026-01-06T13:00:00Z",
+    )
 
   // Assert: Pattern match to verify all fields are present and accessible
   case signal {
@@ -1018,17 +1059,21 @@ pub fn bead_assigned_signal_has_required_fields_test() {
 
 pub fn patch_proposed_signal_has_required_fields_test() {
   // Arrange: Create a PatchProposed signal with all required fields
-  let signal = signals.PatchProposed(
-    diff: "--- a/src/main.gleam\n+++ b/src/main.gleam\n@@ -1,3 +1,3 @@",
-    author_pid: "pid-12345",
-    workspace: "/home/dev/workspace",
-    hash: "commit-abc123",
-  )
+  let signal =
+    signals.PatchProposed(
+      diff: "--- a/src/main.gleam\n+++ b/src/main.gleam\n@@ -1,3 +1,3 @@",
+      author_pid: "pid-12345",
+      workspace: "/home/dev/workspace",
+      hash: "commit-abc123",
+    )
 
   // Assert: Pattern match to verify all fields are present and accessible
   case signal {
     signals.PatchProposed(diff, author_pid, workspace, hash) -> {
-      diff |> should.equal("--- a/src/main.gleam\n+++ b/src/main.gleam\n@@ -1,3 +1,3 @@")
+      diff
+      |> should.equal(
+        "--- a/src/main.gleam\n+++ b/src/main.gleam\n@@ -1,3 +1,3 @@",
+      )
       author_pid |> should.equal("pid-12345")
       workspace |> should.equal("/home/dev/workspace")
       hash |> should.equal("commit-abc123")
@@ -1038,10 +1083,11 @@ pub fn patch_proposed_signal_has_required_fields_test() {
 
 pub fn patch_accepted_signal_has_required_fields_test() {
   // Arrange: Create a PatchAccepted signal with all required fields
-  let signal = signals.PatchAccepted(
-    hash: "commit-def456",
-    merged_at: "2026-01-06T14:00:00Z",
-  )
+  let signal =
+    signals.PatchAccepted(
+      hash: "commit-def456",
+      merged_at: "2026-01-06T14:00:00Z",
+    )
 
   // Assert: Pattern match to verify all fields are present and accessible
   case signal {
@@ -1054,9 +1100,8 @@ pub fn patch_accepted_signal_has_required_fields_test() {
 
 pub fn patch_rejected_signal_has_required_fields_test() {
   // Arrange: Create a PatchRejected signal with all required fields
-  let signal = signals.PatchRejected(
-    reason: "Code review failed: missing error handling",
-  )
+  let signal =
+    signals.PatchRejected(reason: "Code review failed: missing error handling")
 
   // Assert: Pattern match to verify the field is present and accessible
   case signal {
@@ -1068,10 +1113,11 @@ pub fn patch_rejected_signal_has_required_fields_test() {
 
 pub fn golden_master_updated_signal_has_required_fields_test() {
   // Arrange: Create a GoldenMasterUpdated signal with all required fields
-  let signal = signals.GoldenMasterUpdated(
-    old_hash: "golden-old-hash123",
-    new_hash: "golden-new-hash456",
-  )
+  let signal =
+    signals.GoldenMasterUpdated(
+      old_hash: "golden-old-hash123",
+      new_hash: "golden-new-hash456",
+    )
 
   // Assert: Pattern match to verify all fields are present and accessible
   case signal {
@@ -1084,10 +1130,11 @@ pub fn golden_master_updated_signal_has_required_fields_test() {
 
 pub fn evolution_signal_has_required_fields_test() {
   // Arrange: Create an Evolution signal with all required fields
-  let signal = signals.Evolution(
-    new_hash: "evolved-hash789",
-    cause: "Test failure triggered evolution",
-  )
+  let signal =
+    signals.Evolution(
+      new_hash: "evolved-hash789",
+      cause: "Test failure triggered evolution",
+    )
 
   // Assert: Pattern match to verify all fields are present and accessible
   case signal {
@@ -1100,11 +1147,12 @@ pub fn evolution_signal_has_required_fields_test() {
 
 pub fn loop_spawned_signal_has_required_fields_test() {
   // Arrange: Create a LoopSpawned signal with all required fields
-  let signal = signals.LoopSpawned(
-    loop_id: "loop-spawn-001",
-    task_id: "task-001",
-    phase: "tdd-setup",
-  )
+  let signal =
+    signals.LoopSpawned(
+      loop_id: "loop-spawn-001",
+      task_id: "task-001",
+      phase: "tdd-setup",
+    )
 
   // Assert: Pattern match to verify all fields are present and accessible
   case signal {
@@ -1118,13 +1166,14 @@ pub fn loop_spawned_signal_has_required_fields_test() {
 
 pub fn loop_complete_signal_has_required_fields_test() {
   // Arrange: Create a LoopComplete signal with all required fields
-  let signal = signals.LoopComplete(
-    loop_id: "loop-complete-001",
-    task_id: "task-001",
-    commits: 5,
-    reverts: 2,
-    duration_ms: 45000,
-  )
+  let signal =
+    signals.LoopComplete(
+      loop_id: "loop-complete-001",
+      task_id: "task-001",
+      commits: 5,
+      reverts: 2,
+      duration_ms: 45_000,
+    )
 
   // Assert: Pattern match to verify all fields are present and accessible
   case signal {
@@ -1133,17 +1182,18 @@ pub fn loop_complete_signal_has_required_fields_test() {
       task_id |> should.equal("task-001")
       commits |> should.equal(5)
       reverts |> should.equal(2)
-      duration_ms |> should.equal(45000)
+      duration_ms |> should.equal(45_000)
     }
   }
 }
 
 pub fn loop_failed_signal_has_required_fields_test() {
   // Arrange: Create a LoopFailed signal with all required fields
-  let signal = signals.LoopFailed(
-    loop_id: "loop-fail-001",
-    reason: "Maximum retries exceeded",
-  )
+  let signal =
+    signals.LoopFailed(
+      loop_id: "loop-fail-001",
+      reason: "Maximum retries exceeded",
+    )
 
   // Assert: Pattern match to verify all fields are present and accessible
   case signal {
@@ -1156,11 +1206,8 @@ pub fn loop_failed_signal_has_required_fields_test() {
 
 pub fn resource_exhausted_signal_has_required_fields_test() {
   // Arrange: Create a ResourceExhausted signal with all required fields
-  let signal = signals.ResourceExhausted(
-    resource: "disk_space",
-    current: 99,
-    limit: 100,
-  )
+  let signal =
+    signals.ResourceExhausted(resource: "disk_space", current: 99, limit: 100)
 
   // Assert: Pattern match to verify all fields are present and accessible
   case signal {
