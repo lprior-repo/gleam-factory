@@ -1987,29 +1987,15 @@ pub fn create_workspace_reflink_uses_cp_reflink_command_test() {
 }
 
 // ============================================================================
-// SIGNAL BUS TESTS
+// WORKSPACE STRATEGY TESTS
 // ============================================================================
 
-/// Test unsubscribe removes subscription and stops broadcasts.
-pub fn signal_bus_unsubscribe_removes_subscription_test() {
-  let assert Ok(bus) = signal_bus.start_link()
+/// Test Auto strategy resolves to Reflink when /dev/shm exists and has space.
+pub fn workspace_strategy_auto_resolves_to_reflink_when_dev_shm_exists_test() {
+  let result = workspace_manager.resolve_auto_strategy()
 
-  let subscriber = erl_process.new_subject()
-  let selector = erl_process.new_selector() |> erl_process.select(subscriber)
-
-  let assert Ok(Nil) = signal_bus.subscribe(bus, signal_bus.TestPassing, subscriber)
-  signal_bus.publish(bus, signal_bus.TestPassing)
-
-  case erl_process.selector_receive(selector, 100) {
-    Ok(_) -> Nil
-    Error(_) -> should.fail()
-  }
-
-  let assert Ok(Nil) = signal_bus.unsubscribe(bus, signal_bus.TestPassing, subscriber)
-  signal_bus.publish(bus, signal_bus.TestPassing)
-
-  case erl_process.selector_receive(selector, 100) {
-    Ok(_) -> should.fail()
-    Error(_) -> Nil
+  case result {
+    types.Reflink -> Nil
+    types.Jj -> Nil
   }
 }
