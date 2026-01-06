@@ -2337,51 +2337,51 @@ pub fn acp_store_received_capabilities_updates_client_with_parsed_list_test() {
   }
 }
 
-/// Test acp_initialize sends MCP request with clientInfo and protocol version.
+/// Test acp_initialize request encoding contains MCP-compliant JSON.
 ///
 /// CUPID pressure:
-/// - C (Compose): build_request |> http_send |> parse_response chains cleanly
-/// - U (Unix): Do ONE thing: complete ACP handshake per MCP spec
-/// - P (Pure): Same client+version → same request encoding
-/// - I (Idiomatic): Result |> for all steps, pattern matching responses
-/// - D (Domain): Uses MCP initialize schema with clientInfo.name/version
+/// - C (Compose): encode_initialize_request |> http_send separates concerns
+/// - U (Unix): Does ONE thing: build MCP initialize request JSON
+/// - P (Pure): Same version+clientInfo → same JSON structure
+/// - I (Idiomatic): Pattern match JSON fields with case
+/// - D (Domain): MCP spec mandates exact schema for initialize
 ///
 /// Forces implementer to confront:
-/// 1. MCP PROTOCOL: Must send {"method":"initialize","params":{"protocolVersion":"1.0","clientInfo":{"name":"factory","version":"0.1.0"}}}
-/// 2. REQUEST BODY: Can't send {"version":"..."}, needs full MCP initialize structure
-/// 3. RESPONSE HANDLING: Must parse {"result":{"capabilities":[...]} and store caps
-/// 4. COMPOSITION: encode_request |> send_http |> parse_result |> store_caps
-/// 5. INTEGRATION: Needs working HTTP client (curl/gleam_http), JSON encode/decode
+/// 1. REQUEST ENCODING: Must build {"method":"initialize","params":{"protocolVersion":"1.0","capabilities":{},"clientInfo":{"name":"factory","version":"0.1.0"}}}
+/// 2. NOT SEND YET: This tests encoding logic, not HTTP transport
+/// 3. JSON STRUCTURE: Can't send {"version":"1.0"}, needs method+params wrapper
+/// 4. CLIENT INFO: params.clientInfo.name and version are REQUIRED by MCP
+/// 5. COMPOSABILITY: encode fn separates from send, testable without network
 ///
 /// Rejects lazy:
-/// - "sends version" → needs full clientInfo with name+version
-/// - "returns client" → must parse response and store caps in returned client
-/// - "hardcoded curl" → needs structured request body per MCP spec
+/// - "returns JSON" → needs exact fields: method, params, protocolVersion, clientInfo
+/// - "hardcoded string" → needs to compose from inputs
+/// - "no validation" → test verifies structure matches MCP spec
 ///
-/// 30-line violation: if initialize >30 lines, split encode/send/parse
+/// 30-line rule: encode_initialize_request should be <20 lines pure fn
 ///
-/// Design pressure: This test FORCES MCP spec compliance:
-/// - acp_initialize must build MCP initialize request with clientInfo
-/// - Response must be parsed for capabilities array
-/// - Returned client must have capabilities stored (verify with get_capabilities)
-/// - Can't trivially return Ok - must prove HTTP send + parse + store happened
-pub fn acp_initialize_sends_mcp_request_with_client_info_and_protocol_test() {
-  let client = types.new_acp_client("http://localhost:9999/acp")
+/// Design pressure: This FORCES separation of encode from send:
+/// - types.encode_initialize_request(version, client_name, client_version) -> Result(String, String)
+/// - Returns JSON string with MCP structure
+/// - acp_initialize calls this BEFORE sending HTTP request
+/// - Makes request encoding testable without network dependency
+pub fn acp_encode_initialize_request_contains_mcp_compliant_json_test() {
+  let json_result = types.encode_initialize_request("1.0", "factory", "0.1.0")
 
-  case process.acp_initialize(client, "1.0") {
-    Error(msg) -> {
-      should.be_true(
-        contains_substring(msg, "http") || contains_substring(msg, "connect") || contains_substring(msg, "failed"),
-      )
+  case json_result {
+    Ok(json) -> {
+      should.be_true(contains_substring(json, "\"method\""))
+      should.be_true(contains_substring(json, "\"initialize\""))
+      should.be_true(contains_substring(json, "\"params\""))
+      should.be_true(contains_substring(json, "\"protocolVersion\""))
+      should.be_true(contains_substring(json, "\"1.0\""))
+      should.be_true(contains_substring(json, "\"clientInfo\""))
+      should.be_true(contains_substring(json, "\"name\""))
+      should.be_true(contains_substring(json, "\"factory\""))
+      should.be_true(contains_substring(json, "\"version\""))
+      should.be_true(contains_substring(json, "\"0.1.0\""))
     }
-    Ok(initialized_client) -> {
-      case types.get_capabilities(initialized_client) {
-        Some(caps) -> {
-          list_length(caps) |> should.equal(0)
-        }
-        None -> should.fail()
-      }
-    }
+    Error(_) -> should.fail()
   }
 }
 
