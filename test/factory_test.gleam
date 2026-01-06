@@ -5,6 +5,7 @@ import persistence
 import audit
 import validation
 import errors
+import cli
 import gleam/option.{None, Some}
 import gleam/string
 
@@ -524,6 +525,24 @@ Exiting with status 0."
   // Requirements state: ErrorType should be: CompileError, TestFailure, RuntimePanic, Timeout, Unknown
   result
   |> should.equal(errors.Unknown)
+}
+
+// ============================================================================
+// CLI ARGUMENT PARSING TESTS
+// ============================================================================
+
+/// Test that parse_args exists as a pure function and correctly parses
+/// a basic 'new' command with the --slug flag
+pub fn parse_args_new_command_with_slug_test() {
+  // Arrange: a simple 'new' command with just --slug
+  let args = ["new", "--slug", "my-task"]
+
+  // Act: parse the args using the pure parse_args function
+  let result = cli.parse_args(args)
+
+  // Assert: should return a NewTask command with the correct slug
+  result
+  |> should.equal(Ok(cli.NewTask("my-task", None, False)))
 }
 
 // ============================================================================
