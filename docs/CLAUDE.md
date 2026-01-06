@@ -1,5 +1,24 @@
 # Claude AI Agent Guide for Factory-Gleam
 
+```
+╔═══════════════════════════════════════════════════════════════╗
+║                                                               ║
+║  ⚠️  CRITICAL: READ THIS FIRST  ⚠️                            ║
+║                                                               ║
+║  1. Use CODANNA for ALL code search (MANDATORY)              ║
+║     - codanna mcp semantic_search_with_context               ║
+║     - codanna mcp search_documents                           ║
+║     - codanna retrieve symbol                                 ║
+║                                                               ║
+║  2. Use BV for triage and planning (NOT bd/grep)             ║
+║     - bv --robot-triage                                      ║
+║     - bv --robot-plan                                        ║
+║                                                               ║
+║  3. ALWAYS research with Codanna BEFORE writing code         ║
+║                                                               ║
+╚═══════════════════════════════════════════════════════════════╝
+```
+
 This document provides guidance for AI agents (like Claude) working on this codebase.
 
 ## Project Overview
@@ -100,27 +119,87 @@ bv --robot-label-health | jq '.results.labels[] | select(.health_level == "criti
 
 Use bv instead of parsing beads.jsonl—it computes PageRank, critical paths, cycles, and parallel tracks deterministically.
 
-## Using Codanna for Semantic Code Search
+## ⚠️ MANDATORY: Codanna for ALL Code Search
 
-Codanna provides semantic search and relationship tracking for the codebase. Use it to understand code structure and find relevant implementations.
+**CRITICAL REQUIREMENT**: You MUST use Codanna for ALL code search operations. DO NOT use Grep, Glob, or manual file reading to search for code patterns.
 
-### Basic Usage
+### Why Codanna is Mandatory
+
+1. **Semantic Understanding**: Finds code by meaning, not just keywords
+2. **Relationship Tracking**: Understands symbol dependencies and references
+3. **Context-Aware**: Returns relevant surrounding code automatically
+4. **Performance**: Indexed search is faster than grep on large codebases
+5. **AI-Native**: Designed specifically for AI agent workflows
+
+### REQUIRED Usage Pattern
+
+**BEFORE writing or modifying code**, you MUST:
 
 ```bash
-# Semantic search for code
-codanna mcp semantic_search_with_context query:"where do we handle errors" limit:3
+# 1. Search for existing implementations
+codanna mcp semantic_search_with_context query:"error handling patterns" limit:5
 
-# Search documentation
-codanna mcp search_documents query:"authentication flow"
+# 2. Find symbol definitions
+codanna retrieve symbol <function_name>
+
+# 3. Search documentation for guidance
+codanna mcp search_documents query:"how to implement feature X"
 ```
 
-### Setup Codanna
+### Codanna Commands (Use These ONLY)
 
-If not already indexed:
+#### Code Search (Primary Tool)
 ```bash
-codanna init
-codanna index src --progress
-codanna documents add-collection docs ./docs  # if you have docs
+# Semantic search with context
+codanna mcp semantic_search_with_context query:"WHAT YOU ARE LOOKING FOR" limit:N
+
+# Example queries:
+codanna mcp semantic_search_with_context query:"actor supervision" limit:3
+codanna mcp semantic_search_with_context query:"error recovery patterns" limit:5
+codanna mcp semantic_search_with_context query:"message handling" limit:3
+```
+
+#### Symbol Lookup
+```bash
+# Get specific symbol definition and references
+codanna retrieve symbol <name>
+
+# Examples:
+codanna retrieve symbol signal_bus
+codanna retrieve symbol process_event
+```
+
+#### Documentation Search
+```bash
+# Search ALL indexed documentation
+codanna mcp search_documents query:"YOUR QUESTION"
+
+# Examples:
+codanna mcp search_documents query:"how to use bv for triage"
+codanna mcp search_documents query:"TDD workflow steps"
+codanna mcp search_documents query:"CUPID principles"
+```
+
+### When to Use Each Command
+
+| Task | Command | Example |
+|------|---------|---------|
+| Find similar code | `semantic_search_with_context` | "Find error handling code" |
+| Understand architecture | `search_documents` | "How does signal bus work?" |
+| Find function definition | `retrieve symbol` | `codanna retrieve symbol handle_message` |
+| Before writing code | `semantic_search_with_context` | "Check for existing implementation" |
+| Learning patterns | `search_documents` | "What patterns should I use?" |
+
+### Setup Codanna (Already Done)
+
+The project is already indexed with:
+- ✅ Source code: `/home/lewis/src/factory-gleam/src`
+- ✅ Documentation: `./docs` (CLAUDE.md, ARCHITECTURE.md, etc.)
+- ✅ Beads data: `./.beads`
+
+To re-index after major changes:
+```bash
+codanna index src
 codanna documents index
 ```
 
@@ -145,13 +224,57 @@ Use `./tdd-tcr-refactor-loop` for automated test-driven development with:
 ./tdd-tcr-refactor-loop "Add email validation function"
 ```
 
-### Recommended AI Workflow
+### Recommended AI Workflow (FOLLOW THIS)
 
 1. **Start with triage**: `bv --robot-triage` to understand what needs work
-2. **Pick a task**: Use top recommendation or check `--robot-next`
-3. **Understand context**: Use Codanna to search related code
-4. **Execute**: Use `./tdd-tcr-refactor-loop --bead <id>` to implement
-5. **Verify**: Check with `bv --robot-insights` for impact on graph
+   ```bash
+   bv --robot-triage | jq '.triage.quick_ref.top_picks[0]'
+   ```
+
+2. **Research with Codanna** (MANDATORY STEP):
+   ```bash
+   # Search for existing patterns
+   codanna mcp semantic_search_with_context query:"FEATURE DESCRIPTION" limit:5
+
+   # Search documentation for guidance
+   codanna mcp search_documents query:"how to implement FEATURE"
+
+   # Find related symbols
+   codanna retrieve symbol <relevant_name>
+   ```
+
+3. **Pick a task**: Use top bv recommendation
+   ```bash
+   BEAD_ID=$(bv --robot-triage | jq -r '.triage.quick_ref.top_picks[0].id')
+   ```
+
+4. **Execute with TDD-TCR-Refactor**:
+   ```bash
+   ./tdd-tcr-refactor-loop --bead $BEAD_ID
+   ```
+
+5. **Verify impact**: Check graph after completion
+   ```bash
+   bv --robot-insights | jq '.status'
+   ```
+
+### Example Complete Workflow
+
+```bash
+# 1. What should I work on?
+bv --robot-triage | jq '.triage.quick_ref.top_picks[0]'
+# Output: { "id": "factory-gleam-z24", "title": "Add gleam_otp dependencies", ... }
+
+# 2. Research existing code (REQUIRED)
+codanna mcp semantic_search_with_context query:"gleam dependencies management" limit:3
+codanna mcp search_documents query:"how to add Gleam dependencies"
+
+# 3. Execute
+./tdd-tcr-refactor-loop --bead factory-gleam-z24
+
+# 4. Verify
+bv --robot-insights
+```
 
 ## Code Quality Standards
 
