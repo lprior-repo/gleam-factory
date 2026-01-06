@@ -1251,7 +1251,7 @@ pub fn gleam_erlang_is_available_as_dependency_test() {
 // PROCESS ID TESTS
 // ============================================================================
 
-/// Test that ProcessId opaque type can be created from a Pid and converted back
+/// Test that ProcessId round-trip conversion preserves Pid identity
 /// This test validates that ProcessId wraps Pid correctly:
 /// - from_pid/1 converts a Pid to ProcessId (type-safe wrapping)
 /// - to_pid/1 converts ProcessId back to a Pid (unwrapping)
@@ -1261,39 +1261,18 @@ pub fn gleam_erlang_is_available_as_dependency_test() {
 /// 1. An opaque ProcessId type defined in src/types.gleam
 /// 2. A from_pid(Pid) -> ProcessId function
 /// 3. A to_pid(ProcessId) -> Pid function
-pub fn process_id_wraps_pid_correctly_test() {
-  // Arrange: Create a simple test pid value
-  // We use a placeholder tuple to represent a Pid (Erlang pids are normally {#Ref, _, _})
-  // This tests the structure without requiring actual BEAM process interaction
-  let test_pid_string = "test_pid"
-
-  // Act: Convert to ProcessId and back
-  // The implementation should store the Pid internally and retrieve it
-  let process_id = types.from_pid(test_pid_string)
-  let retrieved_pid = types.to_pid(process_id)
-
-  // Assert: Round-trip conversion preserves the Pid value
-  retrieved_pid
-  |> should.equal(test_pid_string)
-}
-
-/// Test that ProcessId wraps the actual gleam_erlang Pid type, not String.
-/// This verifies the type-safety requirement: ProcessId must wrap Pid from gleam_erlang
-/// to provide compile-time process identification guarantees.
 ///
-/// The current implementation wraps String, which defeats the purpose of the opaque type.
-/// This test drives the implementer to use the correct Pid type from gleam_erlang.
-pub fn process_id_wraps_erlang_pid_type_test() {
-  // Arrange: Get the current process's actual Pid
-  // process.self() returns the Pid of the current process
-  let actual_pid = process.self()
+/// Edge case: Tests with the actual current process's Pid to ensure
+/// the opaque wrapper correctly preserves real BEAM process identifiers.
+pub fn process_id_round_trip_conversion_preserves_pid_test() {
+  // Arrange: Get the current process's Pid
+  let original_pid = process.self()
 
-  // Act: Create ProcessId from the actual Pid and retrieve it
-  let process_id = types.from_pid(actual_pid)
-  let retrieved_pid = types.to_pid(process_id)
+  // Act: Wrap in ProcessId and unwrap
+  let wrapped = types.from_pid(original_pid)
+  let unwrapped = types.to_pid(wrapped)
 
-  // Assert: The retrieved Pid should equal the original Pid
-  // This ensures ProcessId properly wraps Pid, not String representations
-  retrieved_pid
-  |> should.equal(actual_pid)
+  // Assert: Round-trip conversion preserves identity
+  unwrapped
+  |> should.equal(original_pid)
 }
