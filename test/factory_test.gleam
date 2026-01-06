@@ -10,6 +10,7 @@ import gleam/otp/actor
 import gleam/string
 import gleeunit
 import gleeunit/should
+import golden_master
 import persistence
 import process
 import signal_bus
@@ -2088,4 +2089,13 @@ pub fn signal_bus_broadcast_reaches_all_subscribers_test() {
     Ok(signal_bus.TestPassing) -> Nil
     _ -> should.fail()
   }
+}
+
+/// Test golden_master.start_link() creates actor with path.
+pub fn golden_master_start_link_returns_subject_test() {
+  let path = "/dev/shm/golden-master"
+  let result = golden_master.start_link(path)
+
+  result
+  |> should.be_ok
 }
