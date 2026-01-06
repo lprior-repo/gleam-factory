@@ -52,12 +52,16 @@ pub fn parse_args(args: List(String)) -> Result(Command, String) {
 
     ["stage", "--slug", slug, "--stage", stage] -> Ok(RunStage(slug, stage, False, None, None))
     ["stage", "--slug", slug, "--stage", stage, "--dry-run"] -> Ok(RunStage(slug, stage, True, None, None))
+    ["stage", "--slug", slug, "--stage", stage, "-d"] -> Ok(RunStage(slug, stage, True, None, None))
     ["stage", "--slug", slug, "--stage", stage, "--from", from] -> Ok(RunStage(slug, stage, False, Some(from), None))
     ["stage", "--slug", slug, "--stage", stage, "--to", to] -> Ok(RunStage(slug, stage, False, None, Some(to)))
     ["stage", "--slug", _] -> Error("--stage is required for stage command")
 
     ["approve", "--slug", slug] -> Ok(ApproveTask(slug, None, False))
-    ["approve", "--slug", slug, "--strategy", strategy] -> Ok(ApproveTask(slug, Some(strategy), False))
+    ["approve", "--slug", slug, "--strategy", strategy] -> case strategy {
+      "immediate" | "gradual" | "canary" -> Ok(ApproveTask(slug, Some(strategy), False))
+      _ -> Error("Invalid strategy value: " <> strategy <> ". Valid values are: immediate, gradual, canary")
+    }
     ["approve", "--slug", slug, "--force"] -> Ok(ApproveTask(slug, None, True))
 
     ["show", "--slug", slug] -> Ok(ShowTask(slug, False))
