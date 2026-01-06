@@ -629,6 +629,27 @@ pub fn parse_args_stage_command_missing_stage_returns_error_test() {
   }
 }
 
+/// Test that --priority flag value must be P1, P2, or P3
+/// This tests requirement #5: flag value validation for --priority
+pub fn parse_args_list_command_rejects_invalid_priority_test() {
+  // Arrange: 'list' command with an invalid priority value (not P1, P2, or P3)
+  let args = ["list", "--priority", "HIGH"]
+
+  // Act: parse the args
+  let result = cli.parse_args(args)
+
+  // Assert: should return Error with a message about invalid priority value
+  // Valid values are: P1, P2, P3
+  case result {
+    Error(msg) -> {
+      // The error message should indicate that the priority value is invalid
+      // and ideally mention the valid values (P1, P2, P3)
+      should.be_true(contains_substring(msg, "priority") || contains_substring(msg, "P1"))
+    }
+    Ok(_) -> should.fail()
+  }
+}
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
