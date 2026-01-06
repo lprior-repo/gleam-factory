@@ -940,7 +940,7 @@ run_auditor() {
     log_info "Invoking auditor AI (new session, haiku-4.5)..."
     AUDITOR_SESSION_ID=$(uuidgen)
     auditor_output=$(claude -p \
-        --model claude-haiku-4-5-20250514 \
+        --model haiku \
         --session-id "$AUDITOR_SESSION_ID" \
         --allowedTools "Read Write Edit Glob Grep Bash(gleam:*)" \
         --append-system-prompt "You are the AUDITOR. You may ONLY modify files in test/. Any attempt to modify src/ will fail. Focus on writing ONE failing test that drives good design. If all requirements are met, output REQUIREMENTS_COMPLETE." \
@@ -986,7 +986,7 @@ run_implementer() {
         log_info "Invoking implementer AI (new session, haiku-4.5)..."
         IMPLEMENTER_SESSION_ID=$(uuidgen)
         impl_output=$(claude -p \
-            --model claude-haiku-4-5-20250514 \
+            --model haiku \
             --session-id "$IMPLEMENTER_SESSION_ID" \
             --allowedTools "Read Write Edit Glob Grep Bash(gleam:*)" \
             --append-system-prompt "You are the IMPLEMENTER under TCR discipline. You may ONLY modify files in src/. If tests fail, your changes will be REVERTED. Write MINIMUM code to pass the test." \
@@ -1041,7 +1041,7 @@ run_architect() {
     log_info "Invoking architect AI (new session, haiku-4.5)..."
     ARCHITECT_SESSION_ID=$(uuidgen)
     architect_output=$(claude -p \
-        --model claude-haiku-4-5-20250514 \
+        --model haiku \
         --session-id "$ARCHITECT_SESSION_ID" \
         --allowedTools "Read Write Edit Glob Grep Bash(gleam:*)" \
         --append-system-prompt "You are the ARCHITECT. You may modify both src/ and test/. Your job is to REFACTOR the code for quality and maintainability. ALL TESTS MUST STILL PASS. Focus on CUPID, code minimization, and idiomatic patterns. Every line must earn its place." \
@@ -1083,7 +1083,7 @@ run_reviewer() {
     log_info "Invoking reviewer AI (new session, haiku-4.5)..."
     REVIEWER_SESSION_ID=$(uuidgen)
     REVIEWER_OUTPUT=$(claude -p \
-        --model claude-haiku-4-5-20250514 \
+        --model haiku \
         --session-id "$REVIEWER_SESSION_ID" \
         --allowedTools "Read Write Edit Glob Grep Bash(gleam:*)" \
         --append-system-prompt "You are the REVIEWER doing final review. You may modify both src/ and test/. All tests MUST pass. Focus on production readiness and polish. You MUST output ACCEPTANCE_CRITERIA_MET: true or ACCEPTANCE_CRITERIA_MET: false in your response." \
