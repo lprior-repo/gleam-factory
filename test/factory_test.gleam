@@ -5,6 +5,7 @@ import persistence
 import validation
 import cli
 import utils
+import stages
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -306,6 +307,34 @@ pub fn pad_left_space_padding_test() {
   // Common case: padding with spaces
   utils.pad_left("test", 8, " ")
   |> should.equal("    test")
+}
+
+// ============================================================================
+// STAGES TESTS
+// ============================================================================
+
+pub fn validate_stage_transition_forward_valid_test() {
+  // When transitioning from tdd-setup to implement (valid forward progression)
+  stages.validate_stage_transition("tdd-setup", "implement")
+  |> should.be_ok
+}
+
+pub fn validate_stage_transition_backward_invalid_test() {
+  // When transitioning backward in pipeline (implement to tdd-setup), should fail
+  stages.validate_stage_transition("implement", "tdd-setup")
+  |> should.be_error
+}
+
+pub fn validate_stage_transition_same_stage_invalid_test() {
+  // When transitioning to same stage, should fail
+  stages.validate_stage_transition("tdd-setup", "tdd-setup")
+  |> should.be_error
+}
+
+pub fn validate_stage_transition_nonexistent_stage_invalid_test() {
+  // When transitioning from or to non-existent stage, should fail
+  stages.validate_stage_transition("invalid-stage", "implement")
+  |> should.be_error
 }
 
 // ============================================================================
