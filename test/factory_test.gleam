@@ -579,6 +579,20 @@ pub fn parse_args_new_command_missing_slug_returns_error_test() {
   }
 }
 
+/// Test that short flag -s is equivalent to --slug
+/// This tests requirement #4: support short flags
+pub fn parse_args_new_command_with_short_slug_flag_test() {
+  // Arrange: 'new' command with -s (short for --slug)
+  let args = ["new", "-s", "my-task"]
+
+  // Act: parse the args using the pure parse_args function
+  let result = cli.parse_args(args)
+
+  // Assert: should return same result as using --slug
+  result
+  |> should.equal(Ok(cli.NewTask("my-task", None, False)))
+}
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
