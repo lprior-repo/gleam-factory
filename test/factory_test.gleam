@@ -545,6 +545,21 @@ pub fn parse_args_new_command_with_slug_test() {
   |> should.equal(Ok(cli.NewTask("my-task", None, False)))
 }
 
+/// Test flexible flag ordering: --contract before --slug should work
+/// This tests requirement #2: flags can appear in any order
+pub fn parse_args_new_command_with_flexible_flag_order_test() {
+  // Arrange: 'new' command with --contract BEFORE --slug (non-canonical order)
+  let args = ["new", "--contract", "path/to/contract.md", "--slug", "my-task"]
+
+  // Act: parse the args using the pure parse_args function
+  let result = cli.parse_args(args)
+
+  // Assert: should return a NewTask command with both slug and contract
+  // The order of flags should NOT matter
+  result
+  |> should.equal(Ok(cli.NewTask("my-task", Some("path/to/contract.md"), False)))
+}
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
