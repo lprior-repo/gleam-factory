@@ -10,7 +10,8 @@ import types.{type WorkspaceId, type Workspace}
 
 /// Message type for workspace manager actor.
 pub type WorkspaceManagerMessage {
-  GetWorkspace(id: WorkspaceId)
+  RegisterWorkspace(workspace: Workspace)
+  GetWorkspace(id: WorkspaceId, reply_with: Subject(Result(Workspace, String)))
 }
 
 /// Error type for workspace manager initialization.
@@ -30,12 +31,12 @@ type WorkspaceManagerState {
 pub fn start_link() -> Result(Subject(WorkspaceManagerMessage), WorkspaceManagerError) {
   let initial_state = WorkspaceManagerState(workspaces: dict.new())
 
-  case
+  let builder =
     actor.new(initial_state)
     |> actor.on_message(handle_message)
-    |> actor.start
-  {
-    Ok(started) -> Ok(started.data)
+
+  case actor.start(builder) {
+    Ok(started) -> Ok(started.subject)
     Error(_) -> Error(InitializationFailed)
   }
 }
@@ -46,8 +47,16 @@ fn handle_message(
   message: WorkspaceManagerMessage,
 ) -> actor.Next(WorkspaceManagerState, WorkspaceManagerMessage) {
   case message {
-    GetWorkspace(_id) -> {
-      // Placeholder: will implement workspace retrieval in future iterations
+    RegisterWorkspace(workspace) -> {
+      let new_workspaces = dict.insert(state.workspaces, workspace.id, workspace)
+      actor.continue(WorkspaceManagerState(workspaces: new_workspaces))
+    }
+    GetWorkspace(id, reply_with) -> {
+      let result = case dict.get(state.workspaces, id) {
+        Ok(workspace) -> Ok(workspace)
+        Error(Nil) -> Error("Workspace not found")
+      }
+      process.send(reply_with, result)
       actor.continue(state)
     }
   }

@@ -851,63 +851,16 @@ auditor_prompt() {
     local last_impl_result="$2"
 
     cat <<EOF
-You are the AUDITOR in a TDD-TCR-REFACTOR loop. Your job is to write tests.
+<ctx lang="$PROJECT_LANG" iter="$iteration" cmd="$TEST_CMD"/>
+<req>$REQUIREMENTS</req>
+$([ -n "$last_impl_result" ] && echo "<last>$last_impl_result</last>")
 
-PROJECT: $PROJECT_LANG project
-TEST COMMAND: $TEST_CMD
+AUDITOR: Write 1 failing test in test/. Be concise.
 
-REQUIREMENTS:
-$REQUIREMENTS
+RULES: Only test/, ONE test, must FAIL initially.
+If requirements complete: output REQUIREMENTS_COMPLETE
 
-ITERATION: $iteration
-
-YOUR CONSTRAINTS:
-- You can ONLY modify files in test/
-- You CANNOT modify files in src/ (read-only, filesystem enforced)
-- Write ONE focused test at a time
-- The test should FAIL initially (red phase of TDD)
-
-YOUR TASK:
-1. Read the current src/ code to understand what exists
-2. Read the current tests to understand what's covered
-3. Write EXACTLY ONE test that:
-   - Tests ONE specific behavior or edge case
-   - Drives better code design (not just coverage)
-   - Forces the implementer to write clean, focused code
-   - Follows testing best practices (arrange-act-assert, descriptive names)
-
-TEST DESIGN PRINCIPLES:
-- Each test should validate ONE thing
-- Test names should describe the behavior being tested
-- Tests should be independent and not rely on each other
-- Prefer testing behavior over implementation details
-- Edge cases matter: empty inputs, boundaries, error conditions
-
-TCR CONTEXT:
-The implementer is under TCR discipline - if they fail tests, their code is REVERTED.
-Write tests that are:
-- Clear enough that the implementer knows exactly what to build
-- Focused enough that they can be implemented in one small step
-- Strict enough that they catch real bugs
-
-ARCHITECTURAL NOTE:
-An ARCHITECT will review the code every $REFACTOR_INTERVAL iterations.
-Write tests that encourage good architecture, not just passing behavior.
-If you see the implementer taking shortcuts, write tests that force proper design.
-
-IMPORTANT: Write ONLY ONE test per iteration. If ALL requirements are fully tested and implemented, output EXACTLY:
-REQUIREMENTS_COMPLETE
-and do not write any new tests.
-
-$(if [ -n "$last_impl_result" ]; then
-    echo "LAST IMPLEMENTATION RESULT:"
-    echo "$last_impl_result"
-    echo ""
-    echo "If tests passed, write the next test for uncovered requirements."
-    echo "If tests failed and were REVERTED, consider if your test was too ambitious."
-fi)
-
-OUTPUT: Only modify test files. Explain what you're testing and why.
+Do: Read src/ + test/, write minimal test, use /gleam-code-generator skill.
 EOF
 }
 
@@ -918,76 +871,15 @@ implementer_prompt() {
     local ai_learnings="$4"
     local is_escalated="${5:-false}"
 
-    local escalation_context=""
-    if [ "$is_escalated" = "true" ]; then
-        escalation_context="
-⚡ ESCALATED TO SONNET MODEL ⚡
-This implementation has failed $CONSECUTIVE_FAILURES times. You have more reasoning capacity.
-Take time to deeply analyze the problem before implementing. Consider:
-- Are there hidden dependencies or edge cases?
-- Is the test asking for something architecturally complex?
-- Should this be broken into smaller steps?
-"
-    fi
-
     cat <<EOF
-You are the IMPLEMENTER in a TDD-TCR-REFACTOR loop. Your job is to make tests pass.
+<ctx lang="$PROJECT_LANG" cmd="$TEST_CMD" attempt="$attempt/$MAX_IMPL_ATTEMPTS"/>
+$([ "$is_escalated" = "true" ] && echo "<escalated failures=\"$CONSECUTIVE_FAILURES\"/>")
+<test_output>$test_output</test_output>
 
-PROJECT: $PROJECT_LANG project
-TEST COMMAND: $TEST_CMD
+IMPLEMENTER: Make test pass. TCR enforced (FAIL=REVERT). Be minimal.
 
-$escalation_context
-
-═══════════════════════════════════════════════════════════════════════════════
-              AI LEARNINGS (knowledge from previous sessions)
-═══════════════════════════════════════════════════════════════════════════════
-
-$ai_learnings
-
-⚠️  TCR DISCIPLINE IS ENFORCED ⚠️
-- If tests PASS after your changes → your code is COMMITTED automatically
-- If tests FAIL after your changes → your code is REVERTED automatically
-- There is NO escape. Write code that works or it disappears.
-
-YOUR CONSTRAINTS:
-- You can ONLY modify files in src/
-- You CANNOT modify files in test/ (read-only, filesystem enforced)
-- Write the MINIMUM code to make tests pass
-- Follow existing patterns in the codebase
-
-═══════════════════════════════════════════════════════════════════════════════
-                    AUDITOR'S REASONING (why this test exists)
-═══════════════════════════════════════════════════════════════════════════════
-
-$auditor_reasoning
-
-═══════════════════════════════════════════════════════════════════════════════
-
-CURRENT TEST OUTPUT:
-$test_output
-
-ATTEMPT: $attempt of $MAX_IMPL_ATTEMPTS
-
-YOUR TASK:
-1. Read the AUDITOR'S REASONING above - understand WHY this test matters
-2. Read the failing test to understand what's expected
-3. Read the current src/ code
-4. Write the MINIMUM code to make ONLY this test pass
-5. Do NOT over-engineer or add untested features
-
-IMPLEMENTATION PRINCIPLES:
-- Write only what the test demands - nothing more
-- Keep functions small and focused
-- Use descriptive names that explain intent
-- Handle the specific case the test covers
-- The Architect will refactor shortcuts - just make it work first
-
-REMEMBER: Your code will be REVERTED if tests fail. Be precise. Be minimal. Be correct.
-
-OUTPUT FORMAT (required):
-1. What the test is asking for (1-2 sentences)
-2. What you implemented (code changes)
-3. Why this approach (1-2 sentences)
+RULES: Only src/, MINIMUM code, no extras.
+Do: Read test, implement exactly what's needed, use /gleam-code-generator skill.
 EOF
 }
 
@@ -997,247 +889,42 @@ architect_prompt() {
     local ai_learnings="$3"
 
     cat <<EOF
-You are the ARCHITECT in a TDD-TCR-REFACTOR loop. This is the REFACTOR phase.
+<ctx lang="$PROJECT_LANG" cmd="$TEST_CMD" iter="$iteration" commits="$TCR_COMMITS" reverts="$TCR_REVERTS"/>
+<req>$REQUIREMENTS</req>
 
-PROJECT: $PROJECT_LANG project (Gleam - functional, immutable, BEAM)
-TEST COMMAND: $TEST_CMD
+ARCHITECT: Refactor. Delete > Simplify > Extract. Tests MUST pass.
 
-═══════════════════════════════════════════════════════════════════════════════
-              AI LEARNINGS (knowledge from previous sessions)
-═══════════════════════════════════════════════════════════════════════════════
+CUPID: Composable, Unix-philosophy, Predictable, Idiomatic, Domain-based.
+Max 30 lines/fn. No unused code. Pure functions in core.
 
-$ai_learnings
+Do: Read src/+test/, refactor ruthlessly, run tests, use /gleam-code-generator skill.
 
-═══════════════════════════════════════════════════════════════════════════════
-              SESSION HISTORY (what happened in previous iterations)
-═══════════════════════════════════════════════════════════════════════════════
-
-$session_history
-
-═══════════════════════════════════════════════════════════════════════════════
-                        CODE IS A LIABILITY
-═══════════════════════════════════════════════════════════════════════════════
-
-Every line of code is:
-- A line that can have bugs
-- A line someone must read and understand
-- A line that must be maintained forever
-- A line that slows down compilation
-- A line that increases cognitive load
-
-YOUR PRIME DIRECTIVE: MINIMIZE CODE WHILE MAXIMIZING CLARITY
-
-The best code is no code. The second best is the least code that works.
-Every single line must EARN ITS PLACE or be deleted.
-
-═══════════════════════════════════════════════════════════════════════════════
-                              CUPID PROPERTIES
-                    (Dan North's properties for joyful code)
-═══════════════════════════════════════════════════════════════════════════════
-
-C - COMPOSABLE: Small surface area, minimal dependencies, plays well with others
-    → Functions take simple inputs, return simple outputs
-    → No hidden state, no side effects in core logic
-    → Easy to combine with other functions via |> pipes
-
-U - UNIX PHILOSOPHY: Do one thing well
-    → Each function has ONE job
-    → If you need "and" to describe it, split it
-    → Small, focused, predictable
-
-P - PREDICTABLE: Same input → same output, always
-    → Pure functions wherever possible
-    → No surprises, no magic
-    → Deterministic behavior
-
-I - IDIOMATIC: Feels natural for Gleam
-    → Use |> pipelines liberally
-    → Pattern matching over conditionals
-    → Result/Option for errors, not exceptions
-    → let bindings, use expressions
-    → Gleam stdlib over custom implementations
-
-D - DOMAIN-BASED: Code speaks the language of the problem
-    → Types named after domain concepts
-    → Functions describe domain operations
-    → No technical jargon leaking into domain code
-
-═══════════════════════════════════════════════════════════════════════════════
-                    FUNCTIONAL CORE / IMPERATIVE SHELL
-                         (Pragmatic Programmer pattern)
-═══════════════════════════════════════════════════════════════════════════════
-
-FUNCTIONAL CORE (pure, testable, the heart):
-- All business logic is PURE functions
-- No IO, no side effects, no external calls
-- Takes data in, returns data out
-- This is where 90% of your code should live
-- Trivially testable without mocks
-
-IMPERATIVE SHELL (thin, at the edges):
-- IO operations (file, network, stdin/stdout)
-- Wiring pure functions together
-- Error handling at boundaries
-- As THIN as possible - just plumbing
-
-BOUNDARY RULES:
-- Shell calls Core, never Core calls Shell
-- Parse, don't validate (make illegal states unrepresentable)
-- Push IO to the edges, keep the middle pure
-
-═══════════════════════════════════════════════════════════════════════════════
-                           HARD LIMITS (ENFORCED)
-═══════════════════════════════════════════════════════════════════════════════
-
-□ NO function over 30 lines (if longer, decompose)
-□ NO function doing 2+ things (split it)
-□ NO repeated code patterns (extract or delete)
-□ NO stringly-typed data (create proper types)
-□ NO imperative logic in core (make it functional)
-□ NO complex conditionals (pattern match instead)
-□ NO comments explaining WHAT (code should be clear)
-□ NO unused code (delete it)
-□ NO unnecessary abstractions (YAGNI)
-
-═══════════════════════════════════════════════════════════════════════════════
-                              YOUR TASK
-═══════════════════════════════════════════════════════════════════════════════
-
-1. Read ALL code that was added/modified
-2. For EACH piece of code, ask:
-   - Can this be DELETED? (best option)
-   - Can this be SIMPLIFIED? (second best)
-   - Can this be COMBINED with existing code? (DRY)
-   - Is this PURE? If not, can it be made pure?
-   - Does this follow CUPID properties?
-   - Is this under 30 lines?
-   - Would a Gleam expert write it this way?
-
-3. REFACTOR ruthlessly:
-   - Delete everything unnecessary
-   - Simplify everything complex
-   - Extract only when it REDUCES total code
-   - Use Gleam stdlib functions (list.map, result.try, etc.)
-   - Make it look like a world-class Gleam programmer wrote it
-
-4. Run tests after changes - if they break, try differently
-
-CURRENT STATE:
-- Iteration: $iteration
-- Successful implementations: $SUCCESSFUL_IMPLS
-- TCR Commits: $TCR_COMMITS
-- TCR Reverts: $TCR_REVERTS
-
-ORIGINAL REQUIREMENTS:
-$REQUIREMENTS
-
-OUTPUT:
-1. Lines of code BEFORE refactoring (count them)
-2. What you DELETED and why
-3. What you SIMPLIFIED and why
-4. Lines of code AFTER refactoring
-5. Net change (should be NEGATIVE or zero)
-6. Test confirmation
-
-CRITICAL: CODE SMELL DETECTION & BEAD CREATION
-After refactoring, scan the ENTIRE codebase for issues that couldn't be fixed now:
-- Architectural problems requiring larger refactoring
-- Violations of CUPID principles
-- Functions over 30 lines
-- Duplicated logic across modules
-- Missing abstractions or poor separation of concerns
-- Performance bottlenecks
-- Technical debt
-
-For EACH significant issue found, output in this EXACT format:
+For code smells output:
 CREATE_BEAD: <title>
-DESCRIPTION: <detailed description of the issue and why it matters>
-PRIORITY: <0-3, where 0=critical, 1=high, 2=medium, 3=low>
+DESCRIPTION: <issue>
+PRIORITY: 0-3
 ---
-
-Example:
-CREATE_BEAD: Extract duplicated validation logic to shared module
-DESCRIPTION: Functions validate_email, validate_username, and validate_password all have duplicated error handling patterns. This violates DRY and makes maintenance harder. Should create a validation.gleam module with composable validators.
-PRIORITY: 2
----
-
-The system will automatically create beads from your findings to ensure technical debt is tracked and addressed.
 EOF
 }
 
 reviewer_prompt() {
-    local bead_context=""
+    local acceptance=""
     if [ "$BEAD_MODE" = true ]; then
-        local acceptance=$(bead_field "$BEAD_JSON" "acceptance_criteria")
-        bead_context=$(cat <<BEADEOF
-
-═══════════════════════════════════════════════════════════════════════════════
-                    BEAD ACCEPTANCE CRITERIA (MUST VERIFY)
-═══════════════════════════════════════════════════════════════════════════════
-
-Bead ID: $CURRENT_BEAD_ID
-Title: $BEAD_TITLE
-
-ACCEPTANCE CRITERIA:
-$acceptance
-
-YOU MUST EXPLICITLY VERIFY EACH ACCEPTANCE CRITERION AND OUTPUT:
-- ACCEPTANCE_CRITERIA_MET: true/false
-- For each criterion, explain HOW it was verified (test name, code location, etc.)
-- If ANY criterion is NOT met, set ACCEPTANCE_CRITERIA_MET: false
-
-═══════════════════════════════════════════════════════════════════════════════
-BEADEOF
-)
+        acceptance=$(bead_field "$BEAD_JSON" "acceptance_criteria")
     fi
 
     cat <<EOF
-You are the REVIEWER. The TDD-TCR-REFACTOR loop has completed.
+<ctx lang="$PROJECT_LANG" cmd="$TEST_CMD" commits="$TCR_COMMITS" reverts="$TCR_REVERTS"/>
+<req>$REQUIREMENTS</req>
+$([ -n "$acceptance" ] && echo "<acceptance bead=\"$CURRENT_BEAD_ID\">$acceptance</acceptance>")
 
-PROJECT: $PROJECT_LANG project
-TEST COMMAND: $TEST_CMD
+REVIEWER: Final check. Run tests. Verify acceptance criteria.
 
-ORIGINAL REQUIREMENTS:
-$REQUIREMENTS
-$bead_context
+Output REQUIRED:
+ACCEPTANCE_CRITERIA_MET: true|false
+<verify criterion="X" met="true|false" evidence="file:line"/>
 
-FINAL STATISTICS:
-- Total iterations: completed
-- TCR Commits: $TCR_COMMITS
-- TCR Reverts: $TCR_REVERTS
-- Architect refactors: $REFACTOR_COUNT
-
-YOUR TASK:
-1. Final review of all code in src/ and test/
-2. Check that all requirements are met
-3. Look for any remaining issues:
-   - Security concerns
-   - Edge cases not covered by tests
-   - Documentation gaps
-   - API ergonomics
-4. Make final polish improvements
-5. Run '$TEST_CMD' to verify everything still passes
-
-CONSTRAINTS:
-- You may modify both src/ and test/
-- All tests MUST still pass after your changes
-- This is the FINAL review - be thorough
-- Focus on production readiness
-
-OUTPUT FORMAT (REQUIRED):
-1. Summary of what was built
-2. Any final changes made
-3. ACCEPTANCE_CRITERIA_MET: true OR ACCEPTANCE_CRITERIA_MET: false
-4. Verification details for each acceptance criterion
-5. Any remaining concerns or TODOs
-
-LEARNINGS (for future AI sessions):
-After your review, output a section called "## AI LEARNINGS" that captures:
-- What worked well in this implementation
-- What patterns should be reused
-- What pitfalls to avoid
-- Specific Gleam/language idioms discovered
-This will be saved to help future AI sessions on this codebase.
+Brief learnings (50 words max) for ## AI LEARNINGS section.
 EOF
 }
 
