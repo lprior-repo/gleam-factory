@@ -42,6 +42,7 @@ pub fn parse_args(args: List(String)) -> Result(Command, String) {
     ["help", topic] -> Ok(Help(Some(topic)))
     ["version"] -> Ok(Version)
 
+    ["new"] -> Error("--slug is required for new command")
     ["new", "--slug", slug] -> Ok(NewTask(slug, None, False))
     ["new", "--slug", slug, "--contract", contract] -> Ok(NewTask(slug, Some(contract), False))
     ["new", "--slug", slug, "--interactive"] -> Ok(NewTask(slug, None, True))
