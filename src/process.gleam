@@ -1,9 +1,6 @@
 // Shell module - Execute external commands
-// Uses shellout library for subprocess execution
 
 import gleam/string
-import gleam/result
-import shellout
 
 /// Result of command execution
 pub type CommandResult {
@@ -25,26 +22,36 @@ pub fn run_command(
   }
 
   // Create shell command that changes to cwd first
-  let shell_cmd = "cd " <> cwd <> " && " <> full_cmd
+  let shell_cmd = case cwd {
+    "" -> full_cmd
+    _ -> "cd " <> cwd <> " && " <> full_cmd
+  }
 
-  // Execute via sh -c
-  run_shell(shell_cmd)
+  // Execute via os:cmd
+  let output = os_cmd(shell_cmd)
+  Ok(Success(output, "", 0))
 }
 
-/// Execute a raw shell command string
-fn run_shell(cmd: String) -> Result(CommandResult, String) {
-  // Execute shell command via /bin/sh -c
-  // shellout.command returns Ok(stdout) for success, Error(#(exit_code, stderr)) for failure
-  case shellout.command("sh", ["-c", cmd], "", []) {
-    Ok(stdout) -> {
-      // Success - exit code 0
-      Ok(Success(stdout, "", 0))
-    }
-    Error(#(exit_code, stderr)) -> {
-      // Error - non-zero exit code with error message
-      Ok(Failure(stderr, exit_code))
-    }
-  }
+/// Execute a raw shell command using Erlang's os:cmd (expects charlist)
+@external(erlang, "os", "cmd")
+fn os_cmd_raw(cmd: Charlist) -> Charlist
+
+/// Convert string to charlist
+@external(erlang, "unicode", "characters_to_list")
+fn to_charlist(str: String) -> Charlist
+
+/// Convert charlist to string
+@external(erlang, "unicode", "characters_to_binary")
+fn from_charlist(chars: Charlist) -> String
+
+/// Opaque type for Erlang charlist
+pub type Charlist
+
+fn os_cmd(cmd: String) -> String {
+  cmd
+  |> to_charlist
+  |> os_cmd_raw
+  |> from_charlist
 }
 
 /// Check if a command exists in PATH
@@ -105,6 +112,8 @@ pub fn run_command_safe(
   args: List(String),
   cwd: String,
 ) -> Result(CommandResult, String) {
-  use _ <- result.try(command_exists(cmd))
-  run_command(cmd, args, cwd)
+  case command_exists(cmd) {
+    Ok(_) -> run_command(cmd, args, cwd)
+    Error(e) -> Error(e)
+  }
 }

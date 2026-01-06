@@ -1,84 +1,40 @@
-//// Actor module wrapper that shadows the standard library
-//// and provides call with reordered parameters.
+//// Actor module wrapper that re-exports from otp_actor.
+//// This module exists at gleam/otp/actor path for import compatibility.
 
-import gleam/erlang/process
+import gleam/erlang/process.{type Subject}
+import otp_actor
 
-// Type aliases
-pub type Subject(msg) = process.Subject(msg)
+// Re-export types from otp_actor
+pub type Next(s, m) =
+  otp_actor.Next(s, m)
 
-// Next type represents actor continuation
-pub type Next(s, m)
+pub type Started(data) =
+  otp_actor.Started(data)
 
-// Started type - represents the process and its subject
-pub type Started(msg) {
-  Started(pid: Pid, subject: Subject(msg))
-}
+pub type Pid =
+  otp_actor.Pid
 
-// Pid type (opaque)
-pub opaque type Pid
-
-// Direct FFI calls to the Erlang/Gleam OTP actor module
-@external(erlang, "gleam@@otp@@actor", "new")
-fn gleam_new(state: a) -> b
-
-@external(erlang, "gleam@@otp@@actor", "on_message")
-fn gleam_on_message(builder: a, handler: fn(b, c) -> d) -> e
-
-@external(erlang, "gleam@@otp@@actor", "start")
-fn gleam_start(builder: a) -> Result(Started(b), c)
-
-@external(erlang, "gleam@@process", "send")
-fn gleam_send(subject: a, msg: b) -> Nil
-
-@external(erlang, "gleam@@otp@@actor", "continue")
-fn gleam_continue(state: a) -> b
-
-@external(erlang, "gleam@@otp@@actor", "stop")
-fn gleam_stop(reason: a) -> b
-
-// Public API that wraps the FFI calls
-// Note: We use raw module imports to avoid cycles when implementing call
-
+// Re-export functions from otp_actor
 pub fn new(state: state) {
-  gleam_new(state)
+  otp_actor.new(state)
 }
 
 pub fn on_message(builder, handler) {
-  gleam_on_message(builder, handler)
+  otp_actor.on_message(builder, handler)
 }
 
 pub fn start(builder) {
-  gleam_start(builder)
+  otp_actor.start(builder)
 }
 
 pub fn send(subject: Subject(msg), msg: msg) {
-  gleam_send(subject, msg)
+  otp_actor.send(subject, msg)
 }
 
 pub fn continue(state: state) -> Next(state, msg) {
-  gleam_continue(state)
+  otp_actor.continue(state)
 }
 
 pub fn stop(reason: reason) -> Next(state, msg) {
-  gleam_stop(reason)
-}
-
-/// Call function with reordered parameters.
-/// Takes (subject, callback, timeout) and converts to (subject, timeout, callback)
-/// for the Erlang call/3 function.
-pub fn call(
-  subject: Subject(msg),
-  callback: fn(Subject(reply)) -> msg,
-  timeout: Int,
-) -> reply {
-  call_erlang(subject, callback, timeout)
-}
-
-@external(erlang, "gleam@erlang@process", "call")
-fn call_erlang(
-  _subject: Subject(msg),
-  _callback: fn(Subject(reply)) -> msg,
-  _timeout: Int,
-) -> reply {
-  panic as "This is an external function - not implemented in Gleam"
+  otp_actor.stop(reason)
 }

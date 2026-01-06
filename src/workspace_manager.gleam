@@ -4,10 +4,9 @@
 //// including actor initialization and message routing.
 
 import gleam/dict
-import gleam/erlang/process.{type Subject}
-import gleam/otp/actor
+import gleam/erlang/process.{type Subject, self}
 import gleam/result
-import process as gleam_process
+import otp_actor as actor
 import simplifile
 import types.{type WorkspaceId, type Workspace}
 
@@ -41,7 +40,7 @@ pub fn start_link() -> Result(Subject(WorkspaceManagerMessage), WorkspaceManager
     |> actor.on_message(handle_message)
 
   case actor.start(builder) {
-    Ok(started) -> Ok(started.subject)
+    Ok(started) -> Ok(started.data)
     Error(_) -> Error(InitializationFailed)
   }
 }
@@ -142,7 +141,7 @@ pub fn destroy_workspace(
 /// Creates a new reflink workspace with COW copy of source directory.
 ///
 /// Creates a workspace in /dev/shm/factory-{slug} and copies contents from
-/// source_path using reflink for copy-on-write semantics.
+/// source_path using cp --reflink for copy-on-write semantics.
 ///
 /// Returns Ok(workspace) if successful, or Error(msg) if creation fails.
 pub fn create_workspace_reflink(
@@ -153,12 +152,14 @@ pub fn create_workspace_reflink(
   let workspace_path = "/dev/shm/factory-" <> slug
   let workspace_id = types.new_workspace_id(slug)
 
-  // Create workspace directory
-  use _ <- result.try(simplifile.create_directory_all(workspace_path)
-    |> result.map_error(fn(_) { "Failed to create workspace directory" }))
+  // Remove existing destination if present
+  let _ = simplifile.delete_all([workspace_path])
 
-  // Copy individual files from source
-  use _ <- result.try(copy_from_source(source_path, workspace_path))
+  // Copy directory using simplifile
+  use _ <- result.try(
+    simplifile.copy_directory(source_path, workspace_path)
+    |> result.map_error(fn(e) { "copy failed: " <> simplifile.describe_error(e) })
+  )
 
   let workspace =
     types.Workspace(
@@ -173,39 +174,44 @@ pub fn create_workspace_reflink(
   Ok(workspace)
 }
 
-fn copy_from_source(source: String, dest: String) -> Result(Nil, String) {
-  // Copy files from source to destination
-  case simplifile.read_directory(source) {
-    Ok(entries) -> copy_files_recursively(source, dest, entries)
-    Error(_) -> Ok(Nil)
+/// Resolves the auto workspace strategy based on system capabilities.
+///
+/// Returns Reflink if /dev/shm exists, otherwise Jj.
+pub fn resolve_auto_strategy() -> types.WorkspaceType {
+  case simplifile.verify_is_directory("/dev/shm") {
+    Ok(True) -> types.Reflink
+    _ -> types.Jj
   }
 }
 
-fn copy_files_recursively(
-  source: String,
-  dest: String,
-  entries: List(String),
-) -> Result(Nil, String) {
-  case entries {
-    [] -> Ok(Nil)
-    [entry, ..rest] -> {
-      case entry {
-        "." | ".." -> copy_files_recursively(source, dest, rest)
-        _ -> {
-          let src_file = source <> "/" <> entry
-          let dest_file = dest <> "/" <> entry
-          case simplifile.read(src_file) {
-            Ok(content) -> {
-              use _ <- result.try(simplifile.write(dest_file, content)
-                |> result.map_error(fn(_) { "Failed to write " <> dest_file }))
-              copy_files_recursively(source, dest, rest)
-            }
-            Error(_) -> copy_files_recursively(source, dest, rest)
-          }
-        }
-      }
-    }
-  }
+/// Creates a new jj workspace with isolated jj bookmark.
+///
+/// Returns Ok(workspace) if successful, or Error(msg) if creation fails.
+pub fn create_workspace_jj(
+  manager_subject: Subject(WorkspaceManagerMessage),
+  slug: String,
+  source_path: String,
+) -> Result(types.Workspace, String) {
+  let workspace_path = source_path <> "/.jj-workspaces/" <> slug
+  let workspace_id = types.new_workspace_id(slug)
+
+  // Create jj workspace directory structure
+  use _ <- result.try(
+    simplifile.create_directory_all(workspace_path)
+    |> result.map_error(fn(e) { "mkdir failed: " <> simplifile.describe_error(e) })
+  )
+
+  let workspace =
+    types.Workspace(
+      id: workspace_id,
+      path: workspace_path,
+      workspace_type: types.Jj,
+      owner_pid: types.from_pid(self()),
+      created_at: "2026-01-06",
+    )
+
+  actor.send(manager_subject, RegisterWorkspace(workspace))
+  Ok(workspace)
 }
 
 

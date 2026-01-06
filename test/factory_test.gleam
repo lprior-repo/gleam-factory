@@ -2005,12 +2005,17 @@ pub fn workspace_strategy_auto_resolves_to_reflink_when_dev_shm_exists_test() {
 // ============================================================================
 
 /// Test create_workspace_jj creates isolated jj workspace with bookmark.
-pub fn create_workspace_jj_creates_isolated_jj_workspace_test() {
-  let slug = "jj-workspace-test"
-  let temp_source = "/tmp/factory-test-jj-src-" <> slug
+pub fn create_workspace_jj_creates_isolated_bookmark_test() {
+  let slug = "jj-bm-test"
+  let temp_source = "/tmp/factory-jj-bm-" <> slug
 
-  case simplifile.create_directory(temp_source) {
+  case simplifile.create_directory_all(temp_source) {
     Ok(Nil) -> Nil
+    Error(_) -> should.fail()
+  }
+
+  case process.run_command("jj", ["git", "init", temp_source], "/tmp") {
+    Ok(_) -> Nil
     Error(_) -> should.fail()
   }
 
@@ -2019,6 +2024,19 @@ pub fn create_workspace_jj_creates_isolated_jj_workspace_test() {
   case workspace_manager.create_workspace_jj(manager_subject, slug, temp_source) {
     Ok(workspace) -> {
       workspace.workspace_type |> should.equal(types.Jj)
+
+      case process.run_command("jj", ["-R", workspace.path, "bookmark", "list"], "/tmp") {
+        Ok(result) -> case result {
+          process.Success(output, _, _) -> {
+            case contains_substring(output, "feat/" <> slug) {
+              True -> Nil
+              False -> should.fail()
+            }
+          }
+          _ -> should.fail()
+        }
+        Error(_) -> should.fail()
+      }
 
       let _ = process.run_command("rm", ["-rf", temp_source], "/tmp")
       Nil
