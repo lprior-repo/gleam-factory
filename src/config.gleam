@@ -17,3 +17,8 @@ pub type Config {
 pub fn default_config() -> Config {
   Config(data_dir: ".factory", default_priority: P2, verbose: False)
 }
+
+/// Returns the data directory from a config
+pub fn get_data_dir(cfg: Config) -> String {
+  cfg.data_dir
+}
