@@ -869,18 +869,64 @@ main() {
         exit 1
     fi
 
-    log_phase "TDD-TCR-REFACTOR LOOP STARTING"
-    echo "Language: $LANG"
-    echo "Test command: $TEST_CMD"
-    echo "Requirements source: $REQUIREMENTS_SOURCE"
-    echo "Refactor interval: every $REFACTOR_INTERVAL successful implementations"
+    # Fancy startup banner
+    clear
     echo ""
-    echo -e "${MAGENTA}TCR Discipline: Test && Commit || Revert${NC}"
-    echo -e "${WHITE}Architect Reviews: Every $REFACTOR_INTERVAL green cycles${NC}"
-    echo -e "${CYAN}Context Passing: Reasoning flows between agents${NC}"
+    echo -e "${CYAN}"
+    echo '  ╔════════════════════════════════════════════════════════════════════╗'
+    echo '  ║                                                                    ║'
+    echo '  ║   ████████╗██████╗ ██████╗    ████████╗ ██████╗██████╗            ║'
+    echo '  ║   ╚══██╔══╝██╔══██╗██╔══██╗   ╚══██╔══╝██╔════╝██╔══██╗           ║'
+    echo '  ║      ██║   ██║  ██║██║  ██║█████╗██║   ██║     ██████╔╝           ║'
+    echo '  ║      ██║   ██║  ██║██║  ██║╚════╝██║   ██║     ██╔══██╗           ║'
+    echo '  ║      ██║   ██████╔╝██████╔╝      ██║   ╚██████╗██║  ██║           ║'
+    echo '  ║      ╚═╝   ╚═════╝ ╚═════╝       ╚═╝    ╚═════╝╚═╝  ╚═╝           ║'
+    echo '  ║                                                                    ║'
+    echo '  ║          ██████╗ ███████╗███████╗ █████╗  ██████╗████████╗        ║'
+    echo '  ║          ██╔══██╗██╔════╝██╔════╝██╔══██╗██╔════╝╚══██╔══╝        ║'
+    echo '  ║    █████╗██████╔╝█████╗  █████╗  ███████║██║        ██║           ║'
+    echo '  ║    ╚════╝██╔══██╗██╔══╝  ██╔══╝  ██╔══██║██║        ██║           ║'
+    echo '  ║          ██║  ██║███████╗██║     ██║  ██║╚██████╗   ██║           ║'
+    echo '  ║          ╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝  ╚═╝ ╚═════╝   ╚═╝           ║'
+    echo '  ║                                                                    ║'
+    echo '  ║       Adversarial AI-Driven Test-Driven Development               ║'
+    echo '  ║       with TCR Discipline and Architectural Oversight             ║'
+    echo '  ║                                                                    ║'
+    echo '  ╚════════════════════════════════════════════════════════════════════╝'
+    echo -e "${NC}"
     echo ""
-    echo "Requirements:"
-    echo "$REQUIREMENTS"
+
+    # Config summary in a nice box
+    echo -e "${DIM}$(draw_line '─')${NC}"
+    echo -e "  ${BOLD}Configuration${NC}"
+    echo -e "${DIM}$(draw_line '─')${NC}"
+    echo -e "  ${CYAN}Language:${NC}        $LANG"
+    echo -e "  ${CYAN}Test Command:${NC}    $TEST_CMD"
+    echo -e "  ${CYAN}Source:${NC}          $REQUIREMENTS_SOURCE"
+    echo -e "  ${CYAN}Max Iterations:${NC}  $MAX_ITERATIONS"
+    echo -e "${DIM}$(draw_line '─')${NC}"
+    echo ""
+
+    # Disciplines
+    echo -e "  ${RED}●${NC} ${BOLD}RED${NC}       → ${YELLOW}🔍 Auditor${NC} writes failing test"
+    echo -e "  ${GREEN}●${NC} ${BOLD}GREEN${NC}     → ${GREEN}🔧 Implementer${NC} makes it pass (TCR enforced)"
+    echo -e "  ${WHITE}●${NC} ${BOLD}REFACTOR${NC}  → ${WHITE}🏛️  Architect${NC} cleans up every $REFACTOR_INTERVAL cycles"
+    echo -e "  ${MAGENTA}●${NC} ${BOLD}REVIEW${NC}    → ${MAGENTA}📋 Reviewer${NC} final polish"
+    echo ""
+
+    # TCR reminder
+    echo -e "${DIM}$(draw_line '─')${NC}"
+    echo -e "  ${MAGENTA}⟳ TCR:${NC} ${BOLD}Test && Commit || Revert${NC} - No broken code survives"
+    echo -e "  ${CYAN}📡 Context:${NC} Reasoning flows between agents"
+    echo -e "${DIM}$(draw_line '─')${NC}"
+    echo ""
+
+    # Requirements in a box
+    draw_box "REQUIREMENTS" "${YELLOW}"
+    echo "$REQUIREMENTS" | while IFS= read -r line; do
+        echo -e "  ${DIM}│${NC} $line"
+    done
+    echo -e "${DIM}$(draw_line '─')${NC}"
     echo ""
 
     # Initialize history file for context passing between agents
@@ -903,15 +949,32 @@ main() {
 
         # Phase 1: Auditor writes test (RED)
         if ! run_auditor "$iteration" "$last_impl_result"; then
-            log_phase "TDD-TCR-REFACTOR LOOP COMPLETE - ALL REQUIREMENTS MET"
             echo ""
-            echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"
-            echo -e "${GREEN}  FINAL STATISTICS${NC}"
-            echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"
-            echo -e "  TCR Commits:        ${GREEN}$TCR_COMMITS${NC}"
-            echo -e "  TCR Reverts:        ${RED}$TCR_REVERTS${NC}"
-            echo -e "  Architect Refactors: ${WHITE}$REFACTOR_COUNT${NC}"
-            echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"
+            echo -e "${GREEN}"
+            echo '  ╔═══════════════════════════════════════════════════════════════╗'
+            echo '  ║                                                               ║'
+            echo '  ║   ███████╗██╗   ██╗ ██████╗ ██████╗███████╗███████╗███████╗  ║'
+            echo '  ║   ██╔════╝██║   ██║██╔════╝██╔════╝██╔════╝██╔════╝██╔════╝  ║'
+            echo '  ║   ███████╗██║   ██║██║     ██║     █████╗  ███████╗███████╗  ║'
+            echo '  ║   ╚════██║██║   ██║██║     ██║     ██╔══╝  ╚════██║╚════██║  ║'
+            echo '  ║   ███████║╚██████╔╝╚██████╗╚██████╗███████╗███████║███████║  ║'
+            echo '  ║   ╚══════╝ ╚═════╝  ╚═════╝ ╚═════╝╚══════╝╚══════╝╚══════╝  ║'
+            echo '  ║                                                               ║'
+            echo '  ║         ALL REQUIREMENTS IMPLEMENTED AND TESTED               ║'
+            echo '  ║                                                               ║'
+            echo '  ╚═══════════════════════════════════════════════════════════════╝'
+            echo -e "${NC}"
+            echo ""
+
+            # Final stats box
+            echo -e "${DIM}$(draw_line '─')${NC}"
+            echo -e "  ${BOLD}📊 FINAL STATISTICS${NC}"
+            echo -e "${DIM}$(draw_line '─')${NC}"
+            echo -e "  ${GREEN}✓${NC} TCR Commits:         ${GREEN}${BOLD}$TCR_COMMITS${NC}"
+            echo -e "  ${RED}✗${NC} TCR Reverts:         ${RED}${BOLD}$TCR_REVERTS${NC}"
+            echo -e "  ${WHITE}🏛️${NC} Architect Refactors: ${WHITE}${BOLD}$REFACTOR_COUNT${NC}"
+            echo -e "  ${CYAN}📝${NC} Total Iterations:    ${CYAN}${BOLD}$iteration${NC}"
+            echo -e "${DIM}$(draw_line '─')${NC}"
             echo ""
 
             # Final architect pass before review
