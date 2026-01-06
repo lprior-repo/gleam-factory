@@ -64,15 +64,21 @@ pub fn stop(reason: reason) -> Next(state, msg) {
 }
 
 /// Call function with reordered parameters.
-/// Takes (subject, callback, timeout) instead of (subject, timeout, callback).
+/// Takes (subject, callback, timeout) and converts to (subject, timeout, callback)
+/// for the Erlang call/3 function.
 pub fn call(
   subject: Subject(msg),
   callback: fn(Subject(reply)) -> msg,
   timeout: Int,
 ) -> reply {
-  // Call the Erlang process.call/3 with reordered parameters
-  call_reordered(subject, timeout, callback)
+  call_erlang(subject, timeout, callback)
 }
 
 @external(erlang, "gleam@erlang@process", "call")
-fn call_reordered(subject: a, timeout: Int, callback: fn(b) -> c) -> d
+fn call_erlang(
+  subject: Subject(msg),
+  timeout: Int,
+  callback: fn(Subject(reply)) -> msg,
+) -> reply {
+  panic as "This is an external function - not implemented in Gleam"
+}

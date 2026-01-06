@@ -1442,4 +1442,3 @@ pub fn workspace_manager_can_register_and_retrieve_workspace_test() {
     }
   }
 }
-

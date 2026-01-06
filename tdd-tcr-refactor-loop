@@ -843,7 +843,38 @@ run_tests_quiet() {
 }
 
 #---------------------------------------------------------------------------
-# AI Prompts
+# CUE Schema Validation
+#---------------------------------------------------------------------------
+
+CUE_CONTRACT=".factory/cue/contract.cue"
+
+# Validate AI output against CUE contract
+# Usage: validate_ai_output "A" "$json_output"
+# Schemas: #A=auditor #I=implementer #R=architect #V=reviewer
+validate_ai_output() {
+    local schema="$1"
+    local output="$2"
+
+    # Extract JSON blob from output
+    local json
+    json=$(echo "$output" | grep -oE '\{[^}]+\}' | grep '"s":' | tail -1)
+    [ -z "$json" ] && { log_warning "No JSON in output"; return 1; }
+
+    # Validate with CUE contract
+    if echo "$json" | cue vet "$CUE_CONTRACT" -d "#$schema" - 2>/dev/null; then
+        echo "$json"
+        return 0
+    else
+        log_warning "Contract validation failed"
+        return 1
+    fi
+}
+
+# Extract field from JSON
+jf() { echo "$1" | jq -r "$2" 2>/dev/null; }
+
+#---------------------------------------------------------------------------
+# AI Prompts (YAML format for token efficiency)
 #---------------------------------------------------------------------------
 
 auditor_prompt() {
@@ -851,16 +882,12 @@ auditor_prompt() {
     local last_impl_result="$2"
 
     cat <<EOF
-<ctx lang="$PROJECT_LANG" iter="$iteration" cmd="$TEST_CMD"/>
-<req>$REQUIREMENTS</req>
-$([ -n "$last_impl_result" ] && echo "<last>$last_impl_result</last>")
-
-AUDITOR: Write 1 failing test in test/. Be concise.
-
-RULES: Only test/, ONE test, must FAIL initially.
-If requirements complete: output REQUIREMENTS_COMPLETE
-
-Do: Read src/ + test/, write minimal test, use /gleam-code-generator skill.
+A:$PROJECT_LANG i:$iteration c:$TEST_CMD
+R:$REQUIREMENTS
+$([ -n "$last_impl_result" ] && echo "L:$last_impl_result")
+X:test/ 1test fail-first
+T:read src/ test/, write 1 test drives-design achievable-step
+O:{"s":"tw","t":{"n":"x_test","f":"test/factory_test.gleam","b":"what"},"r":"why"} or {"s":"rc"} if done
 EOF
 }
 
@@ -872,14 +899,12 @@ implementer_prompt() {
     local is_escalated="${5:-false}"
 
     cat <<EOF
-<ctx lang="$PROJECT_LANG" cmd="$TEST_CMD" attempt="$attempt/$MAX_IMPL_ATTEMPTS"/>
-$([ "$is_escalated" = "true" ] && echo "<escalated failures=\"$CONSECUTIVE_FAILURES\"/>")
-<test_output>$test_output</test_output>
-
-IMPLEMENTER: Make test pass. TCR enforced (FAIL=REVERT). Be minimal.
-
-RULES: Only src/, MINIMUM code, no extras.
-Do: Read test, implement exactly what's needed, use /gleam-code-generator skill.
+I:$PROJECT_LANG c:$TEST_CMD a:$attempt/$MAX_IMPL_ATTEMPTS$([ "$is_escalated" = "true" ] && echo " ESC:$CONSECUTIVE_FAILURES")
+TCR:FAIL=REVERT
+X:src/ MIN-code
+E:$test_output
+T:read test, impl minimum, pass
+O:{"s":"ok","c":[{"f":"src/x.gleam","a":"+","l":N}],"r":"why"} or {"s":"bl","b":"blocker"}
 EOF
 }
 
@@ -889,21 +914,14 @@ architect_prompt() {
     local ai_learnings="$3"
 
     cat <<EOF
-<ctx lang="$PROJECT_LANG" cmd="$TEST_CMD" iter="$iteration" commits="$TCR_COMMITS" reverts="$TCR_REVERTS"/>
-<req>$REQUIREMENTS</req>
-
-ARCHITECT: Refactor. Delete > Simplify > Extract. Tests MUST pass.
-
-CUPID: Composable, Unix-philosophy, Predictable, Idiomatic, Domain-based.
-Max 30 lines/fn. No unused code. Pure functions in core.
-
-Do: Read src/+test/, refactor ruthlessly, run tests, use /gleam-code-generator skill.
-
-For code smells output:
-CREATE_BEAD: <title>
-DESCRIPTION: <issue>
-PRIORITY: 0-3
----
+R:$PROJECT_LANG i:$iteration c:$TEST_CMD cm:$TCR_COMMITS rv:$TCR_REVERTS
+DIR:MIN-CODE MAX-CLARITY
+CUPID:C=compose U=unix P=pure I=idiom D=domain
+LIM:fn<30 1thing no-dup no-unused pattern-match
+R:$REQUIREMENTS
+T:read modified, DELETE? SIMPLIFY? COMBINE? PURE?, refactor, test
+SM:CREATE_BEAD:<title> DESCRIPTION:<issue> PRIORITY:0-3 ---
+O:{"s":"rf","lb":N,"la":N,"c":[{"t":"d|s|x|r|i","w":"what"}]} or {"s":"nc"} sm:[{"t":"title","d":"desc","p":0-3}]
 EOF
 }
 
@@ -914,17 +932,11 @@ reviewer_prompt() {
     fi
 
     cat <<EOF
-<ctx lang="$PROJECT_LANG" cmd="$TEST_CMD" commits="$TCR_COMMITS" reverts="$TCR_REVERTS"/>
-<req>$REQUIREMENTS</req>
-$([ -n "$acceptance" ] && echo "<acceptance bead=\"$CURRENT_BEAD_ID\">$acceptance</acceptance>")
-
-REVIEWER: Final check. Run tests. Verify acceptance criteria.
-
-Output REQUIRED:
-ACCEPTANCE_CRITERIA_MET: true|false
-<verify criterion="X" met="true|false" evidence="file:line"/>
-
-Brief learnings (50 words max) for ## AI LEARNINGS section.
+V:$PROJECT_LANG c:$TEST_CMD cm:$TCR_COMMITS rv:$TCR_REVERTS
+R:$REQUIREMENTS
+$([ -n "$acceptance" ] && echo "AC[$CURRENT_BEAD_ID]:$acceptance")
+T:review src/ test/, verify reqs, security edge-cases API, test
+O:{"s":"p|f","m":true|false,"v":[{"c":"criterion","m":bool,"e":"file:line"}],"l":"learnings 50w max"}
 EOF
 }
 
