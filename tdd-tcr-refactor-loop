@@ -939,6 +939,63 @@ run_tests_quiet() {
 }
 
 #---------------------------------------------------------------------------
+# HARD GATES - Non-AI quality enforcement (compiler, tests)
+#---------------------------------------------------------------------------
+
+# Hard gate: Compilation must succeed with NO ERRORS and NO WARNINGS.
+# This is NOT AI judgment - this is the compiler's verdict.
+hard_gate_compile() {
+    log_info "HARD GATE: Checking compilation (gleam build)..."
+    local output
+    output=$(gleam build 2>&1)
+    local exit_code=$?
+
+    # Check for compilation failure
+    if [ $exit_code -ne 0 ]; then
+        log_error "HARD GATE FAIL: Compilation error - REVERTING"
+        echo "$output" | head -20
+        LAST_COMPILE_ERROR="$output"
+        return 1
+    fi
+
+    # Check for warnings (Gleam outputs warnings to stderr/stdout)
+    if echo "$output" | grep -qiE "warning:|warn:"; then
+        log_error "HARD GATE FAIL: Compilation warnings detected - REVERTING"
+        echo "$output" | grep -iE "warning:|warn:" | head -10
+        LAST_COMPILE_ERROR="WARNINGS: $output"
+        return 1
+    fi
+
+    log_success "HARD GATE PASS: Code compiles with no errors or warnings"
+    return 0
+}
+
+# Hard gate: Tests must pass. Returns 0 on success, 1 on failure.
+# This is NOT AI judgment - this is the test suite's verdict.
+hard_gate_tests() {
+    log_info "HARD GATE: Running tests ($TEST_CMD)..."
+    if LAST_TEST_OUTPUT=$($TEST_CMD 2>&1); then
+        log_success "HARD GATE PASS: All tests pass"
+        return 0
+    else
+        log_error "HARD GATE FAIL: Tests failed - REVERTING"
+        echo "$LAST_TEST_OUTPUT" | tail -30
+        return 1
+    fi
+}
+
+# Combined hard gate: compile + tests. Both must pass or revert.
+hard_gate_all() {
+    if ! hard_gate_compile; then
+        return 1
+    fi
+    if ! hard_gate_tests; then
+        return 1
+    fi
+    return 0
+}
+
+#---------------------------------------------------------------------------
 # CUE Schema Validation
 #---------------------------------------------------------------------------
 
@@ -995,7 +1052,7 @@ CUPID-DRIVE: Your test should make implementer confront:
 - I: "Is it idiomatic?" - test |> chains, pattern matching
 - D: "Does it speak domain?" - test uses problem language
 
-10-LINE-RULE: If passing needs >10 lines, your test is too big. Split it.
+30-LINE-RULE: If passing needs >30 lines, your test is too big. Split it.
 DISCOMFORT-GOAL: Implementer should think "damn, I need to rethink X"
 
 LOCK:src/(readonly) UNLOCK:test/
@@ -1015,12 +1072,20 @@ implementer_prompt() {
     cat <<EOF
 DEFENDER:$PROJECT_LANG c:$TEST_CMD a:$attempt/$MAX_IMPL_ATTEMPTS$([ "$is_escalated" = "true" ] && echo " ESC:$CONSECUTIVE_FAILURES")
 
-TCR-DEATH: FAIL=REVERT. Your code DIES if tests fail. No mercy. No second chances in this attempt.
+TCR-DEATH: FAIL=REVERT. Your code DIES if ANY of these fail. No mercy. No second chances.
+HARD-GATES (non-AI, automatic):
+1. gleam build - NO errors, NO warnings
+2. gleam test - ALL tests pass
 
 FAILING:$test_output
 
-10-LINE-MAX: You have 10 lines. If you need more, REJECT the test:
+30-LINE-MAX: You have 30 lines. If you need more, REJECT the test:
 {"s":"bl","b":"test too big - split into: [smaller test 1] [smaller test 2]","cf":0}
+
+HICKEY: "Simple isn't easy" - complexity is the enemy. Prefer:
+- Small composable pure fns over big stateful classes
+- Data transformations over mutations
+- Explicit over implicit
 
 EVERY LINE MUST JUSTIFY ITSELF:
 - "Why can't I delete this line?" - if no answer, delete it
@@ -1227,21 +1292,29 @@ run_implementer() {
 
         lock_src
 
-        log_phase "TCR CHECK"
-        log_info "Running tests to determine commit or revert..."
+        log_phase "TCR HARD GATES"
+        log_info "Running HARD GATES (compile + test) to determine commit or revert..."
 
-        if run_tests; then
+        # HARD GATES: Compiler and tests - no AI judgment, just pass/fail
+        if hard_gate_all; then
             tcr_commit "$iteration" "Implemented for iteration $iteration"
-            log_success "Tests pass! Implementation committed."
+            log_success "HARD GATES PASS! Implementation committed."
             SUCCESSFUL_IMPLS=$((SUCCESSFUL_IMPLS + 1))
             CONSECUTIVE_FAILURES=0  # Reset failure counter on success
             return 0
         else
             tcr_revert "$iteration"
-            append_history "TCR" "$iteration" "REVERTED - tests failed"
-            test_output="$LAST_TEST_OUTPUT"
+            # Provide both compile and test errors for context
+            if [ -n "${LAST_COMPILE_ERROR:-}" ]; then
+                append_history "TCR" "$iteration" "REVERTED - compilation failed: $LAST_COMPILE_ERROR"
+                test_output="COMPILE ERROR: $LAST_COMPILE_ERROR"
+            else
+                append_history "TCR" "$iteration" "REVERTED - tests failed"
+                test_output="$LAST_TEST_OUTPUT"
+            fi
             attempt=$((attempt + 1))
             CONSECUTIVE_FAILURES=$((CONSECUTIVE_FAILURES + 1))
+            LAST_COMPILE_ERROR=""  # Reset for next attempt
 
             if [ $attempt -le $MAX_IMPL_ATTEMPTS ]; then
                 log_warning "Trying again with fresh implementation..."
@@ -1287,18 +1360,18 @@ run_architect() {
     # Save architect's reasoning to history
     append_history "ARCHITECT" "$iteration" "$architect_output"
 
-    log_info "Verifying tests still pass after refactoring..."
-    if run_tests; then
-        log_success "Architect refactoring complete - all tests still pass"
+    log_info "Running HARD GATES on architect changes..."
+    if hard_gate_all; then
+        log_success "Architect refactoring complete - HARD GATES PASS"
         git add -A
         git commit -m "REFACTOR(architect-$REFACTOR_COUNT): Architectural improvements" --no-verify 2>/dev/null || true
         REFACTOR_COUNT=$((REFACTOR_COUNT + 1))
     else
-        log_error "Architect broke tests! Reverting all changes..."
+        log_error "Architect broke HARD GATES! Reverting all changes..."
         git checkout HEAD -- "$SRC_DIR/" "$TEST_DIR/"
         git clean -fd "$SRC_DIR/" "$TEST_DIR/" 2>/dev/null || true
-        append_history "ARCHITECT" "$iteration" "REVERTED - tests broke after refactoring"
-        log_warning "Architect changes reverted - tests must pass"
+        append_history "ARCHITECT" "$iteration" "REVERTED - HARD GATES failed after refactoring"
+        log_warning "Architect changes reverted - compile+tests must pass with no warnings"
     fi
 
     lock_all
@@ -1347,15 +1420,15 @@ run_reviewer() {
         log_success "AI learnings saved to $AI_LEARNING_FILE"
     fi
 
-    log_info "Verifying tests still pass after review..."
-    if run_tests; then
-        log_success "Final review complete - all tests still pass"
+    log_info "Running HARD GATES on reviewer changes..."
+    if hard_gate_all; then
+        log_success "Final review complete - HARD GATES PASS"
         git add -A
         git commit -m "REVIEW: Final polish and review" --no-verify 2>/dev/null || true
     else
-        log_error "Reviewer broke tests! Reverting..."
+        log_error "Reviewer broke HARD GATES! Reverting..."
         git checkout HEAD -- "$SRC_DIR/" "$TEST_DIR/"
-        log_warning "Reviewer changes reverted - tests must pass"
+        log_warning "Reviewer changes reverted - compile+tests must pass with no warnings"
     fi
 
     lock_all
