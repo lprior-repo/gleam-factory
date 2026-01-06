@@ -260,6 +260,54 @@ pub fn truncate_string_empty_string_test() {
   |> should.equal("")
 }
 
+pub fn pad_left_within_width_test() {
+  // When string is shorter than width, pad with char on left
+  utils.pad_left("hi", 5, "-")
+  |> should.equal("---hi")
+}
+
+pub fn pad_left_exactly_at_width_test() {
+  // When string equals width, return unchanged
+  utils.pad_left("hello", 5, "-")
+  |> should.equal("hello")
+}
+
+pub fn pad_left_exceeds_width_test() {
+  // When string exceeds width, return unchanged (no truncation)
+  utils.pad_left("hello world", 5, "-")
+  |> should.equal("hello world")
+}
+
+pub fn pad_left_zero_width_test() {
+  // When width is 0, return unchanged
+  utils.pad_left("hello", 0, "-")
+  |> should.equal("hello")
+}
+
+pub fn pad_left_empty_string_test() {
+  // When input is empty, pad to width with char
+  utils.pad_left("", 3, "*")
+  |> should.equal("***")
+}
+
+pub fn pad_left_single_char_pad_test() {
+  // When padding with single character, repeat it
+  utils.pad_left("x", 4, ".")
+  |> should.equal("...x")
+}
+
+pub fn pad_left_multichar_pad_test() {
+  // When padding with multiple character string, repeat the entire string
+  utils.pad_left("a", 5, "xy")
+  |> should.equal("xyxya")
+}
+
+pub fn pad_left_space_padding_test() {
+  // Common case: padding with spaces
+  utils.pad_left("test", 8, " ")
+  |> should.equal("    test")
+}
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
