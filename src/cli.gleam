@@ -1,8 +1,3 @@
-// Unified CLI module
-// Single source of truth for all CLI operations
-// Uses: argv, clip, spinner, stdin, shellout
-// NO alternatives - this is the only way to parse CLI
-
 import gleam/io
 import gleam/option.{type Option, None, Some}
 import gleam/result
@@ -15,7 +10,6 @@ import persistence
 import stages
 import worktree
 
-/// All possible Factory commands
 pub type Command {
   NewTask(slug: String, contract_path: Option(String), interactive: Bool)
   RunStage(slug: String, stage_name: String, dry_run: Bool, from: Option(String), to: Option(String))
@@ -26,47 +20,14 @@ pub type Command {
   Version
 }
 
-/// Parse CLI arguments from a list (pure function, testable)
-/// Normalizes short flags to long flags before parsing
 pub fn parse_args(args: List(String)) -> Result(Command, String) {
-  let normalized = normalize_short_flags(args)
-  do_parse(normalized)
+  normalize_short_flags(args) |> do_parse
 }
 
-/// Parse CLI arguments from argv
-/// This is the ONLY parser - no alternatives
 pub fn parse() -> Result(Command, String) {
-  case argv.load().arguments {
-    [] -> Ok(Help(None))
-    ["help"] -> Ok(Help(None))
-    ["help", topic] -> Ok(Help(Some(topic)))
-    ["version"] -> Ok(Version)
-
-    ["new", "--slug", slug] -> Ok(NewTask(slug, None, False))
-    ["new", "--slug", slug, "--contract", contract] -> Ok(NewTask(slug, Some(contract), False))
-    ["new", "--slug", slug, "--interactive"] -> Ok(NewTask(slug, None, True))
-
-    ["stage", "--slug", slug, "--stage", stage] -> Ok(RunStage(slug, stage, False, None, None))
-    ["stage", "--slug", slug, "--stage", stage, "--dry-run"] -> Ok(RunStage(slug, stage, True, None, None))
-    ["stage", "--slug", slug, "--stage", stage, "--from", from] -> Ok(RunStage(slug, stage, False, Some(from), None))
-    ["stage", "--slug", slug, "--stage", stage, "--to", to] -> Ok(RunStage(slug, stage, False, None, Some(to)))
-
-    ["approve", "--slug", slug] -> Ok(ApproveTask(slug, None, False))
-    ["approve", "--slug", slug, "--strategy", strategy] -> Ok(ApproveTask(slug, Some(strategy), False))
-    ["approve", "--slug", slug, "--force"] -> Ok(ApproveTask(slug, None, True))
-
-    ["show", "--slug", slug] -> Ok(ShowTask(slug, False))
-    ["show", "--slug", slug, "--detailed"] -> Ok(ShowTask(slug, True))
-
-    ["list"] -> Ok(ListTasks(None, None))
-    ["list", "--priority", p] -> Ok(ListTasks(Some(p), None))
-    ["list", "--status", s] -> Ok(ListTasks(None, Some(s)))
-
-    [cmd, ..] -> Error("Unknown command: " <> cmd)
-  }
+  argv.load().arguments |> do_parse
 }
 
-/// Normalize short flags to long flags
 fn normalize_short_flags(args: List(String)) -> List(String) {
   case args {
     [] -> []
@@ -75,39 +36,37 @@ fn normalize_short_flags(args: List(String)) -> List(String) {
   }
 }
 
-/// Internal parser for normalized arguments
 fn do_parse(args: List(String)) -> Result(Command, String) {
   case args {
     [] -> Ok(Help(None))
     ["help"] -> Ok(Help(None))
     ["help", topic] -> Ok(Help(Some(topic)))
     ["version"] -> Ok(Version)
-
     ["new", "--slug", slug] -> Ok(NewTask(slug, None, False))
-    ["new", "--slug", slug, "--contract", contract] -> Ok(NewTask(slug, Some(contract), False))
+    ["new", "--slug", slug, "--contract", contract] ->
+      Ok(NewTask(slug, Some(contract), False))
     ["new", "--slug", slug, "--interactive"] -> Ok(NewTask(slug, None, True))
-
-    ["stage", "--slug", slug, "--stage", stage] -> Ok(RunStage(slug, stage, False, None, None))
-    ["stage", "--slug", slug, "--stage", stage, "--dry-run"] -> Ok(RunStage(slug, stage, True, None, None))
-    ["stage", "--slug", slug, "--stage", stage, "--from", from] -> Ok(RunStage(slug, stage, False, Some(from), None))
-    ["stage", "--slug", slug, "--stage", stage, "--to", to] -> Ok(RunStage(slug, stage, False, None, Some(to)))
-
+    ["stage", "--slug", slug, "--stage", stage] ->
+      Ok(RunStage(slug, stage, False, None, None))
+    ["stage", "--slug", slug, "--stage", stage, "--dry-run"] ->
+      Ok(RunStage(slug, stage, True, None, None))
+    ["stage", "--slug", slug, "--stage", stage, "--from", from] ->
+      Ok(RunStage(slug, stage, False, Some(from), None))
+    ["stage", "--slug", slug, "--stage", stage, "--to", to] ->
+      Ok(RunStage(slug, stage, False, None, Some(to)))
     ["approve", "--slug", slug] -> Ok(ApproveTask(slug, None, False))
-    ["approve", "--slug", slug, "--strategy", strategy] -> Ok(ApproveTask(slug, Some(strategy), False))
+    ["approve", "--slug", slug, "--strategy", strategy] ->
+      Ok(ApproveTask(slug, Some(strategy), False))
     ["approve", "--slug", slug, "--force"] -> Ok(ApproveTask(slug, None, True))
-
     ["show", "--slug", slug] -> Ok(ShowTask(slug, False))
     ["show", "--slug", slug, "--detailed"] -> Ok(ShowTask(slug, True))
-
     ["list"] -> Ok(ListTasks(None, None))
     ["list", "--priority", p] -> Ok(ListTasks(Some(p), None))
     ["list", "--status", s] -> Ok(ListTasks(None, Some(s)))
-
     [cmd, ..] -> Error("Unknown command: " <> cmd)
   }
 }
 
-/// Execute parsed command
 pub fn execute(cmd: Command) -> Result(Nil, String) {
   case cmd {
     NewTask(slug, contract, interactive) ->
@@ -134,8 +93,6 @@ pub fn execute(cmd: Command) -> Result(Nil, String) {
     }
   }
 }
-
-// Implementation functions (placeholders until filled in)
 
 fn execute_new(
   slug: String,
@@ -168,7 +125,6 @@ fn execute_stage(
   use _ <- result.try(domain.validate_slug(slug))
   use repo_root <- result.try(repo.detect_repo_root())
   use task <- result.try(persistence.load_task_record(slug, repo_root))
-
   use message <- result.try(execute_stage_impl(slug, stage, task, repo_root))
   io.println(message)
   Ok(Nil)
@@ -194,16 +150,7 @@ fn execute_show(slug: String, _detailed: Bool) -> Result(Nil, String) {
   use repo_root <- result.try(repo.detect_repo_root())
   use task <- result.try(persistence.load_task_record(slug, repo_root))
 
-  let status_str = case task.status {
-    domain.Created -> "created"
-    domain.InProgress(stage) -> "in_progress (" <> stage <> ")"
-    domain.PassedPipeline -> "passed_pipeline"
-    domain.FailedPipeline(stage, reason) ->
-      "failed_pipeline (" <> stage <> ": " <> reason <> ")"
-    domain.Integrated -> "integrated"
-  }
-
-  io.println(slug <> ": " <> status_str)
+  io.println(slug <> ": " <> format_status(task.status))
   Ok(Nil)
 }
 
@@ -213,19 +160,25 @@ fn execute_list(_priority: Option(String), _status: Option(String)) -> Result(Ni
 
   case tasks {
     [] -> io.println("No active tasks")
-    ts -> {
+    ts ->
       ts
       |> list.map(fn(task) { task.slug <> " (" <> task.branch <> ")" })
       |> string.join("\n")
       |> io.println
-    }
   }
   Ok(Nil)
 }
 
-// ============================================================================
-// IMPLEMENTATION HELPERS
-// ============================================================================
+fn format_status(status: domain.TaskStatus) -> String {
+  case status {
+    domain.Created -> "created"
+    domain.InProgress(stage) -> "in_progress (" <> stage <> ")"
+    domain.PassedPipeline -> "passed_pipeline"
+    domain.FailedPipeline(stage, reason) ->
+      "failed_pipeline (" <> stage <> ": " <> reason <> ")"
+    domain.Integrated -> "integrated"
+  }
+}
 
 fn execute_new_impl(
   slug: String,
