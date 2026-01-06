@@ -3,9 +3,8 @@ import cli
 import config
 import domain
 import errors
-import gleam/erlang
+import gleam/erlang/process
 import gleam/option.{None, Some}
-import gleam/otp
 import gleam/string
 import gleeunit
 import gleeunit/should
@@ -1276,4 +1275,25 @@ pub fn process_id_wraps_pid_correctly_test() {
   // Assert: Round-trip conversion preserves the Pid value
   retrieved_pid
   |> should.equal(test_pid_string)
+}
+
+/// Test that ProcessId wraps the actual gleam_erlang Pid type, not String.
+/// This verifies the type-safety requirement: ProcessId must wrap Pid from gleam_erlang
+/// to provide compile-time process identification guarantees.
+///
+/// The current implementation wraps String, which defeats the purpose of the opaque type.
+/// This test drives the implementer to use the correct Pid type from gleam_erlang.
+pub fn process_id_wraps_erlang_pid_type_test() {
+  // Arrange: Get the current process's actual Pid
+  // process.self() returns the Pid of the current process
+  let actual_pid = process.self()
+
+  // Act: Create ProcessId from the actual Pid and retrieve it
+  let process_id = types.from_pid(actual_pid)
+  let retrieved_pid = types.to_pid(process_id)
+
+  // Assert: The retrieved Pid should equal the original Pid
+  // This ensures ProcessId properly wraps Pid, not String representations
+  retrieved_pid
+  |> should.equal(actual_pid)
 }
