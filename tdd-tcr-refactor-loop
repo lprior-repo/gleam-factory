@@ -894,6 +894,18 @@ tcr_commit() {
     local iteration="$1"
     local message="$2"
 
+    # SAFETY CHECK: Reject files that shadow Gleam stdlib
+    local bad_files
+    bad_files=$(git status --porcelain | grep -E "^\?\?|^ M|^A " | awk '{print $2}' | grep -E "^src/gleam/" || true)
+    if [ -n "$bad_files" ]; then
+        log_error "BLOCKED: Files shadowing Gleam stdlib detected!"
+        echo "$bad_files" | while read f; do log_error "  - $f"; done
+        log_error "Removing bad files and reverting..."
+        echo "$bad_files" | xargs -r rm -f 2>/dev/null || true
+        rmdir src/gleam/otp src/gleam 2>/dev/null || true
+        return 1
+    fi
+
     log_tcr "Tests PASSED - Committing changes..."
     git add -A
     git commit -m "PASS(tcr-$iteration): $message" --no-verify 2>/dev/null || true
@@ -985,7 +997,7 @@ implementer_prompt() {
     cat <<EOF
 I:$PROJECT_LANG c:$TEST_CMD a:$attempt/$MAX_IMPL_ATTEMPTS$([ "$is_escalated" = "true" ] && echo " ESC:$CONSECUTIVE_FAILURES")
 TCR:FAIL=REVERT
-X:src/ MIN-code
+X:src/ MIN-code NEVER:src/gleam/(shadows stdlib)
 E:$test_output
 T:read test, impl minimum, pass
 O:{"s":"ok","c":[{"f":"src/x.gleam","a":"+","l":N}],"r":"why"} or {"s":"bl","b":"blocker"}
