@@ -6,6 +6,7 @@ import audit
 import validation
 import errors
 import cli
+import config
 import gleam/option.{None, Some}
 import gleam/string
 
@@ -887,6 +888,32 @@ pub fn parse_args_approve_command_missing_slug_returns_error_test() {
     }
     Ok(_) -> should.fail()
   }
+}
+
+// ============================================================================
+// CONFIG MODULE TESTS
+// ============================================================================
+
+/// Test that default_config returns a Config with sensible default values.
+/// This drives creation of the Config type with fields:
+/// - data_dir: String (defaults to ".factory")
+/// - default_priority: Priority (P1, P2, P3 - defaults to P2)
+/// - verbose: Bool (defaults to False)
+pub fn default_config_returns_config_with_sensible_defaults_test() {
+  // Act: get the default configuration
+  let cfg = config.default_config()
+
+  // Assert: data_dir should have a sensible default (commonly ".factory")
+  cfg.data_dir
+  |> should.equal(".factory")
+
+  // Assert: default_priority should be P2 (middle priority is a sensible default)
+  cfg.default_priority
+  |> should.equal(config.P2)
+
+  // Assert: verbose should default to False
+  cfg.verbose
+  |> should.equal(False)
 }
 
 // ============================================================================
