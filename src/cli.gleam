@@ -14,6 +14,7 @@ import repo
 import persistence
 import stages
 import worktree
+import audit
 
 /// All possible Factory commands
 pub type Command {
@@ -128,15 +129,24 @@ fn execute_stage(
 
 fn execute_approve(
   slug: String,
-  _strategy: Option(String),
+  strategy: Option(String),
   _force: Bool,
 ) -> Result(Nil, String) {
   use _ <- result.try(domain.validate_slug(slug))
   use repo_root <- result.try(repo.detect_repo_root())
   use task <- result.try(persistence.load_task_record(slug, repo_root))
 
+  let strategy_str = case strategy {
+    Some(s) -> s
+    None -> "immediate"
+  }
+
   let approved_task = domain.Task(..task, status: domain.Integrated)
   use _ <- result.try(persistence.save_task_record(approved_task, repo_root))
+
+  // Log task approval to audit trail
+  let _ = audit.log_task_approved(repo_root, slug, strategy_str)
+
   io.println("✓ Approved: " <> slug)
   Ok(Nil)
 }
@@ -198,6 +208,10 @@ fn execute_new_impl(
 
   use _ <- result.try(persistence.save_task_record(task, repo_root))
 
+  // Log task creation to audit trail
+  let _ =
+    audit.log_task_created(repo_root, slug, lang_str, wt.branch)
+
   Ok(
     "Created: " <> wt.path <> "\n"
     <> "Branch:  " <> wt.branch <> "\n"
@@ -206,18 +220,28 @@ fn execute_new_impl(
 }
 
 fn execute_stage_impl(
-  _slug: String,
+  slug: String,
   stage_name: String,
   task: domain.Task,
-  _repo_root: String,
+  repo_root: String,
 ) -> Result(String, String) {
   use _ <- result.try(domain.get_stage(stage_name))
 
-  use _ <- result.try(
-    stages.execute_stage(stage_name, task.language, task.worktree_path),
-  )
+  // Log stage start
+  let _ = audit.log_stage_started(repo_root, slug, stage_name, 1)
 
-  Ok("✓ " <> stage_name <> " passed")
+  case stages.execute_stage(stage_name, task.language, task.worktree_path) {
+    Ok(Nil) -> {
+      // Log stage pass (duration_ms = 0 for now, could be measured)
+      let _ = audit.log_stage_passed(repo_root, slug, stage_name, 0)
+      Ok("✓ " <> stage_name <> " passed")
+    }
+    Error(err) -> {
+      // Log stage failure
+      let _ = audit.log_stage_failed(repo_root, slug, stage_name, err)
+      Error(err)
+    }
+  }
 }
 
 fn show_help(topic: Option(String)) -> Nil {
