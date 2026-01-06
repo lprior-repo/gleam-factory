@@ -302,6 +302,7 @@ EOF
 implementer_prompt() {
     local test_output="$1"
     local attempt="$2"
+    local auditor_reasoning="$3"
 
     cat <<EOF
 You are the IMPLEMENTER in a TDD-TCR-REFACTOR loop. Your job is to make tests pass.
@@ -320,44 +321,57 @@ YOUR CONSTRAINTS:
 - Write the MINIMUM code to make tests pass
 - Follow existing patterns in the codebase
 
+═══════════════════════════════════════════════════════════════════════════════
+                    AUDITOR'S REASONING (why this test exists)
+═══════════════════════════════════════════════════════════════════════════════
+
+$auditor_reasoning
+
+═══════════════════════════════════════════════════════════════════════════════
+
 CURRENT TEST OUTPUT:
 $test_output
 
 ATTEMPT: $attempt of $MAX_IMPL_ATTEMPTS
 
 YOUR TASK:
-1. Read the failing test to understand what's expected
-2. Read the current src/ code
-3. Write the MINIMUM code to make ONLY this test pass
-4. Do NOT over-engineer or add untested features
-5. Each function should do ONE thing well
+1. Read the AUDITOR'S REASONING above - understand WHY this test matters
+2. Read the failing test to understand what's expected
+3. Read the current src/ code
+4. Write the MINIMUM code to make ONLY this test pass
+5. Do NOT over-engineer or add untested features
 
 IMPLEMENTATION PRINCIPLES:
 - Write only what the test demands - nothing more
 - Keep functions small and focused
 - Use descriptive names that explain intent
 - Handle the specific case the test covers
-- Let the next test drive the next piece of functionality
-
-ARCHITECTURAL NOTE:
-An ARCHITECT reviews the code every $REFACTOR_INTERVAL iterations.
-They will refactor shortcuts into proper patterns.
-Focus on making tests pass; the architect handles design.
+- The Architect will refactor shortcuts - just make it work first
 
 REMEMBER: Your code will be REVERTED if tests fail. Be precise. Be minimal. Be correct.
 
-OUTPUT: Only modify src files. Explain what you implemented and why.
+OUTPUT FORMAT (required):
+1. What the test is asking for (1-2 sentences)
+2. What you implemented (code changes)
+3. Why this approach (1-2 sentences)
 EOF
 }
 
 architect_prompt() {
     local iteration="$1"
+    local session_history="$2"
 
     cat <<EOF
 You are the ARCHITECT in a TDD-TCR-REFACTOR loop. This is the REFACTOR phase.
 
 PROJECT: $LANG project (Gleam - functional, immutable, BEAM)
 TEST COMMAND: $TEST_CMD
+
+═══════════════════════════════════════════════════════════════════════════════
+              SESSION HISTORY (what happened in previous iterations)
+═══════════════════════════════════════════════════════════════════════════════
+
+$session_history
 
 ═══════════════════════════════════════════════════════════════════════════════
                         CODE IS A LIABILITY

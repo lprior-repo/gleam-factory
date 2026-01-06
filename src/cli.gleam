@@ -51,6 +51,7 @@ pub fn parse_args(args: List(String)) -> Result(Command, String) {
     ["new", "--contract", contract, "--slug", slug] -> Ok(NewTask(slug, Some(contract), False))
 
     ["stage", "--slug", slug, "--stage", stage] -> Ok(RunStage(slug, stage, False, None, None))
+    ["stage", "--stage", stage, "--slug", slug] -> Ok(RunStage(slug, stage, False, None, None))
     ["stage", "--slug", slug, "--stage", stage, "--dry-run"] -> Ok(RunStage(slug, stage, True, None, None))
     ["stage", "--slug", slug, "--stage", stage, "-d"] -> Ok(RunStage(slug, stage, True, None, None))
     ["stage", "--slug", slug, "--stage", stage, "--from", from] -> Ok(RunStage(slug, stage, False, Some(from), None))
