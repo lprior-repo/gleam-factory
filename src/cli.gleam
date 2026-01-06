@@ -30,7 +30,13 @@ pub type Command {
 /// Parse CLI arguments from argv
 /// This is the ONLY parser - no alternatives
 pub fn parse() -> Result(Command, String) {
-  case argv.load().arguments {
+  parse_args(argv.load().arguments)
+}
+
+/// Pure argument parser - takes args list directly
+/// Used for testing without argv dependency
+pub fn parse_args(args: List(String)) -> Result(Command, String) {
+  case args {
     [] -> Ok(Help(None))
     ["help"] -> Ok(Help(None))
     ["help", topic] -> Ok(Help(Some(topic)))
