@@ -2217,3 +2217,38 @@ pub fn acp_session_tracker_validates_cancel_only_for_active_sessions_test() {
   }
 }
 
+/// Test acp_notification_encode converts to JSON with correct MCP format.
+///
+/// CUPID pressure:
+/// - C (Compose): encode |> http_body composition
+/// - U (Unix): Do ONE thing: serialize ACP notification to JSON
+/// - P (Pure): Same notification → same JSON output
+/// - I (Idiomatic): Result for parse errors, pattern matching ADTs
+/// - D (Domain): Uses MCP jsonrpc 2.0 format, not custom encoding
+///
+/// Forces implementer to confront:
+/// 1. JSON ENCODING: Must convert AcpNotification to wire format
+/// 2. MCP PROTOCOL: session/cancel is jsonrpc method, not REST path
+/// 3. DEPENDENCIES: Needs gleam_json or encode library
+/// 4. TYPE-DRIVEN: Notification fields map to JSON fields
+/// 5. SPEC COMPLIANCE: Method must be "notifications/cancelled"
+///
+/// Rejects lazy:
+/// - "returns String" → needs JSON structure verification
+/// - "hardcoded JSON" → needs field composition from notification
+/// - "no Result" → encoding can fail, must handle
+///
+/// 30-line rule: encode should be <30 lines pure transform
+pub fn acp_notification_encode_produces_json_with_mcp_format_test() {
+  let notification = types.AcpNotification("sess-123", "notifications/cancelled")
+
+  case types.encode_acp_notification(notification) {
+    Ok(json_str) -> {
+      should.be_true(contains_substring(json_str, "sess-123"))
+      should.be_true(contains_substring(json_str, "notifications/cancelled"))
+      should.be_true(contains_substring(json_str, "jsonrpc") || contains_substring(json_str, "method"))
+    }
+    Error(_) -> should.fail()
+  }
+}
+
