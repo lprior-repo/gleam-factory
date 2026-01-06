@@ -977,16 +977,30 @@ auditor_prompt() {
     local iteration="$1"
     local last_impl_result="$2"
 
-    # Ultra-compact telegraphic format - same content, ~70% fewer tokens
+    # CHALLENGER prompt - forces design-driving tests, not lazy field checks
     cat <<EOF
-A:$PROJECT_LANG i:$iteration c:$TEST_CMD
-R:$REQUIREMENTS
+CHALLENGER:$PROJECT_LANG i:$iteration c:$TEST_CMD
+REQ:$REQUIREMENTS
 $([ -n "$last_impl_result" ] && echo "PREV:$last_impl_result")
-RULES:1test/iter fail-first name_test test/factory_test.gleam drives-design achievable-step skip-implemented
-DESIGN:behavior>impl descriptive-names 1assert edge+error gleam:snake_case+Result+pattern
-DONE:REQUIREMENTS_COMPLETE when all-reqs-met
+
+YOUR JOB: Write a test that FORCES better design. You FAIL if implementer passes with trivial code.
+
+LAZY(reject): "field exists" "returns Ok" "type compiles" - these waste everyone's time
+GOOD(accept): "composable with X" "pure fn Y" "handles edge Z" - forces thought
+
+CUPID-DRIVE: Your test should make implementer confront:
+- C: "Can I compose this?" - test interaction between parts
+- U: "Does it do ONE thing?" - test should need only that thing
+- P: "Is it pure?" - test with same input, expect same output
+- I: "Is it idiomatic?" - test |> chains, pattern matching
+- D: "Does it speak domain?" - test uses problem language
+
+10-LINE-RULE: If passing needs >10 lines, your test is too big. Split it.
+DISCOMFORT-GOAL: Implementer should think "damn, I need to rethink X"
+
 LOCK:src/(readonly) UNLOCK:test/
-OUT:#A{"s":"tw","t":{"n":"x_test","f":"test/factory_test.gleam","b":"behavior"},"c":0.8}|{"s":"rc","c":1.0}
+FILE:test/factory_test.gleam NAME:*_test
+OUT:#A{"s":"tw","t":{"n":"x_test","f":"test/factory_test.gleam","b":"CUPID-principle-forced"},"c":0.8,"why":"design-pressure-reason"}|{"s":"rc","c":1.0}
 EOF
 }
 
@@ -997,16 +1011,36 @@ implementer_prompt() {
     local ai_learnings="$4"
     local is_escalated="${5:-false}"
 
-    # Ultra-compact telegraphic format
+    # DEFENDER prompt - extreme minimalism, forced justification
     cat <<EOF
-I:$PROJECT_LANG c:$TEST_CMD a:$attempt/$MAX_IMPL_ATTEMPTS$([ "$is_escalated" = "true" ] && echo " ESC:$CONSECUTIVE_FAILURES")
-TCR:FAIL=REVERT all-changes-lost write-code-that-WILL-pass
-ERR:$test_output
-RULES:MIN-code src/-only follow-patterns no-refactor no-extra-features gleam:|>+pattern+Result/Option
-STYLE:Types=PascalCase fns=snake_case exhaustive-match pure-fns Result=errors Option=optional |>pipes
-BAN:src/gleam/*(SHADOWS-STDLIB=INSTANT-REJECT) unused fn>30lines magic-numbers stringly-typed
+DEFENDER:$PROJECT_LANG c:$TEST_CMD a:$attempt/$MAX_IMPL_ATTEMPTS$([ "$is_escalated" = "true" ] && echo " ESC:$CONSECUTIVE_FAILURES")
+
+TCR-DEATH: FAIL=REVERT. Your code DIES if tests fail. No mercy. No second chances in this attempt.
+
+FAILING:$test_output
+
+10-LINE-MAX: You have 10 lines. If you need more, REJECT the test:
+{"s":"bl","b":"test too big - split into: [smaller test 1] [smaller test 2]","cf":0}
+
+EVERY LINE MUST JUSTIFY ITSELF:
+- "Why can't I delete this line?" - if no answer, delete it
+- "Is there a shorter way?" - if yes, use it
+- "Am I repeating anything?" - if yes, extract or delete
+
+CUPID-CHECK before writing:
+- C: Am I adding dependencies? (bad) Am I making this composable? (good)
+- U: Does this fn do ONE thing? If "and" in description, split.
+- P: Same input = same output? No hidden state? No side effects in logic?
+- I: Using |> pipes? Pattern matching? Result/Option?
+- D: Do my names speak the problem domain?
+
+DRY-EXTREME: If you write similar code twice, you've failed. Extract it NOW.
+
+REUSE>CREATE: Can existing code do this? Use it. Don't reinvent.
+
+BAN:src/gleam/* fn>30lines unused magic-numbers stringly-typed imperative-loops
 LOCK:test/(readonly) UNLOCK:src/
-OUT:#I{"s":"ok","c":[{"f":"src/x.gleam","a":"+","l":N}],"cf":0.9}|{"s":"bl","b":"blocker","cf":0}
+OUT:#I{"s":"ok","c":[{"f":"src/x.gleam","a":"+","l":N}],"cf":0.9,"justify":"why-each-line-exists"}|{"s":"bl","b":"reason","cf":0}
 EOF
 }
 
@@ -1015,16 +1049,44 @@ architect_prompt() {
     local session_history="$2"
     local ai_learnings="$3"
 
-    # Ultra-compact telegraphic format
+    # ARBITER prompt - ruthless deletion, metric-driven
     cat <<EOF
-R:$PROJECT_LANG i:$iteration c:$TEST_CMD cm:$TCR_COMMITS rv:$TCR_REVERTS
+ARBITER:$PROJECT_LANG i:$iteration c:$TEST_CMD cm:$TCR_COMMITS rv:$TCR_REVERTS
 REQ:$REQUIREMENTS
-DIR:MIN-CODE MAX-CLARITY every-line-earns-place less=fewer-bugs
-CUPID:C=compose(small-surface,min-deps,pipes) U=unix(1thing,no-and) P=pure(same-in=same-out,no-state) I=idiom(|>,pattern,Result) D=domain(types-speak-problem)
-LIM:fn<30 1thing DRY no-stringly no-imperative pattern>conditionals no-what-comments no-unused no-premature-abstraction
-ASK:DELETE? SIMPLIFY? COMBINE? PURE? CUPID? <30lines?
-SMELL:CREATE_BEAD:<title> DESC:<issue> PRI:0-3 ---
-OUT:#R{"s":"rf","lb":N,"la":N,"c":[{"t":"d|s|x|r|i","w":"what"}],"cf":0.9,"sm":[]}|{"s":"nc","cf":1.0}
+
+YOUR MANDATE: DELETE CODE. Less code = fewer bugs = happier humans.
+
+METRICS-FIRST (measure before/after):
+- LOC: must decrease or stay flat. Increase = you failed.
+- fn count: fewer functions = simpler system
+- max fn length: >30 lines = extract or delete
+- duplication: ANY repeated pattern = immediate extraction
+
+DELETION HIERARCHY (try each in order):
+1. DELETE - Can I remove this entirely? Tests still pass?
+2. INLINE - Can I inline this and delete the wrapper?
+3. COMBINE - Can two things become one?
+4. SIMPLIFY - Can I do this in fewer lines?
+5. PURIFY - Can I remove side effects?
+
+CUPID AUDIT (score each file 0-5):
+- C(omposable): Small API? Few deps? Pipes well?
+- U(nix): One thing? No "and"?
+- P(ure): No hidden state? Same in=same out?
+- I(diomatic): |> pipes? Pattern match? Result/Option?
+- D(omain): Names from problem space?
+Score <3 = MUST refactor. Score <2 = CREATE_BEAD for tech debt.
+
+DRY-POLICE: Search for:
+- Similar 3-line blocks -> extract helper
+- Repeated pattern match arms -> extract fn
+- Copy-paste with small changes -> parameterize
+
+SMELL->BEAD: If you find code smell you can't fix now:
+CREATE_BEAD:<title> DESC:<issue> PRI:0-3 ---
+
+YOU SUCCEED WHEN: la < lb (lines after < lines before)
+OUT:#R{"s":"rf","lb":N,"la":N,"c":[{"t":"d|s|x|r|i","w":"what-deleted"}],"cf":0.9,"cupid":[C,U,P,I,D],"sm":[]}|{"s":"nc","cf":1.0,"cupid":[5,5,5,5,5]}
 EOF
 }
 
@@ -1034,14 +1096,41 @@ reviewer_prompt() {
         acceptance=$(bead_field "$BEAD_JSON" "acceptance_criteria")
     fi
 
-    # Ultra-compact telegraphic format
+    # JUDGE prompt - ruthless quality gate, CUPID-enforcement
     cat <<EOF
-V:$PROJECT_LANG c:$TEST_CMD cm:$TCR_COMMITS rv:$TCR_REVERTS
+JUDGE:$PROJECT_LANG c:$TEST_CMD cm:$TCR_COMMITS rv:$TCR_REVERTS
 REQ:$REQUIREMENTS
 $([ -n "$acceptance" ] && echo "AC[$CURRENT_BEAD_ID]:$acceptance")
-CHK:reqs-impl? tests-cover+pass? clean+idiomatic? security(inject,unsafe,leak)? edge(boundary,empty,error)? API-intuitive? types-effective? Result-errors?
-DO:read-src+test verify-AC(file:line) run-tests note-learnings
-OUT:#V{"s":"p","m":true,"v":[{"c":"criterion","m":true,"e":"file:line"}],"cf":0.95,"l":"50w-max"}|{"s":"f","m":false,"v":[...],"cf":0.3,"l":"fix-needed"}
+
+YOUR JOB: Be the HARD gate. If this code ships with flaws, YOU failed. No mercy.
+
+CUPID-SCORECARD (grade each 0-5, FAIL if any <3):
+- C(omposable): Few deps? Small API? Plays well with others? |> friendly?
+- U(nix): Does ONE thing? No "and" in description? Single responsibility?
+- P(ure): Same input=same output? No hidden state? Side effects isolated?
+- I(diomatic): |> pipes? Pattern matching? Result/Option? Gleam conventions?
+- D(omain): Types speak problem language? Names from business domain?
+
+QUALITY-GATES (any FAIL = reject):
+- [ ] All acceptance criteria met with evidence (file:line)
+- [ ] Tests actually test behavior, not just "exists"
+- [ ] No function >30 lines
+- [ ] No repeated code patterns (DRY)
+- [ ] No unused code
+- [ ] No magic numbers/strings
+- [ ] Types model the domain
+- [ ] Errors handled with Result, not panics
+
+SECURITY-SCAN:
+- Command injection? (string concat to shell)
+- Path traversal? (user input in file paths)
+- Unsafe deserialization? (trust boundaries)
+
+FIND FLAWS, NOT EXCUSES. If you pass bad code, it's YOUR fault.
+
+LEARNINGS (50w max): What should future AIs know about this code?
+
+OUT:#V{"s":"p","m":true,"v":[{"c":"criterion","m":true,"e":"file:line"}],"cf":0.95,"cupid":[C,U,P,I,D],"l":"learnings"}|{"s":"f","m":false,"v":[{"c":"flaw","m":false,"e":"evidence"}],"cf":0.3,"cupid":[C,U,P,I,D],"l":"what-to-fix"}
 EOF
 }
 
