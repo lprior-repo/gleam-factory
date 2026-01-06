@@ -186,20 +186,49 @@ $acceptance
 EOF
 }
 
-# Create a new bead from architect findings
+# Create a new bead from architect findings with proper dependencies and scope
 create_bead_from_architect() {
     local title="$1"
     local description="$2"
     local priority="${3:-2}"  # Default to P2 (medium)
+    local current_bead_id="${4:-}"  # Link to current bead if available
+
+    # Enhance description with context and make it actionable
+    local enhanced_desc="$description
+
+## Context
+- Identified during refactoring in TDD-TCR loop
+- Current codebase state allows tests to pass but has technical debt
+- Should be addressed to maintain code quality
+
+## Scope
+This is a FOCUSED refactoring task. Should be completable in one TDD-TCR session.
+- Modify only the specific area mentioned
+- Ensure all existing tests continue to pass
+- Add tests if behavior changes"
+
+    if [ -n "$current_bead_id" ]; then
+        enhanced_desc="$enhanced_desc
+
+## Related Work
+- Discovered while working on: $current_bead_id"
+    fi
 
     # Try bd command first
     if command -v bd >/dev/null 2>&1; then
-        local new_bead_id=$(bd create \
-            --title "$title" \
-            --description "$description" \
-            --priority "$priority" \
-            --tags "architect-generated,code-smell,technical-debt" \
-            --json 2>/dev/null | jq -r '.id' 2>/dev/null)
+        local create_args=(
+            --title "$title"
+            --description "$enhanced_desc"
+            --priority "$priority"
+            --tags "architect-generated,code-smell,technical-debt,refactoring"
+        )
+
+        # Link to current bead if available
+        if [ -n "$current_bead_id" ]; then
+            create_args+=(--related-to "$current_bead_id")
+        fi
+
+        local new_bead_id=$(bd create "${create_args[@]}" --json 2>/dev/null | jq -r '.id' 2>/dev/null)
 
         if [ -n "$new_bead_id" ] && [ "$new_bead_id" != "null" ]; then
             log_success "Created bead $new_bead_id: $title"
@@ -209,6 +238,7 @@ create_bead_from_architect() {
     fi
 
     # Fallback: create manually in .beads/technical-debt.jsonl
+    mkdir -p "$BEADS_DIR"
     local bead_file="$BEADS_DIR/technical-debt.jsonl"
     local new_id="arch-$(date +%s)-$(( RANDOM % 1000 ))"
     local now=$(date -Iseconds)
@@ -216,25 +246,61 @@ create_bead_from_architect() {
     local bead_json=$(jq -n \
         --arg id "$new_id" \
         --arg title "$title" \
-        --arg desc "$description" \
+        --arg desc "$enhanced_desc" \
         --arg pri "$priority" \
         --arg now "$now" \
+        --arg parent "$current_bead_id" \
         '{
             id: $id,
             title: $title,
             description: $desc,
             priority: ($pri | tonumber),
             status: "open",
-            tags: ["architect-generated", "code-smell", "technical-debt"],
+            tags: ["architect-generated", "code-smell", "technical-debt", "refactoring"],
             created_at: $now,
             updated_at: $now,
-            created_by: "tdd-tcr-refactor-loop"
+            created_by: "tdd-tcr-refactor-loop",
+            parent_bead: (if $parent != "" then $parent else null end)
         }')
 
     echo "$bead_json" >> "$bead_file"
     log_success "Created bead $new_id: $title (in $bead_file)"
     BEADS_CREATED_BY_ARCHITECT=$((BEADS_CREATED_BY_ARCHITECT + 1))
     return 0
+}
+
+# Parse architect output and create beads from CREATE_BEAD directives
+parse_and_create_beads() {
+    local architect_output="$1"
+    local in_bead=false
+    local bead_title=""
+    local bead_description=""
+    local bead_priority="2"
+
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^CREATE_BEAD:\ (.+)$ ]]; then
+            in_bead=true
+            bead_title="${BASH_REMATCH[1]}"
+            bead_description=""
+            bead_priority="2"
+        elif [[ "$line" =~ ^DESCRIPTION:\ (.+)$ ]] && [ "$in_bead" = true ]; then
+            bead_description="${BASH_REMATCH[1]}"
+        elif [[ "$line" =~ ^PRIORITY:\ ([0-3])$ ]] && [ "$in_bead" = true ]; then
+            bead_priority="${BASH_REMATCH[1]}"
+        elif [[ "$line" =~ ^---$ ]] && [ "$in_bead" = true ]; then
+            # End of bead definition - create it
+            if [ -n "$bead_title" ] && [ -n "$bead_description" ]; then
+                create_bead_from_architect "$bead_title" "$bead_description" "$bead_priority" "$CURRENT_BEAD_ID"
+            fi
+            in_bead=false
+            bead_title=""
+            bead_description=""
+            bead_priority="2"
+        elif [ "$in_bead" = true ] && [[ "$line" =~ ^DESCRIPTION: ]]; then
+            # Continue multi-line description
+            bead_description="$bead_description $line"
+        fi
+    done <<< "$architect_output"
 }
 
 # Parse --bead/-b argument
@@ -601,7 +667,7 @@ draw_dashboard() {
     local width=$(get_term_width)
 
     echo -e "${DIM}$(draw_line '─' $width)${NC}"
-    echo -e "${BOLD}  📊 DASHBOARD${NC}  │  Iteration: ${CYAN}$iteration${NC}  │  Commits: ${GREEN}$TCR_COMMITS${NC}  │  Reverts: ${RED}$TCR_REVERTS${NC}  │  Refactors: ${WHITE}$REFACTOR_COUNT${NC}"
+    echo -e "${BOLD}  📊 DASHBOARD${NC}  │  Iter: ${CYAN}$iteration${NC}  │  ✓ ${GREEN}$TCR_COMMITS${NC}  │  ✗ ${RED}$TCR_REVERTS${NC}  │  🏛️ ${WHITE}$REFACTOR_COUNT${NC}  │  🔧 ${YELLOW}$BEADS_CREATED_BY_ARCHITECT${NC}  │  ⚠️ ${MAGENTA}$CONSECUTIVE_FAILURES${NC}"
     echo -e "${DIM}$(draw_line '─' $width)${NC}"
 }
 
@@ -849,12 +915,34 @@ implementer_prompt() {
     local test_output="$1"
     local attempt="$2"
     local auditor_reasoning="$3"
+    local ai_learnings="$4"
+    local is_escalated="${5:-false}"
+
+    local escalation_context=""
+    if [ "$is_escalated" = "true" ]; then
+        escalation_context="
+⚡ ESCALATED TO SONNET MODEL ⚡
+This implementation has failed $CONSECUTIVE_FAILURES times. You have more reasoning capacity.
+Take time to deeply analyze the problem before implementing. Consider:
+- Are there hidden dependencies or edge cases?
+- Is the test asking for something architecturally complex?
+- Should this be broken into smaller steps?
+"
+    fi
 
     cat <<EOF
 You are the IMPLEMENTER in a TDD-TCR-REFACTOR loop. Your job is to make tests pass.
 
 PROJECT: $PROJECT_LANG project
 TEST COMMAND: $TEST_CMD
+
+$escalation_context
+
+═══════════════════════════════════════════════════════════════════════════════
+              AI LEARNINGS (knowledge from previous sessions)
+═══════════════════════════════════════════════════════════════════════════════
+
+$ai_learnings
 
 ⚠️  TCR DISCIPLINE IS ENFORCED ⚠️
 - If tests PASS after your changes → your code is COMMITTED automatically
@@ -1050,6 +1138,30 @@ OUTPUT:
 4. Lines of code AFTER refactoring
 5. Net change (should be NEGATIVE or zero)
 6. Test confirmation
+
+CRITICAL: CODE SMELL DETECTION & BEAD CREATION
+After refactoring, scan the ENTIRE codebase for issues that couldn't be fixed now:
+- Architectural problems requiring larger refactoring
+- Violations of CUPID principles
+- Functions over 30 lines
+- Duplicated logic across modules
+- Missing abstractions or poor separation of concerns
+- Performance bottlenecks
+- Technical debt
+
+For EACH significant issue found, output in this EXACT format:
+CREATE_BEAD: <title>
+DESCRIPTION: <detailed description of the issue and why it matters>
+PRIORITY: <0-3, where 0=critical, 1=high, 2=medium, 3=low>
+---
+
+Example:
+CREATE_BEAD: Extract duplicated validation logic to shared module
+DESCRIPTION: Functions validate_email, validate_username, and validate_password all have duplicated error handling patterns. This violates DRY and makes maintenance harder. Should create a validation.gleam module with composable validators.
+PRIORITY: 2
+---
+
+The system will automatically create beads from your findings to ensure technical debt is tracked and addressed.
 EOF
 }
 
@@ -1182,6 +1294,19 @@ run_implementer() {
     log_implementer "Making test pass (Iteration $iteration)"
     draw_dashboard "$iteration"
 
+    # Load AI learnings
+    local ai_learnings
+    ai_learnings=$(load_ai_learnings)
+
+    # Determine if we should escalate to Sonnet
+    local use_escalation=false
+    local model="haiku"
+    if [ $CONSECUTIVE_FAILURES -ge $ESCALATION_THRESHOLD ]; then
+        use_escalation=true
+        model="sonnet"
+        log_warning "Escalating to Sonnet model after $CONSECUTIVE_FAILURES consecutive failures"
+    fi
+
     while [ $attempt -le $MAX_IMPL_ATTEMPTS ]; do
         log_info "Implementation attempt $attempt of $MAX_IMPL_ATTEMPTS $(draw_progress $attempt $MAX_IMPL_ATTEMPTS)"
 
@@ -1190,13 +1315,13 @@ run_implementer() {
 
         log_tcr "Recording pre-implementation state..."
 
-        # Pass auditor's reasoning to implementer
-        prompt=$(implementer_prompt "$test_output" "$attempt" "$LAST_AUDITOR_REASONING")
+        # Pass auditor's reasoning and AI learnings to implementer
+        prompt=$(implementer_prompt "$test_output" "$attempt" "$LAST_AUDITOR_REASONING" "$ai_learnings" "$use_escalation")
 
-        log_info "Invoking implementer AI (new session, haiku-4.5)..."
+        log_info "Invoking implementer AI (new session, $model)..."
         IMPLEMENTER_SESSION_ID=$(uuidgen)
         impl_output=$(claude -p \
-            --model haiku \
+            --model "$model" \
             --session-id "$IMPLEMENTER_SESSION_ID" \
             --allowedTools "Read Write Edit Glob Grep Bash(gleam:*) Skill" \
             --append-system-prompt "You are the IMPLEMENTER under TCR discipline. You may ONLY modify files in src/. If tests fail, your changes will be REVERTED. Write MINIMUM code to pass the test. IMPORTANT: Use /gleam-code-generator skill for all Gleam code generation." \
@@ -1216,12 +1341,14 @@ run_implementer() {
             tcr_commit "$iteration" "Implemented for iteration $iteration"
             log_success "Tests pass! Implementation committed."
             SUCCESSFUL_IMPLS=$((SUCCESSFUL_IMPLS + 1))
+            CONSECUTIVE_FAILURES=0  # Reset failure counter on success
             return 0
         else
             tcr_revert "$iteration"
             append_history "TCR" "$iteration" "REVERTED - tests failed"
             test_output="$LAST_TEST_OUTPUT"
             attempt=$((attempt + 1))
+            CONSECUTIVE_FAILURES=$((CONSECUTIVE_FAILURES + 1))
 
             if [ $attempt -le $MAX_IMPL_ATTEMPTS ]; then
                 log_warning "Trying again with fresh implementation..."
@@ -1242,22 +1369,27 @@ run_architect() {
 
     unlock_all
 
-    # Get session history for architect context
-    local session_history
+    # Get session history and AI learnings for architect context
+    local session_history ai_learnings
     session_history=$(get_recent_history 200)
+    ai_learnings=$(load_ai_learnings)
 
-    prompt=$(architect_prompt "$iteration" "$session_history")
+    prompt=$(architect_prompt "$iteration" "$session_history" "$ai_learnings")
 
-    log_info "Invoking architect AI (new session, haiku-4.5)..."
+    log_info "Invoking architect AI (new session, sonnet for deeper analysis)..."
     ARCHITECT_SESSION_ID=$(uuidgen)
     architect_output=$(claude -p \
-        --model haiku \
+        --model sonnet \
         --session-id "$ARCHITECT_SESSION_ID" \
         --allowedTools "Read Write Edit Glob Grep Bash(gleam:*) Skill" \
-        --append-system-prompt "You are the ARCHITECT. You may modify both src/ and test/. Your job is to REFACTOR the code for quality and maintainability. ALL TESTS MUST STILL PASS. Focus on CUPID, code minimization, and idiomatic patterns. Every line must earn its place. IMPORTANT: Use /gleam-code-generator skill for all Gleam code generation." \
+        --append-system-prompt "You are the ARCHITECT. You may modify both src/ and test/. Your job is to REFACTOR the code for quality and maintainability. ALL TESTS MUST STILL PASS. Focus on CUPID, code minimization, and idiomatic patterns. Every line must earn its place. SCAN for code smells and CREATE_BEAD for issues you find. IMPORTANT: Use /gleam-code-generator skill for all Gleam code generation." \
         "/gleam-code-generator $prompt" 2>&1)
 
     echo "$architect_output"
+
+    # Parse architect output for bead creation requests
+    log_info "Scanning architect output for code smell beads..."
+    parse_and_create_beads "$architect_output"
 
     # Save architect's reasoning to history
     append_history "ARCHITECT" "$iteration" "$architect_output"
@@ -1315,25 +1447,11 @@ run_reviewer() {
 
     # Save AI learnings if present
     if echo "$REVIEWER_OUTPUT" | grep -q "## AI LEARNINGS"; then
-        log_info "Saving AI learnings to .ai-learnings.md..."
-        local learnings_file=".ai-learnings.md"
-        local timestamp=$(date -Iseconds)
-        local bead_info=""
-        if [ "$BEAD_MODE" = true ]; then
-            bead_info="Bead: $CURRENT_BEAD_ID ($BEAD_TITLE)"
-        fi
-
-        {
-            echo ""
-            echo "---"
-            echo ""
-            echo "## Session: $timestamp"
-            [ -n "$bead_info" ] && echo "$bead_info"
-            echo "Stats: $TCR_COMMITS commits, $TCR_REVERTS reverts, $REFACTOR_COUNT refactors"
-            echo ""
-            echo "$REVIEWER_OUTPUT" | sed -n '/## AI LEARNINGS/,/^## /p' | head -n -1
-        } >> "$learnings_file"
-        log_success "AI learnings saved to $learnings_file"
+        log_info "Saving AI learnings for future sessions..."
+        local learnings_content
+        learnings_content=$(echo "$REVIEWER_OUTPUT" | sed -n '/## AI LEARNINGS/,/^## /p' | head -n -1)
+        save_ai_learning "$learnings_content"
+        log_success "AI learnings saved to $AI_LEARNING_FILE"
     fi
 
     log_info "Verifying tests still pass after review..."
@@ -1544,6 +1662,10 @@ process_single_bead() {
     echo -e "${DIM}$(draw_line '─')${NC}"
     echo ""
 
+    # Initialize AI learning and history systems
+    log_info "Initializing AI learning system..."
+    init_ai_learning
+
     # Initialize history file for context passing between agents
     log_info "Initializing session history for context passing..."
     init_history
@@ -1588,6 +1710,7 @@ process_single_bead() {
             echo -e "  ${GREEN}✓${NC} TCR Commits:         ${GREEN}${BOLD}$TCR_COMMITS${NC}"
             echo -e "  ${RED}✗${NC} TCR Reverts:         ${RED}${BOLD}$TCR_REVERTS${NC}"
             echo -e "  ${WHITE}🏛️${NC} Architect Refactors: ${WHITE}${BOLD}$REFACTOR_COUNT${NC}"
+            echo -e "  ${YELLOW}🔧${NC} Beads Created:       ${YELLOW}${BOLD}$BEADS_CREATED_BY_ARCHITECT${NC}"
             echo -e "  ${CYAN}📝${NC} Total Iterations:    ${CYAN}${BOLD}$iteration${NC}"
             echo -e "${DIM}$(draw_line '─')${NC}"
             echo ""
@@ -1667,9 +1790,10 @@ process_single_bead() {
             echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"
             echo -e "${GREEN}  FINAL STATISTICS${NC}"
             echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"
-            echo -e "  TCR Commits:        ${GREEN}$TCR_COMMITS${NC}"
-            echo -e "  TCR Reverts:        ${RED}$TCR_REVERTS${NC}"
+            echo -e "  TCR Commits:         ${GREEN}$TCR_COMMITS${NC}"
+            echo -e "  TCR Reverts:         ${RED}$TCR_REVERTS${NC}"
             echo -e "  Architect Refactors: ${WHITE}$REFACTOR_COUNT${NC}"
+            echo -e "  Beads Created:       ${YELLOW}$BEADS_CREATED_BY_ARCHITECT${NC}"
             echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"
             echo ""
 
