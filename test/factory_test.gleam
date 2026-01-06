@@ -4,6 +4,7 @@ import domain
 import persistence
 import validation
 import cli
+import utils
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -217,6 +218,46 @@ pub fn validate_priority_rejects_empty_string_test() {
 pub fn parse_args_new_with_short_slug_flag_test() {
   cli.parse_args(["new", "-s", "my_task"])
   |> should.be_ok
+}
+
+// ============================================================================
+// UTILS TESTS
+// ============================================================================
+
+pub fn truncate_string_within_limit_test() {
+  // When string is shorter than max_len, return unchanged
+  utils.truncate_string("hello", 10)
+  |> should.equal("hello")
+}
+
+pub fn truncate_string_exactly_at_limit_test() {
+  // When string equals max_len, return unchanged
+  utils.truncate_string("hello", 5)
+  |> should.equal("hello")
+}
+
+pub fn truncate_string_exceeds_limit_test() {
+  // When string exceeds max_len, truncate and add ellipsis
+  utils.truncate_string("hello world", 5)
+  |> should.equal("he...")
+}
+
+pub fn truncate_string_zero_length_test() {
+  // When max_len is 0, return empty string
+  utils.truncate_string("hello", 0)
+  |> should.equal("")
+}
+
+pub fn truncate_string_single_char_limit_test() {
+  // When max_len is 1, return single character (no room for ellipsis)
+  utils.truncate_string("hello", 1)
+  |> should.equal("h")
+}
+
+pub fn truncate_string_empty_string_test() {
+  // When input is empty, return empty
+  utils.truncate_string("", 10)
+  |> should.equal("")
 }
 
 // ============================================================================
