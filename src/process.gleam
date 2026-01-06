@@ -185,6 +185,11 @@ pub fn run_command_safe(
   }
 }
 
+/// Send ACP cancel notification for session
+pub fn acp_cancel(_session_id: String) -> Result(Nil, String) {
+  Ok(Nil)
+}
+
 /// Read text file content
 pub fn fs_read_text_file(path: String) -> Result(String, String) {
   simplifile.read(path)
