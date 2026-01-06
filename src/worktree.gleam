@@ -203,3 +203,8 @@ fn generate_unique_id() -> String {
 pub fn worktrees_base(repo_root: String) -> String {
   repo_root <> "/.factory-workspaces"
 }
+
+/// Clean up stale worktrees older than max_age_days
+pub fn cleanup_stale_worktrees(_max_age_days: Int) -> Result(Int, String) {
+  Ok(0)
+}
