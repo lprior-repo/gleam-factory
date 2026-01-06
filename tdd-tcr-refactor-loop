@@ -75,6 +75,43 @@ TCR_REVERTS=0
 REFACTOR_COUNT=0
 SUCCESSFUL_IMPLS=0
 
+# Context passing between agents
+HISTORY_FILE=".tdd-history.md"
+LAST_AUDITOR_REASONING=""
+LAST_IMPL_REASONING=""
+
+# Initialize history file
+init_history() {
+    cat > "$HISTORY_FILE" << 'HISTEOF'
+# TDD-TCR-REFACTOR Session History
+
+This file tracks the reasoning from each agent to provide context to subsequent agents.
+
+---
+
+HISTEOF
+}
+
+# Append to history
+append_history() {
+    local role="$1"
+    local iteration="$2"
+    local content="$3"
+
+    echo "" >> "$HISTORY_FILE"
+    echo "## Iteration $iteration - $role" >> "$HISTORY_FILE"
+    echo "" >> "$HISTORY_FILE"
+    echo "$content" >> "$HISTORY_FILE"
+    echo "" >> "$HISTORY_FILE"
+    echo "---" >> "$HISTORY_FILE"
+}
+
+# Get recent history (last N entries, trimmed for context window)
+get_recent_history() {
+    local max_lines="${1:-100}"
+    tail -n "$max_lines" "$HISTORY_FILE" 2>/dev/null || echo "(no history yet)"
+}
+
 #---------------------------------------------------------------------------
 # Utility functions
 #---------------------------------------------------------------------------

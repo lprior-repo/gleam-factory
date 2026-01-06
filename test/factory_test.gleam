@@ -723,6 +723,21 @@ pub fn parse_args_approve_command_with_short_force_flag_test() {
   |> should.equal(Ok(cli.ApproveTask("my-task", None, True)))
 }
 
+/// Test flexible flag ordering for 'stage' command: --stage before --slug should work
+/// This tests requirement #2: flags can appear in any order for all commands
+pub fn parse_args_stage_command_with_flexible_flag_order_test() {
+  // Arrange: 'stage' command with --stage BEFORE --slug (non-canonical order)
+  let args = ["stage", "--stage", "implement", "--slug", "my-task"]
+
+  // Act: parse the args using the pure parse_args function
+  let result = cli.parse_args(args)
+
+  // Assert: should return a RunStage command with correct slug and stage
+  // The order of flags should NOT matter
+  result
+  |> should.equal(Ok(cli.RunStage("my-task", "implement", False, None, None)))
+}
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
