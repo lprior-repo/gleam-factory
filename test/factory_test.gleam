@@ -977,3 +977,19 @@ pub fn test_failure_signal_has_required_fields_test() {
     }
   }
 }
+
+pub fn test_passing_signal_has_required_fields_test() {
+  // Arrange: Create a TestPassing signal with all required fields
+  let signal = signals.TestPassing(
+    hash: "pass123def456",
+    timestamp: "2026-01-06T12:45:00Z",
+  )
+
+  // Assert: Pattern match to verify all fields are present and accessible
+  case signal {
+    signals.TestPassing(hash, timestamp) -> {
+      hash |> should.equal("pass123def456")
+      timestamp |> should.equal("2026-01-06T12:45:00Z")
+    }
+  }
+}
