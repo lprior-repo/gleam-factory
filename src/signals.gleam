@@ -6,3 +6,10 @@ pub type TestFailure {
     timestamp: String,
   )
 }
+
+pub type TestPassing {
+  TestPassing(
+    hash: String,
+    timestamp: String,
+  )
+}
