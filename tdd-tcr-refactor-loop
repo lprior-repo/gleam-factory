@@ -637,13 +637,14 @@ draw_line() {
     printf '%s' "$result"
 }
 
-# Center text
+# Center text (pads both left and right to fill width)
 center_text() {
     local text="$1"
     local width="${2:-$(get_term_width)}"
     local text_len=${#text}
-    local padding=$(( (width - text_len) / 2 ))
-    printf '%*s%s' "$padding" '' "$text"
+    local left_pad=$(( (width - text_len) / 2 ))
+    local right_pad=$(( width - text_len - left_pad ))
+    printf '%*s%s%*s' "$left_pad" '' "$text" "$right_pad" ''
 }
 
 # Draw fancy box
