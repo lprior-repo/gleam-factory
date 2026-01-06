@@ -7,6 +7,7 @@ import validation
 import errors
 import cli
 import config
+import signals
 import gleam/option.{None, Some}
 import gleam/string
 
@@ -952,3 +953,27 @@ fn contains_substring(haystack: String, needle: String) -> Bool {
 
 @external(erlang, "audit_test_ffi", "contains_substring")
 fn contains_substring_ffi(haystack: String, needle: String) -> Bool
+
+// ============================================================================
+// SIGNALS MODULE TESTS
+// ============================================================================
+
+pub fn test_failure_signal_has_required_fields_test() {
+  // Arrange: Create a TestFailure signal with all required fields
+  let signal = signals.TestFailure(
+    file: "src/test_module.gleam",
+    error: "assertion failed: expected 42, got 0",
+    context_hash: "abc123def456",
+    timestamp: "2026-01-06T12:34:56Z",
+  )
+
+  // Assert: Pattern match to verify all fields are present and accessible
+  case signal {
+    signals.TestFailure(file, error, context_hash, timestamp) -> {
+      file |> should.equal("src/test_module.gleam")
+      error |> should.equal("assertion failed: expected 42, got 0")
+      context_hash |> should.equal("abc123def456")
+      timestamp |> should.equal("2026-01-06T12:34:56Z")
+    }
+  }
+}
