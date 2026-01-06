@@ -120,3 +120,43 @@ pub type AcpClient {
 pub type AcpNotification {
   AcpNotification(session_id: String, method: String)
 }
+
+/// SessionStatus represents the state of an ACP session.
+pub type SessionStatus {
+  Running
+  Complete
+  Paused
+}
+
+/// AcpSessionTracker tracks session states for cancellation logic.
+pub opaque type AcpSessionTracker {
+  AcpSessionTracker(sessions: List(#(String, SessionStatus)))
+}
+
+/// Creates a new empty AcpSessionTracker.
+pub fn new_acp_session_tracker() -> AcpSessionTracker {
+  AcpSessionTracker([])
+}
+
+/// Registers a session with its status.
+pub fn register_session(
+  tracker: AcpSessionTracker,
+  session_id: String,
+  status: SessionStatus,
+) -> AcpSessionTracker {
+  let AcpSessionTracker(sessions) = tracker
+  AcpSessionTracker([#(session_id, status), ..sessions])
+}
+
+/// Checks if a session can be cancelled (only Running sessions can be cancelled).
+pub fn can_cancel(
+  tracker: AcpSessionTracker,
+  session_id: String,
+) -> Result(Bool, String) {
+  let AcpSessionTracker(sessions) = tracker
+  case list.key_find(sessions, session_id) {
+    Ok(Running) -> Ok(True)
+    Ok(_) -> Ok(False)
+    Error(_) -> Error("Session not found")
+  }
+}
