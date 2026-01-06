@@ -111,6 +111,11 @@ fn is_valid_hex(input: String) -> Bool {
   })
 }
 
+/// AcpClient represents an Agent Communication Protocol HTTP client.
+pub type AcpClient {
+  AcpClient(base_url: String)
+}
+
 /// AcpNotification represents an Agent Communication Protocol notification.
 pub type AcpNotification {
   AcpNotification(session_id: String, method: String)

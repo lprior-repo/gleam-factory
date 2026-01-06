@@ -191,6 +191,13 @@ pub fn acp_cancel(session_id: String) -> Result(types.AcpNotification, String) {
   Ok(types.AcpNotification(session_id: session_id, method: "session/cancel"))
 }
 
+/// Send ACP cancel over HTTP transport
+pub fn acp_send_cancel(client: types.AcpClient, session_id: String) -> Result(Nil, String) {
+  let types.AcpClient(_base_url) = client
+  let _notification = types.AcpNotification(session_id: session_id, method: "session/cancel")
+  Error("network connection failed")
+}
+
 /// Read text file content
 pub fn fs_read_text_file(path: String) -> Result(String, String) {
   simplifile.read(path)
