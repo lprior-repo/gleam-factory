@@ -26,10 +26,58 @@ pub type Command {
   Version
 }
 
+/// Parse CLI arguments from a list (pure function, testable)
+/// Normalizes short flags to long flags before parsing
+pub fn parse_args(args: List(String)) -> Result(Command, String) {
+  let normalized = normalize_short_flags(args)
+  do_parse(normalized)
+}
+
 /// Parse CLI arguments from argv
 /// This is the ONLY parser - no alternatives
 pub fn parse() -> Result(Command, String) {
   case argv.load().arguments {
+    [] -> Ok(Help(None))
+    ["help"] -> Ok(Help(None))
+    ["help", topic] -> Ok(Help(Some(topic)))
+    ["version"] -> Ok(Version)
+
+    ["new", "--slug", slug] -> Ok(NewTask(slug, None, False))
+    ["new", "--slug", slug, "--contract", contract] -> Ok(NewTask(slug, Some(contract), False))
+    ["new", "--slug", slug, "--interactive"] -> Ok(NewTask(slug, None, True))
+
+    ["stage", "--slug", slug, "--stage", stage] -> Ok(RunStage(slug, stage, False, None, None))
+    ["stage", "--slug", slug, "--stage", stage, "--dry-run"] -> Ok(RunStage(slug, stage, True, None, None))
+    ["stage", "--slug", slug, "--stage", stage, "--from", from] -> Ok(RunStage(slug, stage, False, Some(from), None))
+    ["stage", "--slug", slug, "--stage", stage, "--to", to] -> Ok(RunStage(slug, stage, False, None, Some(to)))
+
+    ["approve", "--slug", slug] -> Ok(ApproveTask(slug, None, False))
+    ["approve", "--slug", slug, "--strategy", strategy] -> Ok(ApproveTask(slug, Some(strategy), False))
+    ["approve", "--slug", slug, "--force"] -> Ok(ApproveTask(slug, None, True))
+
+    ["show", "--slug", slug] -> Ok(ShowTask(slug, False))
+    ["show", "--slug", slug, "--detailed"] -> Ok(ShowTask(slug, True))
+
+    ["list"] -> Ok(ListTasks(None, None))
+    ["list", "--priority", p] -> Ok(ListTasks(Some(p), None))
+    ["list", "--status", s] -> Ok(ListTasks(None, Some(s)))
+
+    [cmd, ..] -> Error("Unknown command: " <> cmd)
+  }
+}
+
+/// Normalize short flags to long flags
+fn normalize_short_flags(args: List(String)) -> List(String) {
+  case args {
+    [] -> []
+    ["-s", ..rest] -> ["--slug", ..normalize_short_flags(rest)]
+    [arg, ..rest] -> [arg, ..normalize_short_flags(rest)]
+  }
+}
+
+/// Internal parser for normalized arguments
+fn do_parse(args: List(String)) -> Result(Command, String) {
+  case args {
     [] -> Ok(Help(None))
     ["help"] -> Ok(Help(None))
     ["help", topic] -> Ok(Help(Some(topic)))
