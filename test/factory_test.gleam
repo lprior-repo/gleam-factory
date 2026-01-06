@@ -5,6 +5,7 @@ import domain
 import errors
 import gleam/erlang/process
 import gleam/option.{None, Some}
+import gleam/otp/actor
 import gleam/string
 import gleeunit
 import gleeunit/should
@@ -1372,6 +1373,71 @@ pub fn workspace_manager_start_link_returns_ok_subject_test() {
     }
     Error(_err) -> {
       // If we get here, the actor failed to start
+      should.fail()
+    }
+  }
+}
+
+/// Test that workspace_manager can register and retrieve a workspace.
+///
+/// This drives the implementation of:
+/// 1. RegisterWorkspace message type to add workspaces to the actor's Dict
+/// 2. Proper GetWorkspace handling that queries the Dict and responds with the workspace
+/// 3. Response handling using the Result type to indicate success/failure
+///
+/// Design rationale: The workspace manager must be able to store workspaces (RegisterWorkspace)
+/// and retrieve them by ID (GetWorkspace). This test validates the core state mutation and
+/// query operations that form the foundation of the actor.
+///
+/// This drives good architecture by:
+/// - Requiring a proper message-response pattern (RegisterWorkspace stores, GetWorkspace retrieves)
+/// - Forcing the Dict to be used correctly (Dict.insert for register, Dict.get for retrieve)
+/// - Ensuring type safety: WorkspaceId must be usable as a Dict key
+///
+/// Edge case: Tests with a real workspace object containing all fields (id, path, type, pid, created_at),
+/// ensuring the entire Workspace record is preserved through registration and retrieval.
+pub fn workspace_manager_can_register_and_retrieve_workspace_test() {
+  // Arrange: Start the workspace manager actor
+  let assert Ok(manager_subject) = workspace_manager.start_link()
+
+  // Arrange: Create a workspace to register
+  let workspace_id = types.new_workspace_id("test-workspace-123")
+  let workspace =
+    types.Workspace(
+      id: workspace_id,
+      path: "/tmp/test-workspace",
+      workspace_type: types.Jj,
+      owner_pid: types.from_pid(process.self()),
+      created_at: "2026-01-06T15:00:00Z",
+    )
+
+  // Act: Send RegisterWorkspace message to store the workspace
+  actor.send(manager_subject, workspace_manager.RegisterWorkspace(workspace))
+
+  // Act: Send GetWorkspace message to retrieve it
+  let response = actor.call(
+    manager_subject,
+    fn(reply_with) { workspace_manager.GetWorkspace(workspace_id, reply_with) },
+    5000,
+  )
+
+  // Assert: Should successfully retrieve the registered workspace
+  case response {
+    Ok(retrieved_workspace) -> {
+      // Verify all fields match the original workspace
+      retrieved_workspace.id
+      |> should.equal(workspace.id)
+
+      retrieved_workspace.path
+      |> should.equal("/tmp/test-workspace")
+
+      retrieved_workspace.workspace_type
+      |> should.equal(types.Jj)
+
+      retrieved_workspace.created_at
+      |> should.equal("2026-01-06T15:00:00Z")
+    }
+    Error(_) -> {
       should.fail()
     }
   }
