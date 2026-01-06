@@ -12,6 +12,7 @@ import persistence
 import signals
 import types
 import validation
+import workspace_manager
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -1275,4 +1276,39 @@ pub fn process_id_round_trip_conversion_preserves_pid_test() {
   // Assert: Round-trip conversion preserves identity
   unwrapped
   |> should.equal(original_pid)
+}
+
+// ============================================================================
+// WORKSPACE MANAGER ACTOR TESTS
+// ============================================================================
+
+/// Test that workspace_manager.start_link() successfully starts an actor
+/// and returns Ok(subject).
+///
+/// This drives the creation of:
+/// 1. A Workspace record type with id, path, workspace_type, owner_pid, created_at
+/// 2. A WorkspaceType union (Jj | Reflink) for workspace classification
+/// 3. A WorkspaceId type (opaque or newtype) for type-safe workspace identification
+/// 4. An actor using gleam_otp that manages state as Dict(WorkspaceId, Workspace)
+/// 5. A public start_link/0 function that initializes the actor and returns Ok(subject)
+///
+/// The workspace manager acts as a central registry for workspace state,
+/// allowing other processes to query and update workspace information
+/// in a thread-safe manner through message passing.
+pub fn workspace_manager_start_link_returns_ok_subject_test() {
+  // Arrange: No setup needed - start_link is pure initialization
+
+  // Act: Start the workspace manager actor
+  let result = workspace_manager.start_link()
+
+  // Assert: Should return Ok with a subject for sending messages
+  case result {
+    Ok(_subject) -> {
+      // We have a valid subject - the actor started successfully
+      // In a real integration test, we could send messages to it,
+      // but for this unit test we just verify successful startup
+      Nil
+    }
+    Error(_) -> should.fail()
+  }
 }

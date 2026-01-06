@@ -626,11 +626,15 @@ get_term_width() {
     tput cols 2>/dev/null || echo 80
 }
 
-# Draw a horizontal line
+# Draw a horizontal line (handles multi-byte UTF-8 characters)
 draw_line() {
     local char="${1:-═}"
     local width="${2:-$(get_term_width)}"
-    printf '%*s' "$width" '' | tr ' ' "$char"
+    local result=""
+    for ((i=0; i<width; i++)); do
+        result+="$char"
+    done
+    printf '%s' "$result"
 }
 
 # Center text
@@ -1261,7 +1265,7 @@ run_auditor() {
         --session-id "$AUDITOR_SESSION_ID" \
         --allowedTools "Read Write Edit Glob Grep Bash(gleam:*) Skill" \
         --append-system-prompt "You are the AUDITOR. You may ONLY modify files in test/. Any attempt to modify src/ will fail. Focus on writing ONE failing test that drives good design. If all requirements are met, output REQUIREMENTS_COMPLETE. IMPORTANT: Use /gleam-code-generator skill for all Gleam code generation." \
-        "/gleam-code-generator $prompt" 2>&1)
+        "/gleam-code-generator $prompt" 2>&1 </dev/null)
 
     echo "$auditor_output"
 
@@ -1320,7 +1324,7 @@ run_implementer() {
             --session-id "$IMPLEMENTER_SESSION_ID" \
             --allowedTools "Read Write Edit Glob Grep Bash(gleam:*) Skill" \
             --append-system-prompt "You are the IMPLEMENTER under TCR discipline. You may ONLY modify files in src/. If tests fail, your changes will be REVERTED. Write MINIMUM code to pass the test. IMPORTANT: Use /gleam-code-generator skill for all Gleam code generation." \
-            "/gleam-code-generator $prompt" 2>&1)
+            "/gleam-code-generator $prompt" 2>&1 </dev/null)
 
         echo "$impl_output"
 
