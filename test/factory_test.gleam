@@ -184,6 +184,31 @@ pub fn validate_slug_format_invalid_empty_test() {
   |> should.be_error
 }
 
+pub fn validate_priority_accepts_uppercase_p1_test() {
+  validation.validate_priority("P1")
+  |> should.be_ok
+}
+
+pub fn validate_priority_accepts_lowercase_p1_test() {
+  validation.validate_priority("p1")
+  |> should.be_ok
+}
+
+pub fn validate_priority_accepts_numeric_1_test() {
+  validation.validate_priority("1")
+  |> should.be_ok
+}
+
+pub fn validate_priority_rejects_invalid_p4_test() {
+  validation.validate_priority("P4")
+  |> should.be_error
+}
+
+pub fn validate_priority_rejects_empty_string_test() {
+  validation.validate_priority("")
+  |> should.be_error
+}
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
