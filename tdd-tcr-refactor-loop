@@ -1836,7 +1836,8 @@ main() {
         show_bv_triage
 
         local bead_num=0
-        while IFS= read -r bead_id; do
+        # Use fd 3 to avoid stdin consumption by claude/other commands inside the loop
+        while IFS= read -r bead_id <&3; do
             [ -z "$bead_id" ] && continue
             bead_num=$((bead_num + 1))
 
@@ -1878,7 +1879,7 @@ main() {
                 sleep $PAUSE_BETWEEN_BEADS
             fi
 
-        done <<< "$bead_ids"
+        done 3<<< "$bead_ids"
 
         show_all_beads_summary
         exit 0
