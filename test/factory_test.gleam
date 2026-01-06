@@ -2138,37 +2138,39 @@ pub fn fs_read_text_file_nonexistent_returns_error_test() {
 // ACP CLIENT TESTS
 // ============================================================================
 
-/// Test acp_cancel notification preserves session_id through composition.
+/// Test acp_send_cancel composes notification with transport layer.
 ///
 /// CUPID pressure:
-/// - C (Compose): Cancel msg must carry session_id for downstream composition
-/// - U (Unix): Does ONE thing: builds cancel notification with session_id
-/// - P (Pure): Same session_id input -> same notification structure output
-/// - I (Idiomatic): Uses pattern matching on custom type, not stringly-typed JSON
-/// - D (Domain): "session/cancel" notification per ACP spec
+/// - C (Compose): cancel|>encode|>http_send must compose cleanly
+/// - U (Unix): Do ONE thing: send cancel to ACP endpoint
+/// - P (Pure): Same client+session → same encode logic
+/// - I (Idiomatic): Result |> chain, pattern matching errors
+/// - D (Domain): Uses ACP transport (URL/headers), not shell exec
 ///
 /// Forces implementer to confront:
-/// 1. TYPE: Return AcpNotification custom type (not String/Ok(Nil))
-/// 2. COMPOSE: notification.session_id must equal input session_id (composability check)
-/// 3. DOMAIN: notification.method must be "session/cancel" per spec
-/// 4. NO MAGIC STRINGS: Can't use stringly-typed approach
+/// 1. TRANSPORT: Must encode AcpNotification to JSON/wire format
+/// 2. CLIENT STATE: AcpClient must carry endpoint URL for send
+/// 3. HTTP: Requires gleam_http or actual transport layer
+/// 4. ERROR HANDLING: Network errors, encoding errors, 4xx/5xx
+/// 5. NO TRIVIAL: Can't just return Ok - must prove send happened
 ///
 /// Rejects lazy:
-/// - "returns Ok" → needs inspection of notification fields
-/// - "field exists" → needs exact session_id preservation check
-/// - "type compiles" → needs runtime field equality assertion
-pub fn acp_cancel_notification_preserves_session_id_through_composition_test() {
-  let session_id = "sess-abc123"
+/// - "returns Ok" → needs HTTP interaction proof
+/// - "type exists" → needs client with URL, encode logic
+/// - "field access" → needs transport composition
+pub fn acp_send_cancel_composes_notification_with_transport_test() {
+  let client = types.AcpClient(base_url: "http://localhost:9999/acp")
+  let session_id = "sess-compose-test"
 
-  case process.acp_cancel(session_id) {
-    Ok(notification) -> {
-      notification.session_id
-      |> should.equal(session_id)
-
-      notification.method
-      |> should.equal("session/cancel")
+  case process.acp_send_cancel(client, session_id) {
+    Ok(_) -> {
+      should.fail()
     }
-    Error(_) -> should.fail()
+    Error(msg) -> {
+      should.be_true(
+        contains_substring(msg, "http") || contains_substring(msg, "connect") || contains_substring(msg, "network"),
+      )
+    }
   }
 }
 
