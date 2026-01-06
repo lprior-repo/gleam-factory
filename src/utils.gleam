@@ -190,3 +190,22 @@ pub fn truncate_string(s: String, max_len: Int) -> String {
       }
   }
 }
+
+/// Pad a string on the left to reach a specified width
+pub fn pad_left(s: String, width: Int, char: String) -> String {
+  let len = string.length(s)
+  case len >= width {
+    True -> s
+    False -> {
+      let padding_needed = width - len
+      let char_len = string.length(char)
+      let repetitions = case char_len {
+        0 -> 0
+        _ -> padding_needed / char_len + 1
+      }
+      let padding = string.repeat(char, repetitions)
+      let padding_trimmed = string.slice(padding, 0, padding_needed)
+      padding_trimmed <> s
+    }
+  }
+}
