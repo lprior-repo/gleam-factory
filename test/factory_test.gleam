@@ -8,6 +8,7 @@ import utils
 import stages
 import worktree
 import integration
+import tcr
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -387,6 +388,29 @@ pub fn retry_with_backoff_zero_retries_test() {
 
   integration.retry_with_backoff(test_fn, 0)
   |> should.equal(Error("immediate failure"))
+}
+
+// ============================================================================
+// TCR TESTS
+// ============================================================================
+
+pub fn tcr_stats_returns_non_negative_counts_test() {
+  // When tcr_stats() is called,
+  // it should return a tuple with (commits_count: Int, reverts_count: Int)
+  // where both counts are >= 0
+  let #(commits, reverts) = tcr.tcr_stats()
+
+  // Verify commits count is non-negative
+  case commits >= 0 {
+    True -> Nil
+    False -> should.fail()
+  }
+
+  // Verify reverts count is non-negative
+  case reverts >= 0 {
+    True -> Nil
+    False -> should.fail()
+  }
 }
 
 // ============================================================================
