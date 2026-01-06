@@ -44,6 +44,22 @@ find_bead() {
     local bead_id="$1"
     local bead_json=""
 
+    # Try bv first (best: includes graph metrics)
+    if command -v bv >/dev/null 2>&1; then
+        # bv doesn't have a show command, so we use grep with fallback
+        :
+    fi
+
+    # Try bd command (if available) for better integration
+    if command -v bd >/dev/null 2>&1; then
+        bead_json=$(bd show "$bead_id" --json 2>/dev/null)
+        if [ -n "$bead_json" ] && [ "$bead_json" != "null" ]; then
+            echo "$bead_json"
+            return 0
+        fi
+    fi
+
+    # Fallback to manual search
     for jsonl_file in "$BEADS_DIR"/*.jsonl; do
         [ -f "$jsonl_file" ] || continue
         bead_json=$(grep -h "\"id\":\"$bead_id\"" "$jsonl_file" 2>/dev/null | head -1)
@@ -56,9 +72,23 @@ find_bead() {
 }
 
 # Get all open beads sorted by priority (P0 first, then P1, P2, etc.)
+# Uses bv --robot-next for graph-aware priority (respects blockers, PageRank, etc.)
 get_all_open_beads() {
     local all_beads=""
 
+    # Try bv --robot-triage first (best: graph-aware, respects blockers)
+    if command -v bv >/dev/null 2>&1; then
+        # Use --recipe actionable to get only ready-to-work beads
+        bv --recipe actionable --robot-plan 2>/dev/null | \
+            jq -r '.plan.tracks[].items[].id' 2>/dev/null && return 0
+    fi
+
+    # Fallback to bd ready command
+    if command -v bd >/dev/null 2>&1; then
+        bd ready --json 2>/dev/null | jq -r '.[].id' 2>/dev/null && return 0
+    fi
+
+    # Final fallback: manual search
     for jsonl_file in "$BEADS_DIR"/*.jsonl; do
         [ -f "$jsonl_file" ] || continue
         # Get all lines with status "open", extract id and priority for sorting
@@ -90,6 +120,30 @@ update_bead_status() {
     local new_status="$2"
     local close_reason="${3:-}"
 
+    # Note: bv is read-only (graph analysis), use bd for updates
+    # Try bd command first (if available)
+    if command -v bd >/dev/null 2>&1; then
+        case "$new_status" in
+            closed)
+                bd close "$bead_id" ${close_reason:+--reason "$close_reason"} 2>/dev/null && return 0
+                ;;
+            in_progress|in-progress)
+                bd update "$bead_id" --status in-progress 2>/dev/null && return 0
+                ;;
+            failed)
+                # Add comment about failure, keep open for manual review
+                if [ -n "$close_reason" ]; then
+                    bd comment "$bead_id" "AUTOMATED FAILURE: $close_reason" 2>/dev/null || true
+                fi
+                bd update "$bead_id" --status open 2>/dev/null && return 0
+                ;;
+            *)
+                bd update "$bead_id" --status "$new_status" 2>/dev/null && return 0
+                ;;
+        esac
+    fi
+
+    # Fallback to manual update
     for jsonl_file in "$BEADS_DIR"/*.jsonl; do
         [ -f "$jsonl_file" ] || continue
         if grep -q "\"id\":\"$bead_id\"" "$jsonl_file" 2>/dev/null; then
@@ -150,6 +204,28 @@ parse_bead_args() {
     done
 }
 
+# Show bv triage summary (if available)
+show_bv_triage() {
+    if command -v bv >/dev/null 2>&1; then
+        log_info "Getting graph-aware triage from bv..."
+        local triage_json=$(bv --robot-triage 2>/dev/null)
+        if [ -n "$triage_json" ]; then
+            echo ""
+            echo -e "${CYAN}═══════════════════════════════════════════════════════════${NC}"
+            echo -e "${CYAN}  BV GRAPH TRIAGE${NC}"
+            echo -e "${CYAN}═══════════════════════════════════════════════════════════${NC}"
+            echo "$triage_json" | jq -r '.triage.quick_ref |
+                "  Open: \(.open_count)\n  Actionable: \(.actionable_count)\n  Blocked: \(.blocked_count)\n  In Progress: \(.in_progress_count)"' 2>/dev/null || echo "  (triage data unavailable)"
+            echo ""
+            echo -e "${BOLD}Top Recommendation:${NC}"
+            echo "$triage_json" | jq -r '.triage.quick_ref.top_picks[0] |
+                "  ID: \(.id)\n  Title: \(.title)\n  Score: \(.score)\n  Unblocks: \(.unblocks) issues"' 2>/dev/null || echo "  (no recommendations)"
+            echo -e "${CYAN}═══════════════════════════════════════════════════════════${NC}"
+            echo ""
+        fi
+    fi
+}
+
 # Dependency checks
 check_dependencies() {
     local missing=()
@@ -161,6 +237,19 @@ check_dependencies() {
     if [ ${#missing[@]} -gt 0 ]; then
         echo "Error: Missing dependencies: ${missing[*]}"
         exit 1
+    fi
+
+    # Optional tools (warn but don't fail)
+    local optional_missing=()
+    command -v bv >/dev/null 2>&1 || optional_missing+=("bv (graph-aware triage)")
+    command -v bd >/dev/null 2>&1 || optional_missing+=("bd (bead management)")
+    command -v codanna >/dev/null 2>&1 || optional_missing+=("codanna (semantic search)")
+
+    if [ ${#optional_missing[@]} -gt 0 ]; then
+        echo -e "${YELLOW}Optional tools not found: ${optional_missing[*]}${NC}"
+        echo -e "${DIM}Install from: https://github.com/Dicklesworthstone/beads_viewer${NC}"
+        echo -e "${DIM}            https://github.com/bartolli/codanna${NC}"
+        echo ""
     fi
 }
 
@@ -209,6 +298,7 @@ TEST_DIR="test"
 MAX_IMPL_ATTEMPTS=3
 MAX_ITERATIONS=15
 REFACTOR_INTERVAL=3  # Run architect every N successful implementations
+PAUSE_BETWEEN_BEADS=5  # seconds between beads in --all mode
 
 # Handle requirements from bead, file, or argument
 REQUIREMENTS=""
@@ -942,9 +1032,9 @@ run_auditor() {
     auditor_output=$(claude -p \
         --model haiku \
         --session-id "$AUDITOR_SESSION_ID" \
-        --allowedTools "Read Write Edit Glob Grep Bash(gleam:*)" \
-        --append-system-prompt "You are the AUDITOR. You may ONLY modify files in test/. Any attempt to modify src/ will fail. Focus on writing ONE failing test that drives good design. If all requirements are met, output REQUIREMENTS_COMPLETE." \
-        "$prompt" 2>&1)
+        --allowedTools "Read Write Edit Glob Grep Bash(gleam:*) Skill" \
+        --append-system-prompt "You are the AUDITOR. You may ONLY modify files in test/. Any attempt to modify src/ will fail. Focus on writing ONE failing test that drives good design. If all requirements are met, output REQUIREMENTS_COMPLETE. IMPORTANT: Use /gleam-code-generator skill for all Gleam code generation." \
+        "/gleam-code-generator $prompt" 2>&1)
 
     echo "$auditor_output"
 
@@ -988,9 +1078,9 @@ run_implementer() {
         impl_output=$(claude -p \
             --model haiku \
             --session-id "$IMPLEMENTER_SESSION_ID" \
-            --allowedTools "Read Write Edit Glob Grep Bash(gleam:*)" \
-            --append-system-prompt "You are the IMPLEMENTER under TCR discipline. You may ONLY modify files in src/. If tests fail, your changes will be REVERTED. Write MINIMUM code to pass the test." \
-            "$prompt" 2>&1)
+            --allowedTools "Read Write Edit Glob Grep Bash(gleam:*) Skill" \
+            --append-system-prompt "You are the IMPLEMENTER under TCR discipline. You may ONLY modify files in src/. If tests fail, your changes will be REVERTED. Write MINIMUM code to pass the test. IMPORTANT: Use /gleam-code-generator skill for all Gleam code generation." \
+            "/gleam-code-generator $prompt" 2>&1)
 
         echo "$impl_output"
 
@@ -1043,9 +1133,9 @@ run_architect() {
     architect_output=$(claude -p \
         --model haiku \
         --session-id "$ARCHITECT_SESSION_ID" \
-        --allowedTools "Read Write Edit Glob Grep Bash(gleam:*)" \
-        --append-system-prompt "You are the ARCHITECT. You may modify both src/ and test/. Your job is to REFACTOR the code for quality and maintainability. ALL TESTS MUST STILL PASS. Focus on CUPID, code minimization, and idiomatic patterns. Every line must earn its place." \
-        "$prompt" 2>&1)
+        --allowedTools "Read Write Edit Glob Grep Bash(gleam:*) Skill" \
+        --append-system-prompt "You are the ARCHITECT. You may modify both src/ and test/. Your job is to REFACTOR the code for quality and maintainability. ALL TESTS MUST STILL PASS. Focus on CUPID, code minimization, and idiomatic patterns. Every line must earn its place. IMPORTANT: Use /gleam-code-generator skill for all Gleam code generation." \
+        "/gleam-code-generator $prompt" 2>&1)
 
     echo "$architect_output"
 
@@ -1085,9 +1175,9 @@ run_reviewer() {
     REVIEWER_OUTPUT=$(claude -p \
         --model haiku \
         --session-id "$REVIEWER_SESSION_ID" \
-        --allowedTools "Read Write Edit Glob Grep Bash(gleam:*)" \
-        --append-system-prompt "You are the REVIEWER doing final review. You may modify both src/ and test/. All tests MUST pass. Focus on production readiness and polish. You MUST output ACCEPTANCE_CRITERIA_MET: true or ACCEPTANCE_CRITERIA_MET: false in your response." \
-        "$prompt" 2>&1)
+        --allowedTools "Read Write Edit Glob Grep Bash(gleam:*) Skill" \
+        --append-system-prompt "You are the REVIEWER doing final review. You may modify both src/ and test/. All tests MUST pass. Focus on production readiness and polish. You MUST output ACCEPTANCE_CRITERIA_MET: true or ACCEPTANCE_CRITERIA_MET: false in your response. IMPORTANT: Use /gleam-code-generator skill for all Gleam code generation." \
+        "/gleam-code-generator $prompt" 2>&1)
 
     echo "$REVIEWER_OUTPUT"
 
@@ -1167,6 +1257,17 @@ show_usage() {
     echo "  - Updates bead status to 'in_progress' when starting"
     echo "  - Updates bead status to 'closed' on success"
     echo "  - Updates bead status to 'failed' on failure"
+    echo ""
+    echo "Tooling integration (auto-detected):"
+    echo "  - bv: Graph-aware triage (PageRank, blockers, critical path)"
+    echo "  - bd: Bead updates and status management"
+    echo "  - codanna: Semantic code search (if initialized)"
+    echo "  - Falls back to direct .beads/*.jsonl manipulation"
+    echo ""
+    echo "Configuration:"
+    echo "  - PAUSE_BETWEEN_BEADS=${PAUSE_BETWEEN_BEADS}s (in --all mode)"
+    echo "  - REFACTOR_INTERVAL=${REFACTOR_INTERVAL} (architect runs every N green cycles)"
+    echo "  - MAX_ITERATIONS=${MAX_ITERATIONS} (max TDD cycles per bead)"
     exit 1
 }
 
@@ -1493,6 +1594,7 @@ main() {
         fi
 
         show_all_beads_banner "$total_beads"
+        show_bv_triage
 
         local bead_num=0
         while IFS= read -r bead_id; do
@@ -1530,6 +1632,12 @@ main() {
             echo -e "${DIM}$(draw_line '─')${NC}"
             echo -e "  ${CYAN}Progress:${NC} $bead_num / $total_beads beads processed"
             echo -e "${DIM}$(draw_line '─')${NC}"
+
+            # Pause between beads (except after the last one)
+            if [ $bead_num -lt $total_beads ] && [ $PAUSE_BETWEEN_BEADS -gt 0 ]; then
+                log_info "Pausing ${PAUSE_BETWEEN_BEADS}s before next bead..."
+                sleep $PAUSE_BETWEEN_BEADS
+            fi
 
         done <<< "$bead_ids"
 

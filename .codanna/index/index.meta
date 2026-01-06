@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "data_source": {
+    "Tantivy": {
+      "path": "/home/lewis/src/factory-gleam/.codanna/index/tantivy",
+      "doc_count": 2,
+      "timestamp": 1767703986
+    }
+  },
+  "symbol_count": 0,
+  "file_count": 0,
+  "last_modified": 1767703986,
+  "indexed_paths": [
+    "/home/lewis/src/factory-gleam/src"
+  ]
+}

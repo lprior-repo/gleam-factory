@@ -2,3 +2,6 @@
 *.ez
 /build
 erl_crash.dump
+
+# bv (beads viewer) local config and caches
+.bv/
