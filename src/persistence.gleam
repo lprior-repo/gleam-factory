@@ -1,10 +1,10 @@
 // Persistence module - Save/load task status as JSON
 // Tracks which stages passed/failed for each task
 
-import gleam/string
 import gleam/list
 import gleam/result
-import gleam/int
+import gleam/json
+import gleam/dynamic/decode
 import simplifile
 import domain
 
@@ -205,232 +205,38 @@ fn save_task_record_direct(
 // JSON SERIALIZATION AND DESERIALIZATION
 // ============================================================================
 
-/// Escape JSON string - handle special characters properly
-fn escape_json_string(s: String) -> String {
-  s
-  |> string.replace("\\", "\\\\")
-  |> string.replace("\"", "\\\"")
-  |> string.replace("\n", "\\n")
-  |> string.replace("\r", "\\r")
-  |> string.replace("\t", "\\t")
-}
-
-
-/// Convert stage record to JSON object string
-fn stage_to_json(stage: StageRecord) -> String {
-  "{"
-  <> "\"stage_name\":\"" <> escape_json_string(stage.stage_name) <> "\","
-  <> "\"status\":\"" <> escape_json_string(stage.status) <> "\","
-  <> "\"attempts\":" <> string.inspect(stage.attempts) <> ","
-  <> "\"last_error\":\"" <> escape_json_string(stage.last_error) <> "\""
-  <> "}"
+/// Convert stage record to JSON
+fn stage_to_json(stage: StageRecord) -> json.Json {
+  json.object([
+    #("stage_name", json.string(stage.stage_name)),
+    #("status", json.string(stage.status)),
+    #("attempts", json.int(stage.attempts)),
+    #("last_error", json.string(stage.last_error)),
+  ])
 }
 
 /// Convert task record to JSON string
 fn record_to_json(record: TaskRecord) -> String {
-  let stages_json =
-    record.stages
-    |> list.map(stage_to_json)
-    |> string.join(",")
+  let stages_json = json.array(record.stages, stage_to_json)
 
-  "{"
-  <> "\"slug\":\"" <> escape_json_string(record.slug) <> "\","
-  <> "\"language\":\"" <> escape_json_string(record.language) <> "\","
-  <> "\"status\":\"" <> escape_json_string(record.status) <> "\","
-  <> "\"created_at\":\"" <> escape_json_string(record.created_at) <> "\","
-  <> "\"updated_at\":\"" <> escape_json_string(record.updated_at) <> "\","
-  <> "\"stages\":[" <> stages_json <> "]"
-  <> "}"
+  json.object([
+    #("slug", json.string(record.slug)),
+    #("language", json.string(record.language)),
+    #("status", json.string(record.status)),
+    #("created_at", json.string(record.created_at)),
+    #("updated_at", json.string(record.updated_at)),
+    #("stages", stages_json),
+  ])
+  |> json.to_string
 }
 
-/// Extract a JSON string value by key, handling escaping properly
-fn extract_json_string(json: String, key: String) -> Result(String, String) {
-  let search = "\"" <> key <> "\":\""
-  case string.contains(json, search) {
-    False -> Error("Key not found: " <> key)
-    True -> {
-      case string.split_once(json, search) {
-        Error(Nil) -> Error("Could not parse JSON")
-        Ok(#(_, rest)) -> {
-          // Extract until we find an unescaped quote
-          extract_string_value(rest, "")
-        }
-      }
-    }
-  }
-}
-
-/// Extract a JSON integer value by key
-fn extract_json_int(json: String, key: String) -> Result(Int, String) {
-  let search = "\"" <> key <> "\":"
-  case string.contains(json, search) {
-    False -> Error("Key not found: " <> key)
-    True -> {
-      case string.split_once(json, search) {
-        Error(Nil) -> Error("Could not parse JSON")
-        Ok(#(_, rest)) -> {
-          let trimmed = skip_whitespace(rest, 0)
-          case extract_number_value(trimmed, "") {
-            Ok(num_str) ->
-              case int.parse(num_str) {
-                Ok(n) -> Ok(n)
-                Error(Nil) -> Error("Could not parse integer: " <> num_str)
-              }
-            Error(e) -> Error(e)
-          }
-        }
-      }
-    }
-  }
-}
-
-/// Skip whitespace in string from position
-fn skip_whitespace(json: String, pos: Int) -> String {
-  case string.first(json) {
-    Ok(" ") | Ok("\t") | Ok("\n") | Ok("\r") -> {
-      skip_whitespace(string.slice(json, 1, string.length(json) - 1), pos + 1)
-    }
-    _ -> json
-  }
-}
-
-/// Extract string value from position after opening quote
-fn extract_string_value(json: String, acc: String) -> Result(String, String) {
-  case string.first(json) {
-    Ok("\\") -> {
-      // Escape sequence - read next character
-      case string.slice(json, 1, string.length(json) - 1) |> string.first {
-        Ok(next_char) -> {
-          let escaped = case next_char {
-            "n" -> "\n"
-            "r" -> "\r"
-            "t" -> "\t"
-            "\"" -> "\""
-            "\\" -> "\\"
-            other -> "\\" <> other
-          }
-          let rest = string.slice(json, 2, string.length(json) - 2)
-          extract_string_value(rest, acc <> escaped)
-        }
-        Error(Nil) -> Error("Unexpected end of string")
-      }
-    }
-    Ok("\"") -> {
-      // End of string
-      Ok(acc)
-    }
-    Ok(char) -> {
-      let rest = string.slice(json, 1, string.length(json) - 1)
-      extract_string_value(rest, acc <> char)
-    }
-    Error(Nil) -> Error("Unexpected end of string")
-  }
-}
-
-/// Extract number value (int or float)
-fn extract_number_value(json: String, acc: String) -> Result(String, String) {
-  case string.first(json) {
-    Ok(char) -> {
-      case char {
-        "," | "}" | "]" -> {
-          case string.length(acc) {
-            0 -> Error("No number found")
-            _ -> Ok(acc)
-          }
-        }
-        "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "-" -> {
-          let rest = string.slice(json, 1, string.length(json) - 1)
-          extract_number_value(rest, acc <> char)
-        }
-        _ -> {
-          case string.length(acc) {
-            0 -> Error("Invalid number")
-            _ -> Ok(acc)
-          }
-        }
-      }
-    }
-    Error(Nil) -> {
-      case string.length(acc) {
-        0 -> Error("No number found")
-        _ -> Ok(acc)
-      }
-    }
-  }
-}
-
-/// Parse JSON array of stage objects
-fn parse_json_stages(json: String) -> Result(List(StageRecord), String) {
-  // Extract stages array
-  let search = "\"stages\":["
-  case string.split_once(json, search) {
-    Error(Nil) -> Ok([])
-    Ok(#(_, rest)) -> {
-      case string.split_once(rest, "]") {
-        Error(Nil) -> Error("Unclosed stages array")
-        Ok(#(stages_str, _)) -> {
-          parse_stage_objects(stages_str)
-        }
-      }
-    }
-  }
-}
-
-/// Parse individual stage objects from string
-fn parse_stage_objects(stages_str: String) -> Result(List(StageRecord), String) {
-  let trimmed = string.trim(stages_str)
-  case string.length(trimmed) {
-    0 -> Ok([])
-    _ -> {
-      // Split by }, { but preserve the content
-      parse_stage_list(trimmed, [])
-    }
-  }
-}
-
-/// Parse stage list recursively
-fn parse_stage_list(
-  json: String,
-  acc: List(StageRecord),
-) -> Result(List(StageRecord), String) {
-  let trimmed = string.trim(json)
-  case string.length(trimmed) {
-    0 -> Ok(list.reverse(acc))
-    _ -> {
-      case string.starts_with(trimmed, "{") {
-        True -> {
-          case find_closing_brace(trimmed, 0) {
-            Ok(end_pos) -> {
-              let obj_str = string.slice(trimmed, 0, end_pos + 1)
-              use stage <- result.try(parse_stage_object(obj_str))
-              let rest = string.slice(trimmed, end_pos + 1, string.length(trimmed) - end_pos - 1)
-              let rest_trimmed = skip_whitespace(rest, 0)
-              let rest_trimmed = case string.starts_with(rest_trimmed, ",") {
-                True -> {
-                  let after_comma = string.slice(rest_trimmed, 1, string.length(rest_trimmed) - 1)
-                  skip_whitespace(after_comma, 0)
-                }
-                False -> rest_trimmed
-              }
-              parse_stage_list(rest_trimmed, [stage, ..acc])
-            }
-            Error(e) -> Error(e)
-          }
-        }
-        False -> Error("Expected { in stages array")
-      }
-    }
-  }
-}
-
-/// Parse single stage object
-fn parse_stage_object(json: String) -> Result(StageRecord, String) {
-  use stage_name <- result.try(extract_json_string(json, "stage_name"))
-  use status <- result.try(extract_json_string(json, "status"))
-  use attempts <- result.try(extract_json_int(json, "attempts"))
-  use last_error <- result.try(extract_json_string(json, "last_error"))
-
-  Ok(StageRecord(
+/// Decoder for a stage record
+fn stage_decoder() -> decode.Decoder(StageRecord) {
+  use stage_name <- decode.field("stage_name", decode.string)
+  use status <- decode.field("status", decode.string)
+  use attempts <- decode.field("attempts", decode.int)
+  use last_error <- decode.field("last_error", decode.string)
+  decode.success(StageRecord(
     stage_name: stage_name,
     status: status,
     attempts: attempts,
@@ -438,51 +244,15 @@ fn parse_stage_object(json: String) -> Result(StageRecord, String) {
   ))
 }
 
-/// Find closing brace position, handling nesting
-fn find_closing_brace(json: String, depth: Int) -> Result(Int, String) {
-  find_closing_brace_helper(json, 0, depth)
-}
-
-fn find_closing_brace_helper(
-  json: String,
-  pos: Int,
-  depth: Int,
-) -> Result(Int, String) {
-  case string.first(json) {
-    Ok("{") -> {
-      let rest = string.slice(json, 1, string.length(json) - 1)
-      find_closing_brace_helper(rest, pos + 1, depth + 1)
-    }
-    Ok("}") -> {
-      case depth {
-        1 -> Ok(pos)
-        _ -> {
-          let rest = string.slice(json, 1, string.length(json) - 1)
-          find_closing_brace_helper(rest, pos + 1, depth - 1)
-        }
-      }
-    }
-    Ok(_) -> {
-      let rest = string.slice(json, 1, string.length(json) - 1)
-      find_closing_brace_helper(rest, pos + 1, depth)
-    }
-    Error(Nil) -> Error("Unclosed brace")
-  }
-}
-
-/// Convert JSON string to task record
-fn json_to_record(
-  json: String,
-  _slug: String,
-) -> Result(TaskRecord, String) {
-  use slug <- result.try(extract_json_string(json, "slug"))
-  use language <- result.try(extract_json_string(json, "language"))
-  use status <- result.try(extract_json_string(json, "status"))
-  use created_at <- result.try(extract_json_string(json, "created_at"))
-  use updated_at <- result.try(extract_json_string(json, "updated_at"))
-  use stages <- result.try(parse_json_stages(json))
-
-  Ok(TaskRecord(
+/// Decoder for a task record
+fn task_record_decoder() -> decode.Decoder(TaskRecord) {
+  use slug <- decode.field("slug", decode.string)
+  use language <- decode.field("language", decode.string)
+  use status <- decode.field("status", decode.string)
+  use created_at <- decode.field("created_at", decode.string)
+  use updated_at <- decode.field("updated_at", decode.string)
+  use stages <- decode.field("stages", decode.list(stage_decoder()))
+  decode.success(TaskRecord(
     slug: slug,
     language: language,
     status: status,
@@ -492,61 +262,27 @@ fn json_to_record(
   ))
 }
 
-/// Convert JSON string to all task records
-fn json_to_all_records(json: String) -> Result(List(TaskRecord), String) {
-  let trimmed = string.trim(json)
-  case string.starts_with(trimmed, "[") {
-    True -> {
-      // Array format
-      case string.ends_with(trimmed, "]") {
-        True -> {
-          let inner = string.slice(trimmed, 1, string.length(trimmed) - 2)
-          case string.length(string.trim(inner)) {
-            0 -> Ok([])
-            _ -> parse_task_list(inner, [])
-          }
-        }
-        False -> Error("Unclosed array")
-      }
-    }
-    False -> {
-      // Single object format
-      use record <- result.try(json_to_record(trimmed, ""))
-      Ok([record])
-    }
+/// Convert JSON string to task record
+fn json_to_record(
+  json_string: String,
+  _slug: String,
+) -> Result(TaskRecord, String) {
+  case json.parse(json_string, task_record_decoder()) {
+    Ok(record) -> Ok(record)
+    Error(_) -> Error("Could not parse JSON")
   }
 }
 
-/// Parse list of task objects
-fn parse_task_list(
-  json: String,
-  acc: List(TaskRecord),
-) -> Result(List(TaskRecord), String) {
-  let trimmed = string.trim(json)
-  case string.length(trimmed) {
-    0 -> Ok(list.reverse(acc))
-    _ -> {
-      case string.starts_with(trimmed, "{") {
-        True -> {
-          case find_closing_brace(trimmed, 0) {
-            Ok(end_pos) -> {
-              let obj_str = string.slice(trimmed, 0, end_pos + 1)
-              use task <- result.try(json_to_record(obj_str, ""))
-              let rest = string.slice(trimmed, end_pos + 1, string.length(trimmed) - end_pos - 1)
-              let rest_trimmed = skip_whitespace(rest, 0)
-              let rest_trimmed = case string.starts_with(rest_trimmed, ",") {
-                True -> {
-                  let after_comma = string.slice(rest_trimmed, 1, string.length(rest_trimmed) - 1)
-                  skip_whitespace(after_comma, 0)
-                }
-                False -> rest_trimmed
-              }
-              parse_task_list(rest_trimmed, [task, ..acc])
-            }
-            Error(e) -> Error(e)
-          }
-        }
-        False -> Error("Expected { in task array")
+/// Convert JSON string to all task records
+fn json_to_all_records(json_string: String) -> Result(List(TaskRecord), String) {
+  let list_decoder = decode.list(task_record_decoder())
+  case json.parse(json_string, list_decoder) {
+    Ok(records) -> Ok(records)
+    Error(_) -> {
+      // Try parsing as single object wrapped in a list
+      case json_to_record(json_string, "") {
+        Ok(record) -> Ok([record])
+        Error(e) -> Error(e)
       }
     }
   }
