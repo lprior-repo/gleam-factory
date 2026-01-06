@@ -12,6 +12,7 @@ import gleeunit
 import gleeunit/should
 import persistence
 import process
+import signal_bus
 import signals
 import simplifile
 import types
@@ -2059,5 +2060,32 @@ pub fn create_workspace_jj_creates_isolated_bookmark_test() {
       Nil
     }
     Error(_) -> should.fail()
+  }
+}
+
+// ============================================================================
+// SIGNAL BUS TESTS
+// ============================================================================
+
+/// Test signal_bus.broadcast sends signal to all subscribers of that type.
+pub fn signal_bus_broadcast_reaches_all_subscribers_test() {
+  let assert Ok(bus) = signal_bus.start_link()
+
+  let subscriber_1 = erl_process.new_subject()
+  let subscriber_2 = erl_process.new_subject()
+
+  let _ = signal_bus.subscribe(bus, signal_bus.TestPassing, subscriber_1)
+  let _ = signal_bus.subscribe(bus, signal_bus.TestPassing, subscriber_2)
+
+  signal_bus.broadcast(bus, signal_bus.TestPassing)
+
+  case erl_process.receive(subscriber_1, 1000) {
+    Ok(signal_bus.TestPassing) -> Nil
+    _ -> should.fail()
+  }
+
+  case erl_process.receive(subscriber_2, 1000) {
+    Ok(signal_bus.TestPassing) -> Nil
+    _ -> should.fail()
   }
 }
