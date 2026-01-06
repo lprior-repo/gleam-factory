@@ -993,3 +993,25 @@ pub fn test_passing_signal_has_required_fields_test() {
     }
   }
 }
+
+pub fn bead_assigned_signal_has_required_fields_test() {
+  // Arrange: Create a BeadAssigned signal with all required fields
+  let signal = signals.BeadAssigned(
+    task_id: "task-001",
+    spec: "Implement user authentication",
+    requirements: ["RFC 2818 compliance", "JWT support"],
+    priority: "P1",
+    assigned_at: "2026-01-06T13:00:00Z",
+  )
+
+  // Assert: Pattern match to verify all fields are present and accessible
+  case signal {
+    signals.BeadAssigned(task_id, spec, requirements, priority, assigned_at) -> {
+      task_id |> should.equal("task-001")
+      spec |> should.equal("Implement user authentication")
+      requirements |> should.equal(["RFC 2818 compliance", "JWT support"])
+      priority |> should.equal("P1")
+      assigned_at |> should.equal("2026-01-06T13:00:00Z")
+    }
+  }
+}
