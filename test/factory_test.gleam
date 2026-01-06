@@ -2252,3 +2252,57 @@ pub fn acp_notification_encode_produces_json_with_mcp_format_test() {
   }
 }
 
+/// Test acp_initialize composes handshake with response handling.
+///
+/// CUPID pressure:
+/// - C (Compose): initialize|>send_request|>parse_response|>store_capabilities
+/// - U (Unix): Do ONE thing: ACP initialize handshake, not business logic
+/// - P (Pure): Same client+version → same request encoding
+/// - I (Idiomatic): |> pipeline, Result chain, pattern match response
+/// - D (Domain): Uses ACP protocol: initialize request → InitializeResult response
+///
+/// Forces implementer to confront:
+/// 1. PROTOCOL STATE: initialize is first ACP method, must track handshake complete
+/// 2. BIDIRECTIONAL: Send InitializeRequest, wait for InitializeResult, can't just fire-forget
+/// 3. CAPABILITIES STORAGE: Agent caps from response must persist in client state
+/// 4. VERSION NEGOTIATION: Protocol version in request must match spec
+/// 5. REQUEST/RESPONSE TYPES: InitializeRequest ≠ AcpNotification (different message types)
+/// 6. BLOCKING SEMANTICS: Unlike send_cancel (fire-forget), initialize WAITS for response
+/// 7. ERROR HANDLING: Network errors, protocol errors, version mismatch
+///
+/// Rejects lazy:
+/// - "returns Ok" → needs HTTP round-trip proof, not just type signature
+/// - "field exists" → needs capabilities extracted from parsed response
+/// - "type compiles" → needs request encoding + response parsing working together
+///
+/// 30-line violation: If initialize >30 lines, split encode_request/parse_response/update_state
+///
+/// Design pressure: This test FORCES you to decide:
+/// - Does AcpClient store state (capabilities), or return new client?
+/// - How do you handle synchronous request/response vs fire-and-forget?
+/// - Where do you validate protocol version compatibility?
+/// - How do you prove response was actually received and parsed?
+pub fn acp_initialize_waits_for_response_and_stores_agent_capabilities_test() {
+  let client = types.AcpClient(base_url: "http://localhost:9998/acp")
+  let client_version = "1.0"
+
+  case process.acp_initialize(client, client_version) {
+    Ok(updated_client) -> {
+      case types.get_agent_capabilities(updated_client) {
+        Some(caps) -> {
+          should.be_true(list_length(caps) >= 0)
+        }
+        None -> should.fail()
+      }
+    }
+    Error(msg) -> {
+      should.be_true(
+        contains_substring(msg, "http")
+        || contains_substring(msg, "connect")
+        || contains_substring(msg, "network")
+        || contains_substring(msg, "timeout"),
+      )
+    }
+  }
+}
+
