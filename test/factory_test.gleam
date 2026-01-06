@@ -2099,3 +2099,37 @@ pub fn golden_master_start_link_returns_subject_test() {
   result
   |> should.be_ok
 }
+
+/// Test fs/read_text_file handler reads file content.
+///
+/// Drives:
+/// 1. fs_read_text_file(path: String) -> Result(String, String)
+/// 2. File read via simplifile.read
+/// 3. Error handling for missing/unreadable files
+pub fn fs_read_text_file_returns_content_test() {
+  let temp_path = "/tmp/factory-fs-read-test.txt"
+  let content = "test content"
+
+  case simplifile.write(temp_path, content) {
+    Ok(Nil) -> Nil
+    Error(_) -> should.fail()
+  }
+
+  case process.fs_read_text_file(temp_path) {
+    Ok(read_content) -> read_content |> should.equal(content)
+    Error(_) -> should.fail()
+  }
+
+  let _ = simplifile.delete(temp_path)
+  Nil
+}
+
+/// Test fs_read_text_file returns error for nonexistent file.
+pub fn fs_read_text_file_nonexistent_returns_error_test() {
+  let nonexistent = "/tmp/factory-does-not-exist-12345.txt"
+
+  case process.fs_read_text_file(nonexistent) {
+    Ok(_) -> should.fail()
+    Error(_) -> Nil
+  }
+}
