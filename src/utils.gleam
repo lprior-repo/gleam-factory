@@ -179,8 +179,7 @@ pub fn print_error_context(
 
 /// Truncate a string to a maximum length with ellipsis
 pub fn truncate_string(s: String, max_len: Int) -> String {
-  let len = string.length(s)
-  case len <= max_len {
+  case string.length(s) <= max_len {
     True -> s
     False ->
       case max_len {
@@ -198,14 +197,11 @@ pub fn pad_left(s: String, width: Int, char: String) -> String {
     True -> s
     False -> {
       let padding_needed = width - len
-      let char_len = string.length(char)
-      let repetitions = case char_len {
-        0 -> 0
-        _ -> padding_needed / char_len + 1
-      }
-      let padding = string.repeat(char, repetitions)
-      let padding_trimmed = string.slice(padding, 0, padding_needed)
-      padding_trimmed <> s
+      let char_len = int.max(1, string.length(char))
+      let reps = padding_needed / char_len + 1
+      string.repeat(char, reps)
+      |> string.slice(0, padding_needed)
+      |> fn(p) { p <> s }
     }
   }
 }

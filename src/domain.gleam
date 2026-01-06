@@ -127,7 +127,7 @@ pub fn get_stage(name: String) -> Result(Stage, String) {
 }
 
 /// Find position of stage in pipeline (0-indexed)
-fn find_stage_index(pipeline: List(Stage), name: String) -> Result(Int, Nil) {
+pub fn find_stage_index(pipeline: List(Stage), name: String) -> Result(Int, Nil) {
   find_stage_index_helper(pipeline, name, 0)
 }
 
