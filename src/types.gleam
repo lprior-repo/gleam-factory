@@ -114,8 +114,18 @@ fn is_valid_hex(input: String) -> Bool {
 }
 
 /// AcpClient represents an Agent Communication Protocol HTTP client.
-pub type AcpClient {
-  AcpClient(base_url: String)
+pub opaque type AcpClient {
+  AcpClient(base_url: String, capabilities: option.Option(List(String)))
+}
+
+/// Creates a new AcpClient with no capabilities set.
+pub fn new_acp_client(base_url: String) -> AcpClient {
+  AcpClient(base_url:, capabilities: option.None)
+}
+
+/// Creates AcpClient with capabilities.
+pub fn new_acp_client_with_capabilities(base_url: String, capabilities: List(String)) -> AcpClient {
+  AcpClient(base_url:, capabilities: option.Some(capabilities))
 }
 
 /// AcpNotification represents an Agent Communication Protocol notification.
@@ -184,6 +194,13 @@ pub fn can_cancel(
 /// Extracts base_url from AcpClient.
 pub fn get_base_url(client: AcpClient) -> String {
   client.base_url
+}
+
+/// Extracts capabilities from AcpClient.
+pub fn get_capabilities(
+  client: AcpClient,
+) -> option.Option(List(String)) {
+  client.capabilities
 }
 
 /// Parses ACP initialize response JSON extracting capabilities list.

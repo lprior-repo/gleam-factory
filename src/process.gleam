@@ -1,6 +1,7 @@
 // Shell module - Execute external commands
 
 import gleam/list as gleam_list
+import gleam/option
 import gleam/result
 import gleam/string
 import simplifile
@@ -226,12 +227,12 @@ fn map_simplifile_error(result: Result(String, simplifile.FileError)) -> Result(
 /// Initialize ACP connection and retrieve agent capabilities
 pub fn acp_initialize(client: types.AcpClient, version: String) -> Result(types.AcpClient, String) {
   let base_url = types.get_base_url(client)
-  run_command("curl", ["-X", "POST", "-d", "{\"version\":\"" <> version <> "\"}", base_url], "")
-  |> result.try(fn(r) {
-    case r {
-      Success(_, _, 0) -> Ok(client)
-      Success(_, _, code) -> Error("http request failed with exit code " <> string.inspect(code))
-      Failure(err, _) -> Error(err)
-    }
+  use cmd_result <- result.try(run_command("curl", ["-X", "POST", "-d", "{\"version\":\"" <> version <> "\"}", base_url], ""))
+  use json_response <- result.try(case cmd_result {
+    Success(stdout, _, 0) -> Ok(stdout)
+    Success(_, _, code) -> Error("http request failed with exit code " <> string.inspect(code))
+    Failure(err, _) -> Error(err)
   })
+  use caps <- result.try(types.parse_initialize_result(json_response))
+  Ok(types.new_acp_client_with_capabilities(base_url, caps))
 }

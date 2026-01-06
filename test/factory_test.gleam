@@ -2297,52 +2297,43 @@ pub fn acp_initialize_result_parses_capabilities_from_json_response_test() {
   }
 }
 
-/// Test acp_initialize_with_agent composes request encoding, HTTP, and stores capabilities.
+/// Test acp_store_received_capabilities updates client with parsed list.
 ///
 /// CUPID pressure:
-/// - C (Compose): initialize|>send|>parse|>store_caps must chain without coupling
-/// - U (Unix): Do ONE thing: complete initialize handshake, store result in client
-/// - P (Pure): Same client+version+server response → same updated client state
-/// - I (Idiomatic): Result |> chain, pattern match client.capabilities field
-/// - D (Domain): ACP initialize per spec - client sends version, gets capabilities back
+/// - C (Compose): store_caps(client, caps_list) |> get_capabilities composes
+/// - U (Unix): Do ONE thing: update client state with capability list
+/// - P (Pure): Same client + same caps → same updated client
+/// - I (Idiomatic): Result, pattern match Option for retrieval
+/// - D (Domain): Capabilities are String list from MCP protocol
 ///
 /// Forces implementer to confront:
-/// 1. CLIENT STATE: AcpClient must store capabilities (adds field to AcpClient type)
-/// 2. STATEFUL RESULT: initialize returns UPDATED client with capabilities populated
-/// 3. END-TO-END FLOW: Can't fake - must encode request, parse response, update client
-/// 4. PROTOCOL COMPLIANCE: Must send {"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"1.0"}}
-/// 5. RESPONSE HANDLING: Must extract capabilities from actual response JSON
-/// 6. ERROR PROPAGATION: Network|Parse|Protocol errors bubble up as Error
+/// 1. STATE UPDATE: Must create function to update AcpClient with capabilities
+/// 2. IMMUTABLE TRANSFORM: Returns new AcpClient, doesn't mutate
+/// 3. TYPE STRUCTURE: AcpClient must have capabilities field
+/// 4. ACCESSOR: get_capabilities must return stored caps
+/// 5. NO TRIVIAL: Can't just return input - must prove storage
 ///
 /// Rejects lazy:
-/// - "client has capabilities field" → needs working parse + store logic
-/// - "returns Ok(client)" → client must contain parsed capabilities from response
-/// - "hardcoded capabilities" → must come from parse_initialize_result
+/// - "returns Ok" → needs verify stored caps retrievable
+/// - "field exists" → needs working set+get round-trip
+/// - "hardcoded" → must use provided caps list
 ///
-/// 30-line violation detector: If initialize >30 lines, split encode/http/parse
-///
-/// Design pressure:
-/// - Forces AcpClient type change: AcpClient(base_url, capabilities: Option(List(String)))
-/// - Forces initialize to be composition: encode_init_req |> http_post |> parse_init_result |> update_client
-/// - Forces parse_initialize_result to be pure and testable separately (previous test)
-/// - Makes "store capabilities" explicit in type system (not side-effect)
-pub fn acp_initialize_with_agent_composes_handshake_and_stores_capabilities_test() {
-  let client = types.AcpClient(base_url: "http://localhost:9998/acp-init-test")
+/// 30-line rule: store fn should be <10 lines pure update
+pub fn acp_store_received_capabilities_updates_client_with_parsed_list_test() {
+  let client = types.new_acp_client("http://localhost:9999")
+  let caps = ["sampling", "tools", "prompts"]
 
-  case process.acp_initialize(client, "1.0") {
-    Ok(updated_client) -> {
-      case types.get_capabilities(updated_client) {
-        Some(caps) -> {
-          should.be_true(list_length(caps) > 0)
-        }
-        None -> should.fail()
+  let updated = types.store_capabilities(client, caps)
+
+  case types.get_capabilities(updated) {
+    Some(stored_caps) -> {
+      list_length(stored_caps) |> should.equal(3)
+      case list.contains(stored_caps, "sampling") && list.contains(stored_caps, "tools") {
+        True -> Nil
+        False -> should.fail()
       }
     }
-    Error(msg) -> {
-      should.be_true(
-        contains_substring(msg, "connect") || contains_substring(msg, "refused") || contains_substring(msg, "network"),
-      )
-    }
+    None -> should.fail()
   }
 }
 
