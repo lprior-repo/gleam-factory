@@ -186,15 +186,10 @@ pub fn run_command_safe(
   }
 }
 
-/// Send ACP cancel notification for session
-pub fn acp_cancel(session_id: String) -> Result(types.AcpNotification, String) {
-  Ok(types.AcpNotification(session_id: session_id, method: "session/cancel"))
-}
-
-/// Send ACP cancel over HTTP transport
+/// Send ACP cancel notification for session via HTTP transport
 pub fn acp_send_cancel(client: types.AcpClient, session_id: String) -> Result(Nil, String) {
   let types.AcpClient(_base_url) = client
-  let _notification = types.AcpNotification(session_id: session_id, method: "session/cancel")
+  let _notification = types.AcpNotification(session_id:, method: "session/cancel")
   Error("network connection failed")
 }
 
