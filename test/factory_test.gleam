@@ -693,6 +693,21 @@ pub fn parse_args_approve_command_rejects_invalid_strategy_test() {
   }
 }
 
+/// Test that short flag -d is equivalent to --dry-run for stage command
+/// This tests requirement #4: short flags (-d = --dry-run)
+pub fn parse_args_stage_command_with_short_dry_run_flag_test() {
+  // Arrange: 'stage' command with -d (short for --dry-run)
+  let args = ["stage", "--slug", "my-task", "--stage", "implement", "-d"]
+
+  // Act: parse the args using the pure parse_args function
+  let result = cli.parse_args(args)
+
+  // Assert: should return RunStage with dry_run=True
+  // -d should be equivalent to --dry-run
+  result
+  |> should.equal(Ok(cli.RunStage("my-task", "implement", True, None, None)))
+}
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
