@@ -2174,3 +2174,46 @@ pub fn acp_send_cancel_composes_notification_with_transport_test() {
   }
 }
 
+/// Test acp_session_tracker validates cancel only for active sessions.
+///
+/// CUPID pressure:
+/// - P (Pure): Same tracker state → same validation result
+/// - U (Unix): Does ONE thing: track ACP session lifecycle
+/// - D (Domain): Models ACP protocol: Start → Running → {Complete|Cancelled}
+/// - I (Idiomatic): ADT for session states, pattern matching
+///
+/// Forces implementer to confront:
+/// 1. STATE MACHINE: Session lifecycle must be explicit (not just String)
+/// 2. VALIDATION: Can't cancel Complete/Cancelled session
+/// 3. PURITY: Tracker doesn't DO cancel, validates IF can cancel
+/// 4. COMPOSITION: cancel_validation |> send separates concerns
+/// 5. TYPE SAFETY: Illegal transitions unrepresentable
+///
+/// Rejects lazy:
+/// - "return Ok always" → needs state tracking
+/// - "String session_id" → needs lifecycle ADT
+/// - "no validation" → allows double-cancel
+///
+/// 30-line violation: if tracker >30 lines, split state/validation
+pub fn acp_session_tracker_validates_cancel_only_for_active_sessions_test() {
+  let tracker = types.new_acp_session_tracker()
+
+  let tracker = types.register_session(tracker, "sess-1", types.Running)
+  let tracker = types.register_session(tracker, "sess-2", types.Complete)
+
+  case types.can_cancel(tracker, "sess-1") {
+    Ok(True) -> Nil
+    _ -> should.fail()
+  }
+
+  case types.can_cancel(tracker, "sess-2") {
+    Ok(False) -> Nil
+    _ -> should.fail()
+  }
+
+  case types.can_cancel(tracker, "sess-nonexistent") {
+    Error(_) -> Nil
+    _ -> should.fail()
+  }
+}
+
