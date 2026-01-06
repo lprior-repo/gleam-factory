@@ -608,6 +608,27 @@ pub fn parse_args_new_command_with_short_contract_flag_test() {
   |> should.equal(Ok(cli.NewTask("my-task", Some("path/to/contract.md"), False)))
 }
 
+/// Test that 'stage' command requires both --slug and --stage flags
+/// This tests requirement #3: 'stage' requires both --slug and --stage
+pub fn parse_args_stage_command_missing_stage_returns_error_test() {
+  // Arrange: 'stage' command with only --slug (missing --stage)
+  let args = ["stage", "--slug", "my-task"]
+
+  // Act: parse the args
+  let result = cli.parse_args(args)
+
+  // Assert: should return Error with a message indicating --stage is required
+  // The error message should specifically mention that --stage is required,
+  // not just be a generic "Unknown command" error
+  case result {
+    Error(msg) -> {
+      // The error message should clearly say --stage is required
+      should.be_true(contains_substring(msg, "--stage") && contains_substring(msg, "required"))
+    }
+    Ok(_) -> should.fail()
+  }
+}
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================

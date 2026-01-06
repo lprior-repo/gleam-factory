@@ -1,0 +1,732 @@
+#!/bin/bash
+#
+# TDD-TCR-REFACTOR Loop: Full Red-Green-Refactor with Architectural Oversight
+#
+# Four AI sessions with filesystem-enforced separation:
+# - Auditor: writes tests (can't touch src/)
+# - Implementer: writes code (can't touch test/) - with TCR enforcement
+# - Architect: refactors after every N green cycles (ensures design quality)
+# - Reviewer: final cleanup after completion
+#
+# The REFACTOR step is the key difference:
+# - After every REFACTOR_INTERVAL successful implementations
+# - Architect reviews and refactors both src/ AND tests
+# - Must maintain all passing tests
+# - Focuses on: DRY, patterns, idioms, architecture
+#
+# Usage: ./tdd-tcr-refactor-loop "Feature description or requirements"
+#
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+MAGENTA='\033[0;35m'
+WHITE='\033[1;37m'
+NC='\033[0m' # No Color
+
+# Configuration
+SRC_DIR="src"
+TEST_DIR="test"
+MAX_IMPL_ATTEMPTS=3
+MAX_ITERATIONS=15
+REFACTOR_INTERVAL=3  # Run architect every N successful implementations
+
+# Handle requirements from file or argument
+if [ -f "$1" ]; then
+    REQUIREMENTS=$(cat "$1")
+    REQUIREMENTS_SOURCE="file: $1"
+else
+    REQUIREMENTS="$1"
+    REQUIREMENTS_SOURCE="argument"
+fi
+
+# Detect language from project files
+detect_language() {
+    if [ -f "gleam.toml" ]; then
+        echo "gleam"
+    elif [ -f "go.mod" ]; then
+        echo "go"
+    elif [ -f "Cargo.toml" ]; then
+        echo "rust"
+    elif [ -f "pyproject.toml" ] || [ -f "setup.py" ]; then
+        echo "python"
+    else
+        echo "unknown"
+    fi
+}
+
+LANG=$(detect_language)
+TEST_CMD="gleam test"
+case "$LANG" in
+    gleam) TEST_CMD="gleam test" ;;
+    go) TEST_CMD="go test ./..." ;;
+    rust) TEST_CMD="cargo test" ;;
+    python) TEST_CMD="pytest" ;;
+esac
+
+# Statistics
+TCR_COMMITS=0
+TCR_REVERTS=0
+REFACTOR_COUNT=0
+SUCCESSFUL_IMPLS=0
+
+#---------------------------------------------------------------------------
+# Utility functions
+#---------------------------------------------------------------------------
+
+log_phase() {
+    echo ""
+    echo -e "${BLUE}════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}  $1${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════${NC}"
+    echo ""
+}
+
+log_architect() {
+    echo ""
+    echo -e "${WHITE}╔══════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${WHITE}║  🏛️  ARCHITECT: $1${NC}"
+    echo -e "${WHITE}╚══════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+}
+
+log_info() {
+    echo -e "${CYAN}→ $1${NC}"
+}
+
+log_success() {
+    echo -e "${GREEN}✓ $1${NC}"
+}
+
+log_warning() {
+    echo -e "${YELLOW}⚠ $1${NC}"
+}
+
+log_error() {
+    echo -e "${RED}✗ $1${NC}"
+}
+
+log_tcr() {
+    echo -e "${MAGENTA}⟳ TCR: $1${NC}"
+}
+
+#---------------------------------------------------------------------------
+# Lock management
+#---------------------------------------------------------------------------
+
+lock_all() {
+    log_info "Locking all source and test files..."
+    chmod -R a-w "$SRC_DIR/" 2>/dev/null || true
+    chmod -R a-w "$TEST_DIR/" 2>/dev/null || true
+}
+
+unlock_src() {
+    log_info "Unlocking src/ for implementer..."
+    chmod -R u+w "$SRC_DIR/"
+}
+
+lock_src() {
+    log_info "Locking src/..."
+    chmod -R a-w "$SRC_DIR/"
+}
+
+unlock_tests() {
+    log_info "Unlocking test/ for auditor..."
+    chmod -R u+w "$TEST_DIR/"
+}
+
+lock_tests() {
+    log_info "Locking test/..."
+    chmod -R a-w "$TEST_DIR/"
+}
+
+unlock_all() {
+    log_info "Unlocking all files..."
+    chmod -R u+w "$SRC_DIR/" 2>/dev/null || true
+    chmod -R u+w "$TEST_DIR/" 2>/dev/null || true
+}
+
+#---------------------------------------------------------------------------
+# Git/TCR operations
+#---------------------------------------------------------------------------
+
+tcr_commit() {
+    local iteration="$1"
+    local message="$2"
+
+    log_tcr "Tests PASSED - Committing changes..."
+    git add -A
+    git commit -m "PASS(tcr-$iteration): $message" --no-verify 2>/dev/null || true
+    TCR_COMMITS=$((TCR_COMMITS + 1))
+    log_success "TCR Commit #$TCR_COMMITS"
+}
+
+tcr_revert() {
+    local iteration="$1"
+
+    log_tcr "Tests FAILED - Reverting implementation changes..."
+    git checkout HEAD -- "$SRC_DIR/" 2>/dev/null || true
+    git clean -fd "$SRC_DIR/" 2>/dev/null || true
+    TCR_REVERTS=$((TCR_REVERTS + 1))
+    log_error "TCR Revert #$TCR_REVERTS - Implementation discarded"
+}
+
+#---------------------------------------------------------------------------
+# Test execution
+#---------------------------------------------------------------------------
+
+run_tests() {
+    log_info "Running tests ($TEST_CMD)..."
+    if $TEST_CMD 2>&1; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+capture_test_output() {
+    $TEST_CMD 2>&1 || true
+}
+
+#---------------------------------------------------------------------------
+# AI Prompts
+#---------------------------------------------------------------------------
+
+auditor_prompt() {
+    local iteration="$1"
+    local last_impl_result="$2"
+
+    cat <<EOF
+You are the AUDITOR in a TDD-TCR-REFACTOR loop. Your job is to write tests.
+
+PROJECT: $LANG project
+TEST COMMAND: $TEST_CMD
+
+REQUIREMENTS:
+$REQUIREMENTS
+
+ITERATION: $iteration
+
+YOUR CONSTRAINTS:
+- You can ONLY modify files in test/
+- You CANNOT modify files in src/ (read-only, filesystem enforced)
+- Write ONE focused test at a time
+- The test should FAIL initially (red phase of TDD)
+
+YOUR TASK:
+1. Read the current src/ code to understand what exists
+2. Read the current tests to understand what's covered
+3. Write EXACTLY ONE test that:
+   - Tests ONE specific behavior or edge case
+   - Drives better code design (not just coverage)
+   - Forces the implementer to write clean, focused code
+   - Follows testing best practices (arrange-act-assert, descriptive names)
+
+TEST DESIGN PRINCIPLES:
+- Each test should validate ONE thing
+- Test names should describe the behavior being tested
+- Tests should be independent and not rely on each other
+- Prefer testing behavior over implementation details
+- Edge cases matter: empty inputs, boundaries, error conditions
+
+TCR CONTEXT:
+The implementer is under TCR discipline - if they fail tests, their code is REVERTED.
+Write tests that are:
+- Clear enough that the implementer knows exactly what to build
+- Focused enough that they can be implemented in one small step
+- Strict enough that they catch real bugs
+
+ARCHITECTURAL NOTE:
+An ARCHITECT will review the code every $REFACTOR_INTERVAL iterations.
+Write tests that encourage good architecture, not just passing behavior.
+If you see the implementer taking shortcuts, write tests that force proper design.
+
+IMPORTANT: Write ONLY ONE test per iteration. If ALL requirements are fully tested and implemented, output EXACTLY:
+REQUIREMENTS_COMPLETE
+and do not write any new tests.
+
+$(if [ -n "$last_impl_result" ]; then
+    echo "LAST IMPLEMENTATION RESULT:"
+    echo "$last_impl_result"
+    echo ""
+    echo "If tests passed, write the next test for uncovered requirements."
+    echo "If tests failed and were REVERTED, consider if your test was too ambitious."
+fi)
+
+OUTPUT: Only modify test files. Explain what you're testing and why.
+EOF
+}
+
+implementer_prompt() {
+    local test_output="$1"
+    local attempt="$2"
+
+    cat <<EOF
+You are the IMPLEMENTER in a TDD-TCR-REFACTOR loop. Your job is to make tests pass.
+
+PROJECT: $LANG project
+TEST COMMAND: $TEST_CMD
+
+⚠️  TCR DISCIPLINE IS ENFORCED ⚠️
+- If tests PASS after your changes → your code is COMMITTED automatically
+- If tests FAIL after your changes → your code is REVERTED automatically
+- There is NO escape. Write code that works or it disappears.
+
+YOUR CONSTRAINTS:
+- You can ONLY modify files in src/
+- You CANNOT modify files in test/ (read-only, filesystem enforced)
+- Write the MINIMUM code to make tests pass
+- Follow existing patterns in the codebase
+
+CURRENT TEST OUTPUT:
+$test_output
+
+ATTEMPT: $attempt of $MAX_IMPL_ATTEMPTS
+
+YOUR TASK:
+1. Read the failing test to understand what's expected
+2. Read the current src/ code
+3. Write the MINIMUM code to make ONLY this test pass
+4. Do NOT over-engineer or add untested features
+5. Each function should do ONE thing well
+
+IMPLEMENTATION PRINCIPLES:
+- Write only what the test demands - nothing more
+- Keep functions small and focused
+- Use descriptive names that explain intent
+- Handle the specific case the test covers
+- Let the next test drive the next piece of functionality
+
+ARCHITECTURAL NOTE:
+An ARCHITECT reviews the code every $REFACTOR_INTERVAL iterations.
+They will refactor shortcuts into proper patterns.
+Focus on making tests pass; the architect handles design.
+
+REMEMBER: Your code will be REVERTED if tests fail. Be precise. Be minimal. Be correct.
+
+OUTPUT: Only modify src files. Explain what you implemented and why.
+EOF
+}
+
+architect_prompt() {
+    local iteration="$1"
+
+    cat <<EOF
+You are the ARCHITECT in a TDD-TCR-REFACTOR loop. This is the REFACTOR phase.
+
+PROJECT: $LANG project
+TEST COMMAND: $TEST_CMD
+
+ORIGINAL REQUIREMENTS:
+$REQUIREMENTS
+
+CURRENT STATE:
+- Iteration: $iteration
+- Successful implementations: $SUCCESSFUL_IMPLS
+- TCR Commits: $TCR_COMMITS
+- TCR Reverts: $TCR_REVERTS
+
+YOUR ROLE: RUTHLESS CODE QUALITY GUARDIAN
+
+You are the last line of defense against technical debt. The implementer takes
+shortcuts to pass tests - that is expected and allowed. YOUR job is to be
+ABSOLUTELY RUTHLESS in refactoring that code into production-quality architecture.
+
+You have ONE incentive: THE CODEBASE MUST BE PRISTINE.
+- Every function should be a joy to read
+- Every abstraction should be obvious and necessary
+- Every pattern should be idiomatic for $LANG
+- Code should look like it was written by an expert, not cobbled together
+
+YOU MUST FIX THESE ISSUES (NO EXCEPTIONS):
+
+1. DRY VIOLATIONS - Zero tolerance
+   - ANY repeated code pattern (3+ lines similar) → extract to function
+   - ANY repeated logic → create shared abstraction
+   - Pattern matching explosion → proper parser/state machine
+
+2. SINGLE RESPONSIBILITY - Zero tolerance
+   - Function does 2+ things → split it
+   - Module has mixed concerns → reorganize
+   - God functions → decompose ruthlessly
+
+3. PROPER ABSTRACTIONS - Zero tolerance
+   - Raw pattern matching that should be a type → create the type
+   - Stringly-typed data → create proper types/records
+   - Magic values → constants or configuration
+   - Missing intermediate representations → add them
+
+4. IDIOMATIC $LANG - Zero tolerance
+   - Non-standard patterns → replace with stdlib idioms
+   - Imperative where functional fits → make it functional
+   - Missing use of language features → use them properly
+   - Poor error handling → proper Result/Option chains
+
+5. NAMING - Zero tolerance
+   - Unclear names → rename to intent-revealing names
+   - Abbreviations → spell them out
+   - Generic names (data, info, handle) → specific names
+
+6. CODE ORGANIZATION - Zero tolerance
+   - Related functions scattered → group them
+   - Missing module boundaries → create them
+   - Poor file structure → reorganize
+
+REFACTORING EXECUTION:
+1. Read ALL src/ files completely
+2. Read ALL test/ files completely
+3. Identify EVERY violation of the above rules
+4. Fix ALL of them - not just "the obvious ones"
+5. Run tests after EACH significant change
+6. If tests break, revert that change and try differently
+
+QUALITY BAR:
+Ask yourself: "Would I be proud to show this code in a technical interview?"
+If NO → keep refactoring until YES.
+
+CONSTRAINTS:
+- ALL TESTS MUST STILL PASS
+- Do NOT add new features
+- Do NOT remove functionality
+- Your changes WILL BE REVERTED if tests fail
+
+OUTPUT:
+1. List EVERY issue found (be exhaustive)
+2. For each issue: what you changed and why
+3. Final test run confirmation
+EOF
+}
+
+reviewer_prompt() {
+    cat <<EOF
+You are the REVIEWER. The TDD-TCR-REFACTOR loop has completed.
+
+PROJECT: $LANG project
+TEST COMMAND: $TEST_CMD
+
+ORIGINAL REQUIREMENTS:
+$REQUIREMENTS
+
+FINAL STATISTICS:
+- Total iterations: completed
+- TCR Commits: $TCR_COMMITS
+- TCR Reverts: $TCR_REVERTS
+- Architect refactors: $REFACTOR_COUNT
+
+YOUR TASK:
+1. Final review of all code in src/ and test/
+2. Check that all requirements are met
+3. Look for any remaining issues:
+   - Security concerns
+   - Edge cases not covered by tests
+   - Documentation gaps
+   - API ergonomics
+4. Make final polish improvements
+5. Run '$TEST_CMD' to verify everything still passes
+
+CONSTRAINTS:
+- You may modify both src/ and test/
+- All tests MUST still pass after your changes
+- This is the FINAL review - be thorough
+- Focus on production readiness
+
+OUTPUT:
+1. Summary of what was built
+2. Any final changes made
+3. Any remaining concerns or TODOs
+EOF
+}
+
+#---------------------------------------------------------------------------
+# AI Session Runners
+#---------------------------------------------------------------------------
+
+run_auditor() {
+    local iteration="$1"
+    local last_result="$2"
+    local prompt
+
+    log_phase "AUDITOR PHASE (Iteration $iteration)"
+
+    lock_src
+    unlock_tests
+
+    prompt=$(auditor_prompt "$iteration" "$last_result")
+
+    log_info "Invoking auditor AI (new session)..."
+    AUDITOR_SESSION_ID=$(uuidgen)
+    auditor_output=$(claude -p \
+        --session-id "$AUDITOR_SESSION_ID" \
+        --allowedTools "Read Write Edit Glob Grep Bash(gleam:*)" \
+        --append-system-prompt "You are the AUDITOR. You may ONLY modify files in test/. Any attempt to modify src/ will fail. Focus on writing ONE failing test that drives good design. If all requirements are met, output REQUIREMENTS_COMPLETE." \
+        "$prompt" 2>&1)
+
+    echo "$auditor_output"
+
+    lock_tests
+
+    if echo "$auditor_output" | grep -q "REQUIREMENTS_COMPLETE"; then
+        log_success "Auditor reports all requirements are complete!"
+        return 1
+    fi
+
+    log_success "Auditor phase complete"
+    return 0
+}
+
+run_implementer() {
+    local test_output="$1"
+    local iteration="$2"
+    local attempt=1
+
+    log_phase "IMPLEMENTER PHASE (with TCR)"
+
+    while [ $attempt -le $MAX_IMPL_ATTEMPTS ]; do
+        log_info "Implementation attempt $attempt of $MAX_IMPL_ATTEMPTS"
+
+        lock_tests
+        unlock_src
+
+        log_tcr "Recording pre-implementation state..."
+
+        prompt=$(implementer_prompt "$test_output" "$attempt")
+
+        log_info "Invoking implementer AI (new session)..."
+        IMPLEMENTER_SESSION_ID=$(uuidgen)
+        claude -p \
+            --session-id "$IMPLEMENTER_SESSION_ID" \
+            --allowedTools "Read Write Edit Glob Grep Bash(gleam:*)" \
+            --append-system-prompt "You are the IMPLEMENTER under TCR discipline. You may ONLY modify files in src/. If tests fail, your changes will be REVERTED. Write MINIMUM code to pass the test." \
+            "$prompt" 2>&1
+
+        lock_src
+
+        log_phase "TCR CHECK"
+        log_info "Running tests to determine commit or revert..."
+
+        if run_tests; then
+            tcr_commit "$iteration" "Implemented for iteration $iteration"
+            log_success "Tests pass! Implementation committed."
+            SUCCESSFUL_IMPLS=$((SUCCESSFUL_IMPLS + 1))
+            return 0
+        else
+            tcr_revert "$iteration"
+            test_output=$(capture_test_output)
+            attempt=$((attempt + 1))
+
+            if [ $attempt -le $MAX_IMPL_ATTEMPTS ]; then
+                log_warning "Trying again with fresh implementation..."
+            fi
+        fi
+    done
+
+    log_error "Implementer failed after $MAX_IMPL_ATTEMPTS attempts (all reverted)"
+    return 1
+}
+
+run_architect() {
+    local iteration="$1"
+
+    log_architect "REFACTOR PHASE (after $SUCCESSFUL_IMPLS successful implementations)"
+
+    unlock_all
+
+    prompt=$(architect_prompt "$iteration")
+
+    log_info "Invoking architect AI (new session)..."
+    ARCHITECT_SESSION_ID=$(uuidgen)
+    architect_output=$(claude -p \
+        --session-id "$ARCHITECT_SESSION_ID" \
+        --allowedTools "Read Write Edit Glob Grep Bash(gleam:*)" \
+        --append-system-prompt "You are the ARCHITECT. You may modify both src/ and test/. Your job is to REFACTOR the code for quality and maintainability. ALL TESTS MUST STILL PASS. Focus on DRY, proper abstractions, and idiomatic patterns." \
+        "$prompt" 2>&1)
+
+    echo "$architect_output"
+
+    log_info "Verifying tests still pass after refactoring..."
+    if run_tests; then
+        log_success "Architect refactoring complete - all tests still pass"
+        git add -A
+        git commit -m "REFACTOR(architect-$REFACTOR_COUNT): Architectural improvements" --no-verify 2>/dev/null || true
+        REFACTOR_COUNT=$((REFACTOR_COUNT + 1))
+    else
+        log_error "Architect broke tests! Reverting all changes..."
+        git checkout HEAD -- "$SRC_DIR/" "$TEST_DIR/"
+        git clean -fd "$SRC_DIR/" "$TEST_DIR/" 2>/dev/null || true
+        log_warning "Architect changes reverted - tests must pass"
+    fi
+
+    lock_all
+}
+
+run_reviewer() {
+    log_phase "FINAL REVIEW PHASE"
+
+    unlock_all
+
+    prompt=$(reviewer_prompt)
+
+    log_info "Invoking reviewer AI (new session)..."
+    REVIEWER_SESSION_ID=$(uuidgen)
+    claude -p \
+        --session-id "$REVIEWER_SESSION_ID" \
+        --allowedTools "Read Write Edit Glob Grep Bash(gleam:*)" \
+        --append-system-prompt "You are the REVIEWER doing final review. You may modify both src/ and test/. All tests MUST pass. Focus on production readiness and polish." \
+        "$prompt" 2>&1
+
+    log_info "Verifying tests still pass after review..."
+    if run_tests; then
+        log_success "Final review complete - all tests still pass"
+        git add -A
+        git commit -m "REVIEW: Final polish and review" --no-verify 2>/dev/null || true
+    else
+        log_error "Reviewer broke tests! Reverting..."
+        git checkout HEAD -- "$SRC_DIR/" "$TEST_DIR/"
+        log_warning "Reviewer changes reverted - tests must pass"
+    fi
+
+    lock_all
+}
+
+#---------------------------------------------------------------------------
+# Main Loop
+#---------------------------------------------------------------------------
+
+main() {
+    if [ -z "$REQUIREMENTS" ]; then
+        echo "Usage: ./tdd-tcr-refactor-loop \"Feature requirements\""
+        echo ""
+        echo "Example:"
+        echo "  ./tdd-tcr-refactor-loop \"Add a function to validate email addresses\""
+        echo ""
+        echo "This script enforces full Red-Green-Refactor TDD:"
+        echo "  - RED:     Auditor writes failing test"
+        echo "  - GREEN:   Implementer makes it pass (TCR enforced)"
+        echo "  - REFACTOR: Architect improves design every $REFACTOR_INTERVAL cycles"
+        echo "  - REVIEW:  Final polish at the end"
+        exit 1
+    fi
+
+    log_phase "TDD-TCR-REFACTOR LOOP STARTING"
+    echo "Language: $LANG"
+    echo "Test command: $TEST_CMD"
+    echo "Requirements source: $REQUIREMENTS_SOURCE"
+    echo "Refactor interval: every $REFACTOR_INTERVAL successful implementations"
+    echo ""
+    echo -e "${MAGENTA}TCR Discipline: Test && Commit || Revert${NC}"
+    echo -e "${WHITE}Architect Reviews: Every $REFACTOR_INTERVAL green cycles${NC}"
+    echo ""
+    echo "Requirements:"
+    echo "$REQUIREMENTS"
+    echo ""
+
+    log_info "Ensuring clean git state..."
+    git add -A
+    git commit -m "PRE-TDD-TCR-REFACTOR: Savepoint before loop" --no-verify 2>/dev/null || true
+
+    lock_all
+
+    local iteration=1
+    local last_impl_result=""
+    local impls_since_refactor=0
+
+    while true; do
+        log_phase "TDD-TCR-REFACTOR ITERATION $iteration"
+
+        # Phase 1: Auditor writes test (RED)
+        if ! run_auditor "$iteration" "$last_impl_result"; then
+            log_phase "TDD-TCR-REFACTOR LOOP COMPLETE - ALL REQUIREMENTS MET"
+            echo ""
+            echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"
+            echo -e "${GREEN}  FINAL STATISTICS${NC}"
+            echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"
+            echo -e "  TCR Commits:        ${GREEN}$TCR_COMMITS${NC}"
+            echo -e "  TCR Reverts:        ${RED}$TCR_REVERTS${NC}"
+            echo -e "  Architect Refactors: ${WHITE}$REFACTOR_COUNT${NC}"
+            echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"
+            echo ""
+
+            # Final architect pass before review
+            if [ $impls_since_refactor -gt 0 ]; then
+                run_architect "$iteration"
+            fi
+
+            # Final review
+            run_reviewer
+
+            unlock_all
+            exit 0
+        fi
+
+        git add -A
+        git commit -m "TEST(tcr-$iteration): New test from auditor" --no-verify 2>/dev/null || true
+
+        log_info "Verifying test is RED (failing)..."
+        test_output=$(capture_test_output)
+
+        if run_tests; then
+            log_warning "Tests already pass - auditor should write a NEW failing test"
+            last_impl_result="All tests passed. Write a new failing test for uncovered requirements."
+            iteration=$((iteration + 1))
+            continue
+        fi
+
+        log_success "Test is RED - proceeding to implementation"
+
+        # Phase 2: Implementer makes it pass (GREEN with TCR)
+        if run_implementer "$test_output" "$iteration"; then
+            last_impl_result="Tests passed and committed. Ready for next test."
+            impls_since_refactor=$((impls_since_refactor + 1))
+
+            # Phase 3: Architect refactor check (REFACTOR)
+            if [ $impls_since_refactor -ge $REFACTOR_INTERVAL ]; then
+                run_architect "$iteration"
+                impls_since_refactor=0
+            fi
+        else
+            last_impl_result="Implementation failed after $MAX_IMPL_ATTEMPTS attempts (all reverted). Test may be too ambitious - consider smaller steps."
+            log_warning "Continuing despite implementation failure..."
+        fi
+
+        iteration=$((iteration + 1))
+
+        if [ $iteration -gt $MAX_ITERATIONS ]; then
+            log_phase "MAX ITERATIONS REACHED ($MAX_ITERATIONS)"
+
+            # Final architect pass
+            if [ $impls_since_refactor -gt 0 ]; then
+                run_architect "$iteration"
+            fi
+
+            echo ""
+            echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"
+            echo -e "${GREEN}  FINAL STATISTICS${NC}"
+            echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"
+            echo -e "  TCR Commits:        ${GREEN}$TCR_COMMITS${NC}"
+            echo -e "  TCR Reverts:        ${RED}$TCR_REVERTS${NC}"
+            echo -e "  Architect Refactors: ${WHITE}$REFACTOR_COUNT${NC}"
+            echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"
+            echo ""
+
+            unlock_all
+            exit 0
+        fi
+
+        log_info "Automatically continuing to iteration $iteration..."
+    done
+}
+
+cleanup() {
+    log_info "Cleaning up locks..."
+    chmod -R u+w "$SRC_DIR/" 2>/dev/null || true
+    chmod -R u+w "$TEST_DIR/" 2>/dev/null || true
+}
+
+trap cleanup EXIT
+
+main
