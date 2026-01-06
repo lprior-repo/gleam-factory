@@ -12,6 +12,7 @@ import types.{type WorkspaceId, type Workspace}
 pub type WorkspaceManagerMessage {
   RegisterWorkspace(workspace: Workspace)
   GetWorkspace(id: WorkspaceId, reply_with: Subject(Result(Workspace, String)))
+  ListWorkspaces(reply_with: Subject(Result(List(Workspace), String)))
 }
 
 /// Error type for workspace manager initialization.
@@ -59,5 +60,40 @@ fn handle_message(
       process.send(reply_with, result)
       actor.continue(state)
     }
+    ListWorkspaces(reply_with) -> {
+      let workspaces = dict.values(state.workspaces)
+      let result = Ok(workspaces)
+      process.send(reply_with, result)
+      actor.continue(state)
+    }
+  }
+}
+
+/// Queries all registered workspaces from the workspace manager.
+///
+/// Returns Ok(list) with all registered workspaces, or Error(msg) if the query fails.
+pub fn query_workspaces(
+  manager_subject: Subject(WorkspaceManagerMessage),
+) -> Result(List(Workspace), String) {
+  let reply_subject = process.new_subject()
+  process.send(manager_subject, ListWorkspaces(reply_with: reply_subject))
+  case process.receive(reply_subject, 5000) {
+    Ok(response) -> response
+    Error(Nil) -> Error("Query timeout")
+  }
+}
+
+/// Queries a specific workspace by ID from the workspace manager.
+///
+/// Returns Ok(workspace) if found, or Error(msg) if not found or query fails.
+pub fn query_workspace(
+  manager_subject: Subject(WorkspaceManagerMessage),
+  workspace_id: WorkspaceId,
+) -> Result(Workspace, String) {
+  let reply_subject = process.new_subject()
+  process.send(manager_subject, GetWorkspace(id: workspace_id, reply_with: reply_subject))
+  case process.receive(reply_subject, 5000) {
+    Ok(response) -> response
+    Error(Nil) -> Error("Query timeout")
   }
 }

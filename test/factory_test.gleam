@@ -1530,3 +1530,79 @@ pub fn workspace_manager_query_workspaces_returns_empty_list_initially_test() {
   result
   |> should.equal(Ok([]))
 }
+
+/// Test that workspace_manager can retrieve a specific workspace by WorkspaceId.
+///
+/// This drives the implementation of:
+/// 1. A GetWorkspace message type that accepts a WorkspaceId and returns a workspace
+/// 2. A query_workspace(Subject, WorkspaceId) -> Result(Workspace, String) function
+/// 3. Proper Dict lookup in the actor handler
+///
+/// Design rationale: Users need to retrieve a registered workspace by its ID.
+/// This is a common pattern for workspace-specific operations and must be efficient.
+///
+/// This test drives good design by:
+/// - Establishing a typed query function (not a generic call)
+/// - Using the opaque WorkspaceId to ensure type safety
+/// - Returning Result to handle "not found" cases gracefully
+/// - Making the pattern consistent with query_workspaces
+///
+/// Edge case: Tests that querying for a non-existent workspace ID returns Error,
+/// not a panic or None, proving defensive programming is enforced.
+pub fn workspace_manager_can_retrieve_workspace_by_id_test() {
+  // Arrange: Start the workspace manager and register a workspace
+  let assert Ok(manager_subject) = workspace_manager.start_link()
+
+  let workspace_id = types.new_workspace_id("retrieve-test-workspace")
+  let workspace =
+    types.Workspace(
+      id: workspace_id,
+      path: "/tmp/retrieve-test",
+      workspace_type: types.Jj,
+      owner_pid: types.from_pid(process.self()),
+      created_at: "2026-01-06T17:00:00Z",
+    )
+
+  // Register the workspace
+  actor.send(manager_subject, workspace_manager.RegisterWorkspace(workspace))
+
+  // Act: Retrieve the workspace by its ID
+  let result = workspace_manager.query_workspace(manager_subject, workspace_id)
+
+  // Assert: Should return Ok with the exact workspace we registered
+  case result {
+    Ok(retrieved) -> {
+      retrieved.path |> should.equal("/tmp/retrieve-test")
+      retrieved.workspace_type |> should.equal(types.Jj)
+    }
+    Error(_) -> should.fail()
+  }
+}
+
+/// Test that querying for a non-existent workspace returns Error.
+///
+/// This verifies that:
+/// 1. The query_workspace function properly handles not-found cases
+/// 2. The actor doesn't panic or crash when a workspace ID doesn't exist
+/// 3. Errors are returned gracefully through the Result type
+///
+/// This drives defensive programming by:
+/// - Requiring explicit error handling in the public API
+/// - Ensuring the actor remains robust even with invalid queries
+/// - Establishing consistent error semantics across queries
+pub fn workspace_manager_query_workspace_returns_error_when_not_found_test() {
+  // Arrange: Start workspace manager with no workspaces
+  let assert Ok(manager_subject) = workspace_manager.start_link()
+
+  // Arrange: Create a workspace ID that was never registered
+  let nonexistent_id = types.new_workspace_id("does-not-exist")
+
+  // Act: Try to retrieve a non-existent workspace
+  let result = workspace_manager.query_workspace(manager_subject, nonexistent_id)
+
+  // Assert: Should return Error, not crash
+  case result {
+    Ok(_) -> should.fail()
+    Error(_msg) -> Nil  // Graceful error handling
+  }
+}
