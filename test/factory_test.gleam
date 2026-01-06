@@ -593,6 +593,21 @@ pub fn parse_args_new_command_with_short_slug_flag_test() {
   |> should.equal(Ok(cli.NewTask("my-task", None, False)))
 }
 
+/// Test that short flag -c is equivalent to --contract
+/// This tests requirement #4: support short flags (-c for --contract)
+pub fn parse_args_new_command_with_short_contract_flag_test() {
+  // Arrange: 'new' command with -s for --slug and -c for --contract
+  let args = ["new", "-s", "my-task", "-c", "path/to/contract.md"]
+
+  // Act: parse the args using the pure parse_args function
+  let result = cli.parse_args(args)
+
+  // Assert: should return a NewTask command with both slug and contract
+  // -c should be equivalent to --contract
+  result
+  |> should.equal(Ok(cli.NewTask("my-task", Some("path/to/contract.md"), False)))
+}
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
