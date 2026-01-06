@@ -186,6 +186,57 @@ $acceptance
 EOF
 }
 
+# Create a new bead from architect findings
+create_bead_from_architect() {
+    local title="$1"
+    local description="$2"
+    local priority="${3:-2}"  # Default to P2 (medium)
+
+    # Try bd command first
+    if command -v bd >/dev/null 2>&1; then
+        local new_bead_id=$(bd create \
+            --title "$title" \
+            --description "$description" \
+            --priority "$priority" \
+            --tags "architect-generated,code-smell,technical-debt" \
+            --json 2>/dev/null | jq -r '.id' 2>/dev/null)
+
+        if [ -n "$new_bead_id" ] && [ "$new_bead_id" != "null" ]; then
+            log_success "Created bead $new_bead_id: $title"
+            BEADS_CREATED_BY_ARCHITECT=$((BEADS_CREATED_BY_ARCHITECT + 1))
+            return 0
+        fi
+    fi
+
+    # Fallback: create manually in .beads/technical-debt.jsonl
+    local bead_file="$BEADS_DIR/technical-debt.jsonl"
+    local new_id="arch-$(date +%s)-$(( RANDOM % 1000 ))"
+    local now=$(date -Iseconds)
+
+    local bead_json=$(jq -n \
+        --arg id "$new_id" \
+        --arg title "$title" \
+        --arg desc "$description" \
+        --arg pri "$priority" \
+        --arg now "$now" \
+        '{
+            id: $id,
+            title: $title,
+            description: $desc,
+            priority: ($pri | tonumber),
+            status: "open",
+            tags: ["architect-generated", "code-smell", "technical-debt"],
+            created_at: $now,
+            updated_at: $now,
+            created_by: "tdd-tcr-refactor-loop"
+        }')
+
+    echo "$bead_json" >> "$bead_file"
+    log_success "Created bead $new_id: $title (in $bead_file)"
+    BEADS_CREATED_BY_ARCHITECT=$((BEADS_CREATED_BY_ARCHITECT + 1))
+    return 0
+}
+
 # Parse --bead/-b argument
 parse_bead_args() {
     while [[ $# -gt 0 ]]; do
@@ -299,6 +350,9 @@ MAX_IMPL_ATTEMPTS=3
 MAX_ITERATIONS=15
 REFACTOR_INTERVAL=3  # Run architect every N successful implementations
 PAUSE_BETWEEN_BEADS=5  # seconds between beads in --all mode
+ESCALATION_THRESHOLD=3  # Escalate to Sonnet after N consecutive failures
+AI_LEARNING_DIR=".factory/learnings"
+AI_LEARNING_FILE=".factory/learnings/session-learnings.md"
 
 # Handle requirements from bead, file, or argument
 REQUIREMENTS=""
@@ -405,11 +459,70 @@ TCR_COMMITS=0
 TCR_REVERTS=0
 REFACTOR_COUNT=0
 SUCCESSFUL_IMPLS=0
+CONSECUTIVE_FAILURES=0
+BEADS_CREATED_BY_ARCHITECT=0
 
 # Context passing between agents
 HISTORY_FILE=".tdd-history.md"
 LAST_AUDITOR_REASONING=""
 LAST_IMPL_REASONING=""
+
+# Initialize AI learning system
+init_ai_learning() {
+    mkdir -p "$AI_LEARNING_DIR"
+
+    if [ ! -f "$AI_LEARNING_FILE" ]; then
+        cat > "$AI_LEARNING_FILE" << 'LEARNINGEOF'
+# AI Session Learnings
+
+This file accumulates knowledge across TDD-TCR-REFACTOR sessions to help AI agents
+learn from past successes and failures.
+
+## Purpose
+- Document what works well in this codebase
+- Capture patterns that should be reused
+- Record pitfalls to avoid
+- Share language-specific idioms discovered
+
+## Format
+Each session appends its learnings below, tagged with timestamp and bead context.
+
+---
+
+LEARNINGEOF
+    fi
+}
+
+# Load AI learnings to provide context to agents
+load_ai_learnings() {
+    if [ -f "$AI_LEARNING_FILE" ]; then
+        tail -n 200 "$AI_LEARNING_FILE" 2>/dev/null || echo "(no learnings yet)"
+    else
+        echo "(no learnings yet)"
+    fi
+}
+
+# Save AI learnings from session
+save_ai_learning() {
+    local content="$1"
+    local timestamp=$(date -Iseconds)
+    local bead_info=""
+
+    if [ "$BEAD_MODE" = true ]; then
+        bead_info="Bead: $CURRENT_BEAD_ID ($BEAD_TITLE)"
+    fi
+
+    {
+        echo ""
+        echo "---"
+        echo ""
+        echo "## Session: $timestamp"
+        [ -n "$bead_info" ] && echo "$bead_info"
+        echo "Stats: $TCR_COMMITS commits, $TCR_REVERTS reverts, $REFACTOR_COUNT refactors, $BEADS_CREATED_BY_ARCHITECT new beads"
+        echo ""
+        echo "$content"
+    } >> "$AI_LEARNING_FILE"
+}
 
 # Initialize history file
 init_history() {
@@ -793,12 +906,19 @@ EOF
 architect_prompt() {
     local iteration="$1"
     local session_history="$2"
+    local ai_learnings="$3"
 
     cat <<EOF
 You are the ARCHITECT in a TDD-TCR-REFACTOR loop. This is the REFACTOR phase.
 
 PROJECT: $PROJECT_LANG project (Gleam - functional, immutable, BEAM)
 TEST COMMAND: $TEST_CMD
+
+═══════════════════════════════════════════════════════════════════════════════
+              AI LEARNINGS (knowledge from previous sessions)
+═══════════════════════════════════════════════════════════════════════════════
+
+$ai_learnings
 
 ═══════════════════════════════════════════════════════════════════════════════
               SESSION HISTORY (what happened in previous iterations)
