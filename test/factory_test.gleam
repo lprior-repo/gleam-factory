@@ -2,6 +2,7 @@ import gleeunit
 import gleeunit/should
 import domain
 import persistence
+import validation
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -133,6 +134,57 @@ pub fn status_file_path_format_test() {
 }
 
 // ============================================================================
+// VALIDATION TESTS
+// ============================================================================
+
+pub fn validate_slug_format_valid_starts_with_letter_test() {
+  validation.validate_slug_format("feature_123")
+  |> should.be_ok
+}
+
+pub fn validate_slug_format_invalid_starts_with_number_test() {
+  validation.validate_slug_format("123_feature")
+  |> should.be_error
+}
+
+pub fn validate_slug_format_invalid_starts_with_underscore_test() {
+  validation.validate_slug_format("_feature")
+  |> should.be_error
+}
+
+pub fn validate_slug_format_invalid_contains_hyphen_test() {
+  validation.validate_slug_format("feature-name")
+  |> should.be_error
+}
+
+pub fn validate_slug_format_invalid_contains_special_chars_test() {
+  validation.validate_slug_format("feature@name")
+  |> should.be_error
+}
+
+pub fn validate_slug_format_valid_underscores_and_numbers_test() {
+  validation.validate_slug_format("task_1_a_b_c")
+  |> should.be_ok
+}
+
+pub fn validate_slug_format_invalid_exceeds_max_length_test() {
+  let long_slug = "a" <> string_repeat("b", 50)
+  validation.validate_slug_format(long_slug)
+  |> should.be_error
+}
+
+pub fn validate_slug_format_valid_at_max_length_test() {
+  let max_slug = "a" <> string_repeat("b", 49)
+  validation.validate_slug_format(max_slug)
+  |> should.be_ok
+}
+
+pub fn validate_slug_format_invalid_empty_test() {
+  validation.validate_slug_format("")
+  |> should.be_error
+}
+
+// ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
 
@@ -140,5 +192,12 @@ fn list_length(list: List(a)) -> Int {
   case list {
     [] -> 0
     [_, ..rest] -> 1 + list_length(rest)
+  }
+}
+
+fn string_repeat(s: String, n: Int) -> String {
+  case n {
+    0 -> ""
+    _ -> s <> string_repeat(s, n - 1)
   }
 }
