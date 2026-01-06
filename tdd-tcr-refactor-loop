@@ -566,6 +566,10 @@ run_auditor() {
 
     echo "$auditor_output"
 
+    # Save auditor's reasoning to history for implementer
+    LAST_AUDITOR_REASONING="$auditor_output"
+    append_history "AUDITOR" "$iteration" "$auditor_output"
+
     lock_tests
 
     if echo "$auditor_output" | grep -q "REQUIREMENTS_COMPLETE"; then
@@ -592,15 +596,21 @@ run_implementer() {
 
         log_tcr "Recording pre-implementation state..."
 
-        prompt=$(implementer_prompt "$test_output" "$attempt")
+        # Pass auditor's reasoning to implementer
+        prompt=$(implementer_prompt "$test_output" "$attempt" "$LAST_AUDITOR_REASONING")
 
         log_info "Invoking implementer AI (new session)..."
         IMPLEMENTER_SESSION_ID=$(uuidgen)
-        claude -p \
+        impl_output=$(claude -p \
             --session-id "$IMPLEMENTER_SESSION_ID" \
             --allowedTools "Read Write Edit Glob Grep Bash(gleam:*)" \
             --append-system-prompt "You are the IMPLEMENTER under TCR discipline. You may ONLY modify files in src/. If tests fail, your changes will be REVERTED. Write MINIMUM code to pass the test." \
-            "$prompt" 2>&1
+            "$prompt" 2>&1)
+
+        echo "$impl_output"
+
+        # Save implementer's reasoning to history
+        append_history "IMPLEMENTER" "$iteration (attempt $attempt)" "$impl_output"
 
         lock_src
 
@@ -614,6 +624,7 @@ run_implementer() {
             return 0
         else
             tcr_revert "$iteration"
+            append_history "TCR" "$iteration" "REVERTED - tests failed"
             test_output=$(capture_test_output)
             attempt=$((attempt + 1))
 
@@ -634,17 +645,24 @@ run_architect() {
 
     unlock_all
 
-    prompt=$(architect_prompt "$iteration")
+    # Get session history for architect context
+    local session_history
+    session_history=$(get_recent_history 200)
+
+    prompt=$(architect_prompt "$iteration" "$session_history")
 
     log_info "Invoking architect AI (new session)..."
     ARCHITECT_SESSION_ID=$(uuidgen)
     architect_output=$(claude -p \
         --session-id "$ARCHITECT_SESSION_ID" \
         --allowedTools "Read Write Edit Glob Grep Bash(gleam:*)" \
-        --append-system-prompt "You are the ARCHITECT. You may modify both src/ and test/. Your job is to REFACTOR the code for quality and maintainability. ALL TESTS MUST STILL PASS. Focus on DRY, proper abstractions, and idiomatic patterns." \
+        --append-system-prompt "You are the ARCHITECT. You may modify both src/ and test/. Your job is to REFACTOR the code for quality and maintainability. ALL TESTS MUST STILL PASS. Focus on CUPID, code minimization, and idiomatic patterns. Every line must earn its place." \
         "$prompt" 2>&1)
 
     echo "$architect_output"
+
+    # Save architect's reasoning to history
+    append_history "ARCHITECT" "$iteration" "$architect_output"
 
     log_info "Verifying tests still pass after refactoring..."
     if run_tests; then
@@ -656,6 +674,7 @@ run_architect() {
         log_error "Architect broke tests! Reverting all changes..."
         git checkout HEAD -- "$SRC_DIR/" "$TEST_DIR/"
         git clean -fd "$SRC_DIR/" "$TEST_DIR/" 2>/dev/null || true
+        append_history "ARCHITECT" "$iteration" "REVERTED - tests broke after refactoring"
         log_warning "Architect changes reverted - tests must pass"
     fi
 
@@ -718,10 +737,16 @@ main() {
     echo ""
     echo -e "${MAGENTA}TCR Discipline: Test && Commit || Revert${NC}"
     echo -e "${WHITE}Architect Reviews: Every $REFACTOR_INTERVAL green cycles${NC}"
+    echo -e "${CYAN}Context Passing: Reasoning flows between agents${NC}"
     echo ""
     echo "Requirements:"
     echo "$REQUIREMENTS"
     echo ""
+
+    # Initialize history file for context passing between agents
+    log_info "Initializing session history for context passing..."
+    init_history
+    append_history "SESSION START" "0" "Requirements: $REQUIREMENTS"
 
     log_info "Ensuring clean git state..."
     git add -A
@@ -823,6 +848,7 @@ cleanup() {
     log_info "Cleaning up locks..."
     chmod -R u+w "$SRC_DIR/" 2>/dev/null || true
     chmod -R u+w "$TEST_DIR/" 2>/dev/null || true
+    # Keep history file for debugging, but could add: rm -f "$HISTORY_FILE"
 }
 
 trap cleanup EXIT

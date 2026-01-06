@@ -34,52 +34,107 @@ pub fn parse() -> Result(Command, String) {
 }
 
 /// Pure argument parser - takes args list directly
-/// Used for testing without argv dependency
 pub fn parse_args(args: List(String)) -> Result(Command, String) {
   case args {
-    [] -> Ok(Help(None))
-    ["help"] -> Ok(Help(None))
+    [] | ["help"] -> Ok(Help(None))
     ["help", topic] -> Ok(Help(Some(topic)))
     ["version"] -> Ok(Version)
-
-    ["new"] -> Error("--slug is required for new command")
-    ["new", "--slug", slug] -> Ok(NewTask(slug, None, False))
-    ["new", "-s", slug] -> Ok(NewTask(slug, None, False))
-    ["new", "-s", slug, "-c", contract] -> Ok(NewTask(slug, Some(contract), False))
-    ["new", "--slug", slug, "--contract", contract] -> Ok(NewTask(slug, Some(contract), False))
-    ["new", "--slug", slug, "--interactive"] -> Ok(NewTask(slug, None, True))
-    ["new", "--contract", contract, "--slug", slug] -> Ok(NewTask(slug, Some(contract), False))
-
-    ["stage", "--slug", slug, "--stage", stage] -> Ok(RunStage(slug, stage, False, None, None))
-    ["stage", "--stage", stage, "--slug", slug] -> Ok(RunStage(slug, stage, False, None, None))
-    ["stage", "--slug", slug, "--stage", stage, "--dry-run"] -> Ok(RunStage(slug, stage, True, None, None))
-    ["stage", "--slug", slug, "--stage", stage, "-d"] -> Ok(RunStage(slug, stage, True, None, None))
-    ["stage", "--slug", slug, "--stage", stage, "--from", from] -> Ok(RunStage(slug, stage, False, Some(from), None))
-    ["stage", "--slug", slug, "--stage", stage, "--to", to] -> Ok(RunStage(slug, stage, False, None, Some(to)))
-    ["stage", "--slug", _] -> Error("--stage is required for stage command")
-
-    ["approve", "--slug", slug] -> Ok(ApproveTask(slug, None, False))
-    ["approve", "--slug", slug, "--strategy", strategy] -> case strategy {
-      "immediate" | "gradual" | "canary" -> Ok(ApproveTask(slug, Some(strategy), False))
-      _ -> Error("Invalid strategy value: " <> strategy <> ". Valid values are: immediate, gradual, canary")
-    }
-    ["approve", "--slug", slug, "--force"] -> Ok(ApproveTask(slug, None, True))
-    ["approve", "--slug", slug, "-f"] -> Ok(ApproveTask(slug, None, True))
-
-    ["show", "--slug", slug] -> Ok(ShowTask(slug, False))
-    ["show", "--slug", slug, "--detailed"] -> Ok(ShowTask(slug, True))
-
-    ["list"] -> Ok(ListTasks(None, None))
-    ["list", "--priority", p] -> case p {
-      "P1" | "P2" | "P3" -> Ok(ListTasks(Some(p), None))
-      _ -> Error("Invalid priority value: " <> p <> ". Valid values are: P1, P2, P3")
-    }
-    ["list", "--status", s] -> case s {
-      "open" | "in_progress" | "done" -> Ok(ListTasks(None, Some(s)))
-      _ -> Error("Invalid status value: " <> s <> ". Valid values are: open, in_progress, done")
-    }
-
+    ["new", ..rest] -> parse_new(rest)
+    ["stage", ..rest] -> parse_stage(rest)
+    ["approve", ..rest] -> parse_approve(rest)
+    ["show", ..rest] -> parse_show(rest)
+    ["list", ..rest] -> parse_list(rest)
     [cmd, ..] -> Error("Unknown command: " <> cmd)
+  }
+}
+
+fn get_flag(args: List(String), long: String, short: String) -> Option(String) {
+  case args {
+    [] -> None
+    [f, v, ..] if f == long || f == short -> Some(v)
+    [_, ..rest] -> get_flag(rest, long, short)
+  }
+}
+
+fn has_flag(args: List(String), long: String, short: String) -> Bool {
+  list.any(args, fn(a) { a == long || a == short })
+}
+
+fn parse_new(args: List(String)) -> Result(Command, String) {
+  case get_flag(args, "--slug", "-s") {
+    None -> Error("--slug is required for new command")
+    Some(slug) -> {
+      let contract = get_flag(args, "--contract", "-c")
+      let interactive = has_flag(args, "--interactive", "--interactive")
+      Ok(NewTask(slug, contract, interactive))
+    }
+  }
+}
+
+fn parse_stage(args: List(String)) -> Result(Command, String) {
+  case get_flag(args, "--slug", "-s"), get_flag(args, "--stage", "--stage") {
+    None, _ -> Error("--slug is required for stage command")
+    _, None -> Error("--stage is required for stage command")
+    Some(slug), Some(stage) -> {
+      let dry_run = has_flag(args, "--dry-run", "-d")
+      let from = get_flag(args, "--from", "--from")
+      let to = get_flag(args, "--to", "--to")
+      Ok(RunStage(slug, stage, dry_run, from, to))
+    }
+  }
+}
+
+fn parse_approve(args: List(String)) -> Result(Command, String) {
+  case get_flag(args, "--slug", "-s") {
+    None -> Error("--slug is required for approve command")
+    Some(slug) -> {
+      let force = has_flag(args, "--force", "-f")
+      case get_flag(args, "--strategy", "--strategy") {
+        None -> Ok(ApproveTask(slug, None, force))
+        Some(s) -> validate_strategy(s) |> result.map(fn(v) { ApproveTask(slug, Some(v), force) })
+      }
+    }
+  }
+}
+
+fn parse_show(args: List(String)) -> Result(Command, String) {
+  case get_flag(args, "--slug", "-s") {
+    None -> Error("--slug is required for show command")
+    Some(slug) -> Ok(ShowTask(slug, has_flag(args, "--detailed", "--detailed")))
+  }
+}
+
+fn parse_list(args: List(String)) -> Result(Command, String) {
+  case get_flag(args, "--priority", "--priority"), get_flag(args, "--status", "--status") {
+    None, None -> Ok(ListTasks(None, None))
+    Some(p), None -> validate_priority(p) |> result.map(fn(v) { ListTasks(Some(v), None) })
+    None, Some(s) -> validate_status(s) |> result.map(fn(v) { ListTasks(None, Some(v)) })
+    Some(p), Some(s) -> {
+      use vp <- result.try(validate_priority(p))
+      use vs <- result.try(validate_status(s))
+      Ok(ListTasks(Some(vp), Some(vs)))
+    }
+  }
+}
+
+fn validate_strategy(s: String) -> Result(String, String) {
+  case s {
+    "immediate" | "gradual" | "canary" -> Ok(s)
+    _ -> Error("Invalid strategy value: " <> s <> ". Valid values are: immediate, gradual, canary")
+  }
+}
+
+fn validate_priority(p: String) -> Result(String, String) {
+  case p {
+    "P1" | "P2" | "P3" -> Ok(p)
+    _ -> Error("Invalid priority value: " <> p <> ". Valid values are: P1, P2, P3")
+  }
+}
+
+fn validate_status(s: String) -> Result(String, String) {
+  case s {
+    "open" | "in_progress" | "done" -> Ok(s)
+    _ -> Error("Invalid status value: " <> s <> ". Valid values are: open, in_progress, done")
   }
 }
 
