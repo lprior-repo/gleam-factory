@@ -723,6 +723,115 @@ pub fn parse_args_approve_command_with_short_force_flag_test() {
   |> should.equal(Ok(cli.ApproveTask("my-task", None, True)))
 }
 
+/// Test that short flag -s works for show command
+/// This ensures all commands consistently support short flag -s for --slug
+pub fn parse_args_show_command_with_short_slug_flag_test() {
+  // Arrange: 'show' command with -s (short for --slug)
+  let args = ["show", "-s", "my-task"]
+
+  // Act: parse the args using the pure parse_args function
+  let result = cli.parse_args(args)
+
+  // Assert: should return ShowTask with the correct slug
+  result
+  |> should.equal(Ok(cli.ShowTask("my-task", False)))
+}
+
+/// Test that 'show' command without required --slug flag returns an error
+/// This ensures show command also validates required --slug
+pub fn parse_args_show_command_missing_slug_returns_error_test() {
+  // Arrange: 'show' command with NO --slug flag
+  let args = ["show"]
+
+  // Act: parse the args
+  let result = cli.parse_args(args)
+
+  // Assert: should return Error indicating --slug is required
+  case result {
+    Error(msg) -> {
+      should.be_true(contains_substring(msg, "--slug") && contains_substring(msg, "required"))
+    }
+    Ok(_) -> should.fail()
+  }
+}
+
+/// Test that valid priority values are accepted (P1, P2, P3)
+pub fn parse_args_list_command_accepts_valid_priority_test() {
+  // Test P1
+  cli.parse_args(["list", "--priority", "P1"])
+  |> should.equal(Ok(cli.ListTasks(Some("P1"), None)))
+
+  // Test P2
+  cli.parse_args(["list", "--priority", "P2"])
+  |> should.equal(Ok(cli.ListTasks(Some("P2"), None)))
+
+  // Test P3
+  cli.parse_args(["list", "--priority", "P3"])
+  |> should.equal(Ok(cli.ListTasks(Some("P3"), None)))
+}
+
+/// Test that valid status values are accepted (open, in_progress, done)
+pub fn parse_args_list_command_accepts_valid_status_test() {
+  // Test open
+  cli.parse_args(["list", "--status", "open"])
+  |> should.equal(Ok(cli.ListTasks(None, Some("open"))))
+
+  // Test in_progress
+  cli.parse_args(["list", "--status", "in_progress"])
+  |> should.equal(Ok(cli.ListTasks(None, Some("in_progress"))))
+
+  // Test done
+  cli.parse_args(["list", "--status", "done"])
+  |> should.equal(Ok(cli.ListTasks(None, Some("done"))))
+}
+
+/// Test that valid strategy values are accepted (immediate, gradual, canary)
+pub fn parse_args_approve_command_accepts_valid_strategy_test() {
+  // Test immediate
+  cli.parse_args(["approve", "-s", "task", "--strategy", "immediate"])
+  |> should.equal(Ok(cli.ApproveTask("task", Some("immediate"), False)))
+
+  // Test gradual
+  cli.parse_args(["approve", "-s", "task", "--strategy", "gradual"])
+  |> should.equal(Ok(cli.ApproveTask("task", Some("gradual"), False)))
+
+  // Test canary
+  cli.parse_args(["approve", "-s", "task", "--strategy", "canary"])
+  |> should.equal(Ok(cli.ApproveTask("task", Some("canary"), False)))
+}
+
+/// Test that help command with no args returns Help(None)
+pub fn parse_args_help_command_test() {
+  cli.parse_args(["help"])
+  |> should.equal(Ok(cli.Help(None)))
+}
+
+/// Test that help command with topic returns Help(Some(topic))
+pub fn parse_args_help_command_with_topic_test() {
+  cli.parse_args(["help", "new"])
+  |> should.equal(Ok(cli.Help(Some("new"))))
+}
+
+/// Test that version command is parsed correctly
+pub fn parse_args_version_command_test() {
+  cli.parse_args(["version"])
+  |> should.equal(Ok(cli.Version))
+}
+
+/// Test that empty args returns Help (default behavior)
+pub fn parse_args_empty_returns_help_test() {
+  cli.parse_args([])
+  |> should.equal(Ok(cli.Help(None)))
+}
+
+/// Test unknown command returns error
+pub fn parse_args_unknown_command_returns_error_test() {
+  case cli.parse_args(["foobar"]) {
+    Error(msg) -> should.be_true(contains_substring(msg, "Unknown command"))
+    Ok(_) -> should.fail()
+  }
+}
+
 /// Test flexible flag ordering for 'stage' command: --stage before --slug should work
 /// This tests requirement #2: flags can appear in any order for all commands
 pub fn parse_args_stage_command_with_flexible_flag_order_test() {
@@ -736,6 +845,26 @@ pub fn parse_args_stage_command_with_flexible_flag_order_test() {
   // The order of flags should NOT matter
   result
   |> should.equal(Ok(cli.RunStage("my-task", "implement", False, None, None)))
+}
+
+/// Test that 'approve' command without required --slug flag returns an error
+/// This tests requirement #3: all commands that require --slug must validate it
+/// The approve command requires --slug just like new, stage, and show
+pub fn parse_args_approve_command_missing_slug_returns_error_test() {
+  // Arrange: 'approve' command with NO --slug flag
+  let args = ["approve"]
+
+  // Act: parse the args
+  let result = cli.parse_args(args)
+
+  // Assert: should return Error with a message indicating --slug is required
+  case result {
+    Error(msg) -> {
+      // The error message should clearly say --slug is required
+      should.be_true(contains_substring(msg, "--slug") && contains_substring(msg, "required"))
+    }
+    Ok(_) -> should.fail()
+  }
 }
 
 // ============================================================================

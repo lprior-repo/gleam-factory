@@ -345,16 +345,16 @@ USAGE:
 
 COMMANDS:
   new      Create new task
-           factory new --slug bd-52.1 [--contract path] [--interactive]
+           factory new -s bd-52.1 [-c path] [--interactive]
 
   stage    Run pipeline stage
-           factory stage --slug bd-52.1 --stage implement [--dry-run] [--from X] [--to Y]
+           factory stage -s bd-52.1 --stage implement [-d] [--from X] [--to Y]
 
   approve  Approve for deployment
-           factory approve --slug bd-52.1 [--strategy gradual] [--force]
+           factory approve -s bd-52.1 [--strategy gradual] [-f]
 
   show     Show task details
-           factory show --slug bd-52.1 [--detailed]
+           factory show -s bd-52.1 [--detailed]
 
   list     List all tasks
            factory list [--priority P1|P2|P3] [--status open|in_progress|done]
@@ -362,10 +362,16 @@ COMMANDS:
   help     Show this help [--topic COMMAND]
   version  Show version
 
+SHORT FLAGS:
+  -s       --slug
+  -c       --contract
+  -d       --dry-run
+  -f       --force
+
 EXAMPLES:
-  factory new --slug bd-52.1
-  factory stage --slug bd-52.1 --stage implement --dry-run
-  factory approve --slug bd-52.1 --strategy gradual
+  factory new -s bd-52.1
+  factory stage -s bd-52.1 --stage implement -d
+  factory approve -s bd-52.1 --strategy gradual
   factory list --priority P1
 
 Documentation: ./ARCHITECTURE.md"

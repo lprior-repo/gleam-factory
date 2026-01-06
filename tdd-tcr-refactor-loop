@@ -27,7 +27,36 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 MAGENTA='\033[0;35m'
 WHITE='\033[1;37m'
+BOLD='\033[1m'
+DIM='\033[2m'
+ITALIC='\033[3m'
+UNDERLINE='\033[4m'
+BLINK='\033[5m'
 NC='\033[0m' # No Color
+
+# Background colors
+BG_RED='\033[41m'
+BG_GREEN='\033[42m'
+BG_YELLOW='\033[43m'
+BG_BLUE='\033[44m'
+BG_MAGENTA='\033[45m'
+BG_CYAN='\033[46m'
+BG_WHITE='\033[47m'
+
+# Box drawing characters
+BOX_TL='╔'
+BOX_TR='╗'
+BOX_BL='╚'
+BOX_BR='╝'
+BOX_H='═'
+BOX_V='║'
+BOX_LT='╠'
+BOX_RT='╣'
+
+# Progress indicators
+SPINNER_CHARS='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+PROGRESS_FULL='█'
+PROGRESS_EMPTY='░'
 
 # Configuration
 SRC_DIR="src"
