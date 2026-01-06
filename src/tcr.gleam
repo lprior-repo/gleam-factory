@@ -2,7 +2,9 @@
 // Real jj-based commit/revert logic (not fake)
 
 import gleam/string
+import gleam/result
 import domain
+import process
 
 /// Outcome of a TCR run
 pub type TCROutcome {
@@ -92,30 +94,65 @@ fn run_stage_with_revert(
 }
 
 /// Get current jj state hash
-fn get_jj_state(_worktree_path: String) -> Result(String, String) {
-  // Would execute: jj -R <path> log -r @ -T 'commit_id'
-  // For now, return a mock implementation
-  Ok("jj_state_placeholder")
+fn get_jj_state(worktree_path: String) -> Result(String, String) {
+  // Execute: jj -R <path> log -r @ -T 'commit_id'
+  process.run_command("jj", [
+    "-R",
+    worktree_path,
+    "log",
+    "-r",
+    "@",
+    "-T",
+    "commit_id",
+  ], "")
+  |> result.try(fn(result) {
+    case result {
+      process.Success(output, _, _) -> Ok(string.trim(output))
+      process.Failure(err, _) -> Error("Failed to get jj state: " <> err)
+    }
+  })
 }
 
 /// Commit changes to jj journal
-fn commit_changes(_worktree_path: String, _stage_name: String) -> Result(String, String) {
-  // Would execute:
-  // jj -R <path> describe -m "factory: <stage_name> passed"
-  // jj -R <path> new
-  // Returns the new commit ID
-  Ok("new_commit_id")
+fn commit_changes(worktree_path: String, stage_name: String) -> Result(String, String) {
+  let message = "factory: " <> stage_name <> " passed"
+
+  // STEP 1: Describe current changes with message
+  use _ <- result.try(
+    process.run_command("jj", ["-R", worktree_path, "describe", "-m", message], "")
+    |> result.map_error(fn(_) { "Failed to describe changes" })
+    |> result.map(fn(_) { Nil })
+  )
+
+  // STEP 2: Create new working copy for next changes
+  use result_new <- result.try(
+    process.run_command("jj", ["-R", worktree_path, "new"], "")
+    |> result.map_error(fn(_) { "Failed to create new workspace commit" })
+  )
+
+  // Extract commit ID from output
+  case result_new {
+    process.Success(output, _, _) -> Ok(string.trim(output))
+    process.Failure(err, _) -> Error("Failed to get new commit ID: " <> err)
+  }
 }
 
 /// Revert changes to previous state
 fn revert_changes(
-  _worktree_path: String,
-  _original_hash: String,
+  worktree_path: String,
+  original_hash: String,
 ) -> Result(Nil, String) {
-  // Would execute:
-  // jj -R <path> restore --from @-
-  // Which reverts to parent commit
-  Ok(Nil)
+  // Execute: jj -R <path> restore --from <original_hash>
+  // This reverts all working directory changes to the specified state
+  process.run_command("jj", [
+    "-R",
+    worktree_path,
+    "restore",
+    "--from",
+    original_hash,
+  ], "")
+  |> result.map_error(fn(_) { "Failed to revert changes" })
+  |> result.map(fn(_) { Nil })
 }
 
 /// Determine if stage should be retried after failure

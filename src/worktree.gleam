@@ -166,9 +166,25 @@ pub fn list_worktrees(repo_root: String) -> Result(List(Worktree), String) {
 
 /// Generate unique ID for worktree isolation
 fn generate_unique_id() -> String {
-  // In production, would generate cryptographically random hex string
-  // For now, use timestamp-based ID
-  "abc123"
+  // Generate ID using a shell command to get timestamp
+  case process.run_command("date", ["+%s%N"], "") {
+    Ok(process.Success(timestamp, _, _)) -> {
+      timestamp
+      |> string.trim
+      |> string.slice(2, 8)
+    }
+    _ -> {
+      // Fallback: use process ID and counter
+      process.run_command("echo", ["$RANDOM"], "")
+      |> result.map(fn(result) {
+        case result {
+          process.Success(rand, _, _) -> string.trim(rand)
+          _ -> "default"
+        }
+      })
+      |> result.unwrap("default")
+    }
+  }
 }
 
 /// Get worktree directory from repo root

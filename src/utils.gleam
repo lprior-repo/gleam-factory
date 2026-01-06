@@ -48,14 +48,18 @@ pub fn run_pipeline(
 
 /// Get user input from stdin
 pub fn prompt(message: String) -> String {
+  // Note: This is a placeholder since interactive stdin is not easily available
+  // in the current build environment. In production, would use stdin.read_line()
   io.print(message <> "> ")
-  ""  // Placeholder - stdin.read_line not available in this context
+  ""
 }
 
 /// Get yes/no confirmation
 pub fn confirm(message: String) -> Bool {
+  // Note: This is a placeholder since interactive stdin is not easily available
+  // in the current build environment.
   let _ = prompt(message <> " (y/n)")
-  False  // Placeholder
+  False
 }
 
 /// Format success message

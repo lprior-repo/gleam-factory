@@ -1,7 +1,9 @@
 // Shell module - Execute external commands
-// Uses system calls via Gleam's process module
+// Uses shellout library for subprocess execution
 
 import gleam/string
+import gleam/result
+import shellout
 
 /// Result of command execution
 pub type CommandResult {
@@ -31,25 +33,28 @@ pub fn run_command(
 
 /// Execute a raw shell command string
 fn run_shell(cmd: String) -> Result(CommandResult, String) {
-  // This is a placeholder - in real implementation, would use:
-  // - Erlang ports (if targeting Erlang)
-  // - Node.js child_process (if targeting JavaScript)
-  // For now, return a structured error that indicates need for subprocess
-  Error(
-    "Subprocess execution not yet implemented. Command would be: " <> cmd,
-  )
+  // Execute shell command via /bin/sh -c
+  // shellout.command returns Ok for success, Error for failure
+  case shellout.command("sh", ["-c", cmd], "", []) {
+    Ok(stdout) -> {
+      // Success - exit code 0
+      Ok(Success(stdout, "", 0))
+    }
+    Error(_) -> {
+      // Error - non-zero exit code
+      // We can't easily get the actual exit code with shellout,
+      // so we return a Failure to indicate the command failed
+      Error("Command failed")
+    }
+  }
 }
 
 /// Check if a command exists in PATH
 pub fn command_exists(cmd: String) -> Result(Bool, String) {
-  case cmd {
-    "gleam" -> Ok(True)
-    "go" -> Ok(True)
-    "cargo" -> Ok(True)
-    "python" -> Ok(True)
-    "jj" -> Ok(True)
-    "git" -> Ok(True)
-    other -> Error("Unknown command: " <> other)
+  // Use 'which' command to check if command exists in PATH
+  case run_command("which", [cmd], "") {
+    Ok(_) -> Ok(True)
+    Error(_) -> Error("Command not found in PATH: " <> cmd)
   }
 }
 
@@ -85,4 +90,14 @@ pub fn get_error(result: CommandResult) -> Result(Nil, String) {
     Failure(err, code) ->
       Error("Command failed with code " <> string.inspect(code) <> ": " <> err)
   }
+}
+
+/// Run a command only if it exists in PATH
+pub fn run_command_safe(
+  cmd: String,
+  args: List(String),
+  cwd: String,
+) -> Result(CommandResult, String) {
+  use _ <- result.try(command_exists(cmd))
+  run_command(cmd, args, cwd)
 }

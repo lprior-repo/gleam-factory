@@ -10,6 +10,10 @@ import gleam/list
 import gleam/string
 import argv
 import domain
+import repo
+import persistence
+import stages
+import worktree
 
 /// All possible Factory commands
 pub type Command {
@@ -91,7 +95,18 @@ fn execute_new(
   _interactive: Bool,
 ) -> Result(Nil, String) {
   use _ <- result.try(domain.validate_slug(slug))
-  io.println("Creating task: " <> slug)
+  use repo_root <- result.try(repo.detect_repo_root())
+  use lang <- result.try(repo.detect_language(repo_root))
+
+  let lang_str = case lang {
+    domain.Go -> "go"
+    domain.Gleam -> "gleam"
+    domain.Rust -> "rust"
+    domain.Python -> "python"
+  }
+
+  use message <- result.try(execute_new_impl(slug, lang_str, repo_root))
+  io.println(message)
   Ok(Nil)
 }
 
@@ -103,7 +118,11 @@ fn execute_stage(
   _to: Option(String),
 ) -> Result(Nil, String) {
   use _ <- result.try(domain.validate_slug(slug))
-  io.println("Running stage " <> stage <> " for " <> slug)
+  use repo_root <- result.try(repo.detect_repo_root())
+  use task <- result.try(persistence.load_task_record(slug, repo_root))
+
+  use message <- result.try(execute_stage_impl(slug, stage, task, repo_root))
+  io.println(message)
   Ok(Nil)
 }
 
@@ -113,19 +132,92 @@ fn execute_approve(
   _force: Bool,
 ) -> Result(Nil, String) {
   use _ <- result.try(domain.validate_slug(slug))
-  io.println("Approving task: " <> slug)
+  use repo_root <- result.try(repo.detect_repo_root())
+  use task <- result.try(persistence.load_task_record(slug, repo_root))
+
+  let approved_task = domain.Task(..task, status: domain.Integrated)
+  use _ <- result.try(persistence.save_task_record(approved_task, repo_root))
+  io.println("✓ Approved: " <> slug)
   Ok(Nil)
 }
 
 fn execute_show(slug: String, _detailed: Bool) -> Result(Nil, String) {
   use _ <- result.try(domain.validate_slug(slug))
-  io.println("Showing task: " <> slug)
+  use repo_root <- result.try(repo.detect_repo_root())
+  use task <- result.try(persistence.load_task_record(slug, repo_root))
+
+  let status_str = case task.status {
+    domain.Created -> "created"
+    domain.InProgress(stage) -> "in_progress (" <> stage <> ")"
+    domain.PassedPipeline -> "passed_pipeline"
+    domain.FailedPipeline(stage, reason) ->
+      "failed_pipeline (" <> stage <> ": " <> reason <> ")"
+    domain.Integrated -> "integrated"
+  }
+
+  io.println(slug <> ": " <> status_str)
   Ok(Nil)
 }
 
 fn execute_list(_priority: Option(String), _status: Option(String)) -> Result(Nil, String) {
-  io.println("Listing tasks")
+  use repo_root <- result.try(repo.detect_repo_root())
+  use tasks <- result.try(persistence.list_all_tasks(repo_root))
+
+  case tasks {
+    [] -> io.println("No active tasks")
+    ts -> {
+      ts
+      |> list.map(fn(task) { task.slug <> " (" <> task.branch <> ")" })
+      |> string.join("\n")
+      |> io.println
+    }
+  }
   Ok(Nil)
+}
+
+// ============================================================================
+// IMPLEMENTATION HELPERS
+// ============================================================================
+
+fn execute_new_impl(
+  slug: String,
+  lang_str: String,
+  repo_root: String,
+) -> Result(String, String) {
+  use lang <- result.try(domain.parse_language(lang_str))
+  use wt <- result.try(worktree.create_worktree(slug, lang, repo_root))
+
+  let task =
+    domain.Task(
+      slug: slug,
+      language: lang,
+      status: domain.Created,
+      worktree_path: wt.path,
+      branch: wt.branch,
+    )
+
+  use _ <- result.try(persistence.save_task_record(task, repo_root))
+
+  Ok(
+    "Created: " <> wt.path <> "\n"
+    <> "Branch:  " <> wt.branch <> "\n"
+    <> "Language: " <> lang_str,
+  )
+}
+
+fn execute_stage_impl(
+  _slug: String,
+  stage_name: String,
+  task: domain.Task,
+  _repo_root: String,
+) -> Result(String, String) {
+  use _ <- result.try(domain.get_stage(stage_name))
+
+  use _ <- result.try(
+    stages.execute_stage(stage_name, task.language, task.worktree_path),
+  )
+
+  Ok("✓ " <> stage_name <> " passed")
 }
 
 fn show_help(topic: Option(String)) -> Nil {
