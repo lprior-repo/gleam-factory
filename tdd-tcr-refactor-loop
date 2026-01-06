@@ -17,7 +17,20 @@
 # Usage: ./tdd-tcr-refactor-loop "Feature description or requirements"
 #
 
-set -e
+set -eo pipefail
+
+# Dependency checks
+check_dependencies() {
+    local missing=()
+    command -v claude >/dev/null 2>&1 || missing+=("claude")
+    command -v uuidgen >/dev/null 2>&1 || missing+=("uuidgen")
+    git rev-parse --git-dir >/dev/null 2>&1 || missing+=("git (not in a repository)")
+
+    if [ ${#missing[@]} -gt 0 ]; then
+        echo "Error: Missing dependencies: ${missing[*]}"
+        exit 1
+    fi
+}
 
 # Colors for output
 RED='\033[0;31m'
@@ -89,9 +102,9 @@ detect_language() {
     fi
 }
 
-LANG=$(detect_language)
+PROJECT_LANG=$(detect_language)
 TEST_CMD="gleam test"
-case "$LANG" in
+case "$PROJECT_LANG" in
     gleam) TEST_CMD="gleam test" ;;
     go) TEST_CMD="go test ./..." ;;
     rust) TEST_CMD="cargo test" ;;
@@ -350,17 +363,15 @@ tcr_revert() {
 # Test execution
 #---------------------------------------------------------------------------
 
+# Run tests and capture output. Sets LAST_TEST_OUTPUT and returns exit code.
 run_tests() {
     log_info "Running tests ($TEST_CMD)..."
-    if $TEST_CMD 2>&1; then
-        return 0
-    else
-        return 1
-    fi
+    LAST_TEST_OUTPUT=$($TEST_CMD 2>&1) && return 0 || return 1
 }
 
-capture_test_output() {
-    $TEST_CMD 2>&1 || true
+# Run tests silently, just for pass/fail check
+run_tests_quiet() {
+    $TEST_CMD >/dev/null 2>&1
 }
 
 #---------------------------------------------------------------------------
@@ -374,7 +385,7 @@ auditor_prompt() {
     cat <<EOF
 You are the AUDITOR in a TDD-TCR-REFACTOR loop. Your job is to write tests.
 
-PROJECT: $LANG project
+PROJECT: $PROJECT_LANG project
 TEST COMMAND: $TEST_CMD
 
 REQUIREMENTS:
@@ -440,7 +451,7 @@ implementer_prompt() {
     cat <<EOF
 You are the IMPLEMENTER in a TDD-TCR-REFACTOR loop. Your job is to make tests pass.
 
-PROJECT: $LANG project
+PROJECT: $PROJECT_LANG project
 TEST COMMAND: $TEST_CMD
 
 ⚠️  TCR DISCIPLINE IS ENFORCED ⚠️
@@ -497,7 +508,7 @@ architect_prompt() {
     cat <<EOF
 You are the ARCHITECT in a TDD-TCR-REFACTOR loop. This is the REFACTOR phase.
 
-PROJECT: $LANG project (Gleam - functional, immutable, BEAM)
+PROJECT: $PROJECT_LANG project (Gleam - functional, immutable, BEAM)
 TEST COMMAND: $TEST_CMD
 
 ═══════════════════════════════════════════════════════════════════════════════
@@ -637,7 +648,7 @@ reviewer_prompt() {
     cat <<EOF
 You are the REVIEWER. The TDD-TCR-REFACTOR loop has completed.
 
-PROJECT: $LANG project
+PROJECT: $PROJECT_LANG project
 TEST COMMAND: $TEST_CMD
 
 ORIGINAL REQUIREMENTS:
@@ -762,7 +773,7 @@ run_implementer() {
         else
             tcr_revert "$iteration"
             append_history "TCR" "$iteration" "REVERTED - tests failed"
-            test_output=$(capture_test_output)
+            test_output="$LAST_TEST_OUTPUT"
             attempt=$((attempt + 1))
 
             if [ $attempt -le $MAX_IMPL_ATTEMPTS ]; then
@@ -855,6 +866,8 @@ run_reviewer() {
 #---------------------------------------------------------------------------
 
 main() {
+    check_dependencies
+
     if [ -z "$REQUIREMENTS" ]; then
         echo "Usage: ./tdd-tcr-refactor-loop \"Feature requirements\""
         echo ""
@@ -900,7 +913,7 @@ main() {
     echo -e "${DIM}$(draw_line '─')${NC}"
     echo -e "  ${BOLD}Configuration${NC}"
     echo -e "${DIM}$(draw_line '─')${NC}"
-    echo -e "  ${CYAN}Language:${NC}        $LANG"
+    echo -e "  ${CYAN}Language:${NC}        $PROJECT_LANG"
     echo -e "  ${CYAN}Test Command:${NC}    $TEST_CMD"
     echo -e "  ${CYAN}Source:${NC}          $REQUIREMENTS_SOURCE"
     echo -e "  ${CYAN}Max Iterations:${NC}  $MAX_ITERATIONS"
@@ -993,7 +1006,6 @@ main() {
         git commit -m "TEST(tcr-$iteration): New test from auditor" --no-verify 2>/dev/null || true
 
         log_info "Verifying test is RED (failing)..."
-        test_output=$(capture_test_output)
 
         if run_tests; then
             log_warning "Tests already pass - auditor should write a NEW failing test"
@@ -1005,7 +1017,7 @@ main() {
         log_success "Test is RED - proceeding to implementation"
 
         # Phase 2: Implementer makes it pass (GREEN with TCR)
-        if run_implementer "$test_output" "$iteration"; then
+        if run_implementer "$LAST_TEST_OUTPUT" "$iteration"; then
             last_impl_result="Tests passed and committed. Ready for next test."
             impls_since_refactor=$((impls_since_refactor + 1))
 

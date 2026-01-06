@@ -9,7 +9,20 @@
 # Usage: ./tdd-loop "Feature description or requirements"
 #
 
-set -e
+set -eo pipefail
+
+# Dependency checks
+check_dependencies() {
+    local missing=()
+    command -v claude >/dev/null 2>&1 || missing+=("claude")
+    command -v uuidgen >/dev/null 2>&1 || missing+=("uuidgen")
+    git rev-parse --git-dir >/dev/null 2>&1 || missing+=("git (not in a repository)")
+
+    if [ ${#missing[@]} -gt 0 ]; then
+        echo "Error: Missing dependencies: ${missing[*]}"
+        exit 1
+    fi
+}
 
 # Colors for output
 RED='\033[0;31m'
@@ -50,9 +63,9 @@ detect_language() {
     fi
 }
 
-LANG=$(detect_language)
+PROJECT_LANG=$(detect_language)
 TEST_CMD="gleam test"
-case "$LANG" in
+case "$PROJECT_LANG" in
     gleam) TEST_CMD="gleam test" ;;
     go) TEST_CMD="go test ./..." ;;
     rust) TEST_CMD="cargo test" ;;
@@ -126,18 +139,15 @@ lock_tests() {
 # Test execution
 #---------------------------------------------------------------------------
 
+# Run tests and capture output. Sets LAST_TEST_OUTPUT and returns exit code.
 run_tests() {
     log_info "Running tests ($TEST_CMD)..."
-    if $TEST_CMD 2>&1; then
-        return 0
-    else
-        return 1
-    fi
+    LAST_TEST_OUTPUT=$($TEST_CMD 2>&1) && return 0 || return 1
 }
 
-# Capture test output for passing to implementer
-capture_test_output() {
-    $TEST_CMD 2>&1 || true
+# Run tests silently, just for pass/fail check
+run_tests_quiet() {
+    $TEST_CMD >/dev/null 2>&1
 }
 
 #---------------------------------------------------------------------------
@@ -152,7 +162,7 @@ auditor_prompt() {
     cat <<EOF
 You are the AUDITOR in a TDD loop. Your job is to write tests.
 
-PROJECT: $LANG project
+PROJECT: $PROJECT_LANG project
 TEST COMMAND: $TEST_CMD
 
 REQUIREMENTS:
@@ -206,7 +216,7 @@ implementer_prompt() {
     cat <<EOF
 You are the IMPLEMENTER in a TDD loop. Your job is to make tests pass.
 
-PROJECT: $LANG project
+PROJECT: $PROJECT_LANG project
 TEST COMMAND: $TEST_CMD
 
 YOUR CONSTRAINTS:
@@ -285,7 +295,7 @@ reviewer_prompt() {
     cat <<EOF
 You are the REVIEWER. The TDD loop has completed and all tests pass.
 
-PROJECT: $LANG project
+PROJECT: $PROJECT_LANG project
 TEST COMMAND: $TEST_CMD
 
 ORIGINAL REQUIREMENTS:
@@ -298,7 +308,7 @@ YOUR TASK:
    - Poor naming that should be improved
    - Missing or incorrect documentation
    - Type safety improvements
-   - Idiomatic $LANG patterns that should be applied
+   - Idiomatic $PROJECT_LANG patterns that should be applied
    - Any obvious bugs or edge cases the tests missed
 3. Make improvements while ensuring ALL TESTS STILL PASS
 4. Run '$TEST_CMD' after your changes to verify
@@ -381,7 +391,7 @@ run_implementer() {
             return 0
         else
             log_warning "Tests still failing"
-            test_output=$(capture_test_output)
+            test_output="$LAST_TEST_OUTPUT"
             attempt=$((attempt + 1))
         fi
     done
@@ -391,6 +401,8 @@ run_implementer() {
 }
 
 main() {
+    check_dependencies
+
     if [ -z "$REQUIREMENTS" ]; then
         echo "Usage: ./tdd-loop \"Feature requirements\""
         echo ""
@@ -400,7 +412,7 @@ main() {
     fi
 
     log_phase "TDD LOOP STARTING"
-    echo "Language: $LANG"
+    echo "Language: $PROJECT_LANG"
     echo "Test command: $TEST_CMD"
     echo "Requirements source: $REQUIREMENTS_SOURCE"
     echo ""
@@ -435,7 +447,6 @@ main() {
 
         # Check if new test fails (as expected for red phase)
         log_info "Verifying test is RED (failing)..."
-        test_output=$(capture_test_output)
 
         if run_tests; then
             log_warning "Tests already pass - auditor should write a NEW failing test"
@@ -448,10 +459,10 @@ main() {
         log_success "Test is RED - proceeding to implementation"
 
         # Phase 2: Implementer makes it pass
-        if run_implementer "$test_output"; then
+        if run_implementer "$LAST_TEST_OUTPUT"; then
             last_impl_result="Tests passed. Ready for next test."
         else
-            last_impl_result="Implementation failed. Test output: $test_output"
+            last_impl_result="Implementation failed. Test output: $LAST_TEST_OUTPUT"
             log_error "Implementation phase failed"
         fi
 
