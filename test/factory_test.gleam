@@ -1228,55 +1228,21 @@ pub fn resource_exhausted_signal_has_required_fields_test() {
 /// Test that gleam_otp is available as a dependency
 /// This verifies that the project has gleam_otp >= 0.10.0 in gleam.toml
 /// The actor model is essential for the TCR loop and signal handling
+/// Note: The import at the top of this file (gleam/otp) already validates
+/// the dependency exists - if it doesn't, this file won't compile at all.
 pub fn gleam_otp_is_available_as_dependency_test() {
-  // Simply importing gleam/otp will fail at compile time if the dependency
-  // is not installed. This test exists to enforce that the dependency is
-  // declared in gleam.toml and available for use in the implementation.
-  //
-  // When this test fails to compile, the implementer should:
-  // 1. Add gleam_otp >= 0.10.0 to the [dependencies] section in gleam.toml
-  // 2. Run: gleam build
-  // 3. This test will then pass
-  let _ = otp_marker()
-  Nil
-}
-
-/// Helper to import from gleam/otp without warnings
-/// This function is not called but demonstrates the module is available
-fn otp_marker() -> Nil {
-  // This function exists solely to reference the gleam/otp module.
-  // If gleam_otp is not installed as a dependency, compilation will fail here:
-  // "Error: Unknown module 'gleam/otp'"
-  //
-  // We just reference the module to create the compile-time dependency check
-  let _ = otp
+  // The import 'gleam/otp' at the top of this file will fail to compile
+  // if gleam_otp is not in gleam.toml. This test just confirms we got here.
   Nil
 }
 
 /// Test that gleam_erlang is available as a dependency
 /// This verifies that the project has gleam_erlang >= 0.25.0 in gleam.toml
 /// The erlang module provides low-level process utilities needed for OTP actors
+/// Note: The import at the top of this file (gleam/erlang) already validates
+/// the dependency exists - if it doesn't, this file won't compile at all.
 pub fn gleam_erlang_is_available_as_dependency_test() {
-  // Simply importing gleam/erlang will fail at compile time if the dependency
-  // is not installed. This test exists to enforce that the dependency is
-  // declared in gleam.toml and available for use.
-  //
-  // When this test fails to compile, the implementer should:
-  // 1. Add gleam_erlang >= 0.25.0 to the [dependencies] section in gleam.toml
-  // 2. Run: gleam build
-  // 3. This test will then pass
-  let _ = erlang_marker()
-  Nil
-}
-
-/// Helper to import from gleam/erlang without warnings
-/// This function is not called but demonstrates the module is available
-fn erlang_marker() -> Nil {
-  // This function exists solely to reference the gleam/erlang module.
-  // If gleam_erlang is not installed as a dependency, compilation will fail here:
-  // "Error: Unknown module 'gleam/erlang'"
-  //
-  // We just reference the module to create the compile-time dependency check
-  let _ = erlang
+  // The import 'gleam/erlang' at the top of this file will fail to compile
+  // if gleam_erlang is not in gleam.toml. This test just confirms we got here.
   Nil
 }
