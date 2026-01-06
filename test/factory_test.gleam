@@ -12,6 +12,7 @@ import persistence
 import signals
 import types
 import validation
+import workspace_manager
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -1338,5 +1339,41 @@ pub fn types_workspace_id_constructor_creates_valid_workspace_ids_test() {
   // 2. WorkspaceIds are assignable to Workspace.id field
   // 3. Both Jj and Reflink workspace types work
   Nil
+}
+
+/// Test that workspace_manager.start_link() successfully returns Ok(subject).
+///
+/// This is the core requirement for Iteration 2:
+/// The workspace manager must be an OTP actor that can be started and returns
+/// a Subject to send messages to it.
+///
+/// This test drives the implementation of:
+/// 1. workspace_manager.start_link() -> Result(Subject(...), WorkspaceManagerError)
+/// 2. An OTP actor using gleam_otp that maintains empty Dict state initially
+/// 3. Proper actor spawning and supervision integration
+///
+/// Design rationale: Without a working start_link(), no other workspace
+/// manager functionality (RegisterWorkspace, UpdateWorkspace, etc.) can work.
+/// This is the foundation of the entire actor system.
+///
+/// Edge case: Verifies that the Subject returned can be used (we store it in a
+/// variable, proving the type system accepts it and we can work with it).
+pub fn workspace_manager_start_link_returns_ok_subject_test() {
+  // Act: Start the workspace manager actor
+  let result = workspace_manager.start_link()
+
+  // Assert: Should return Ok with a Subject we can work with
+  case result {
+    Ok(_subject) -> {
+      // The actor started successfully
+      // We don't need to do anything with the subject in this test,
+      // but proving we can pattern match on Ok(_) validates the return type
+      Nil
+    }
+    Error(_err) -> {
+      // If we get here, the actor failed to start
+      should.fail()
+    }
+  }
 }
 
