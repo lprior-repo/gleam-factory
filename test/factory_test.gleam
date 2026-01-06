@@ -708,6 +708,21 @@ pub fn parse_args_stage_command_with_short_dry_run_flag_test() {
   |> should.equal(Ok(cli.RunStage("my-task", "implement", True, None, None)))
 }
 
+/// Test that short flag -f is equivalent to --force for approve command
+/// This tests requirement #4: short flags (-f = --force)
+pub fn parse_args_approve_command_with_short_force_flag_test() {
+  // Arrange: 'approve' command with -f (short for --force)
+  let args = ["approve", "--slug", "my-task", "-f"]
+
+  // Act: parse the args using the pure parse_args function
+  let result = cli.parse_args(args)
+
+  // Assert: should return ApproveTask with force=True
+  // -f should be equivalent to --force
+  result
+  |> should.equal(Ok(cli.ApproveTask("my-task", None, True)))
+}
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
