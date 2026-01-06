@@ -64,7 +64,10 @@ pub fn parse_args(args: List(String)) -> Result(Command, String) {
     ["show", "--slug", slug, "--detailed"] -> Ok(ShowTask(slug, True))
 
     ["list"] -> Ok(ListTasks(None, None))
-    ["list", "--priority", p] -> Ok(ListTasks(Some(p), None))
+    ["list", "--priority", p] -> case p {
+      "P1" | "P2" | "P3" -> Ok(ListTasks(Some(p), None))
+      _ -> Error("Invalid priority value: " <> p <> ". Valid values are: P1, P2, P3")
+    }
     ["list", "--status", s] -> Ok(ListTasks(None, Some(s)))
 
     [cmd, ..] -> Error("Unknown command: " <> cmd)
