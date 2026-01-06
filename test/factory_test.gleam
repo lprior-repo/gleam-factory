@@ -650,6 +650,27 @@ pub fn parse_args_list_command_rejects_invalid_priority_test() {
   }
 }
 
+/// Test that --status flag value must be open, in_progress, or done
+/// This tests requirement #5: flag value validation for --status
+pub fn parse_args_list_command_rejects_invalid_status_test() {
+  // Arrange: 'list' command with an invalid status value (not open, in_progress, or done)
+  let args = ["list", "--status", "pending"]
+
+  // Act: parse the args
+  let result = cli.parse_args(args)
+
+  // Assert: should return Error with a message about invalid status value
+  // Valid values are: open, in_progress, done
+  case result {
+    Error(msg) -> {
+      // The error message should indicate that the status value is invalid
+      // and ideally mention valid values (open, in_progress, done)
+      should.be_true(contains_substring(msg, "status") || contains_substring(msg, "open"))
+    }
+    Ok(_) -> should.fail()
+  }
+}
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
