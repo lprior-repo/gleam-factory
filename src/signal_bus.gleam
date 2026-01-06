@@ -73,6 +73,11 @@ pub fn publish(bus: Subject(SignalBusMessage), signal: Signal) -> Nil {
   process.send(bus, Publish(signal))
 }
 
+/// Alias for publish - broadcasts signal to all subscribers.
+pub fn broadcast(bus: Subject(SignalBusMessage), signal: Signal) -> Nil {
+  publish(bus, signal)
+}
+
 fn bus_loop(
   state: SignalBusState,
   selector: process.Selector(SignalBusMessage),
