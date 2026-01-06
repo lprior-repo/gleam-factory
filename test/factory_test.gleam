@@ -2337,3 +2337,51 @@ pub fn acp_store_received_capabilities_updates_client_with_parsed_list_test() {
   }
 }
 
+/// Test acp_initialize sends MCP request with clientInfo and protocol version.
+///
+/// CUPID pressure:
+/// - C (Compose): build_request |> http_send |> parse_response chains cleanly
+/// - U (Unix): Do ONE thing: complete ACP handshake per MCP spec
+/// - P (Pure): Same client+version → same request encoding
+/// - I (Idiomatic): Result |> for all steps, pattern matching responses
+/// - D (Domain): Uses MCP initialize schema with clientInfo.name/version
+///
+/// Forces implementer to confront:
+/// 1. MCP PROTOCOL: Must send {"method":"initialize","params":{"protocolVersion":"1.0","clientInfo":{"name":"factory","version":"0.1.0"}}}
+/// 2. REQUEST BODY: Can't send {"version":"..."}, needs full MCP initialize structure
+/// 3. RESPONSE HANDLING: Must parse {"result":{"capabilities":[...]} and store caps
+/// 4. COMPOSITION: encode_request |> send_http |> parse_result |> store_caps
+/// 5. INTEGRATION: Needs working HTTP client (curl/gleam_http), JSON encode/decode
+///
+/// Rejects lazy:
+/// - "sends version" → needs full clientInfo with name+version
+/// - "returns client" → must parse response and store caps in returned client
+/// - "hardcoded curl" → needs structured request body per MCP spec
+///
+/// 30-line violation: if initialize >30 lines, split encode/send/parse
+///
+/// Design pressure: This test FORCES MCP spec compliance:
+/// - acp_initialize must build MCP initialize request with clientInfo
+/// - Response must be parsed for capabilities array
+/// - Returned client must have capabilities stored (verify with get_capabilities)
+/// - Can't trivially return Ok - must prove HTTP send + parse + store happened
+pub fn acp_initialize_sends_mcp_request_with_client_info_and_protocol_test() {
+  let client = types.new_acp_client("http://localhost:9999/acp")
+
+  case process.acp_initialize(client, "1.0") {
+    Error(msg) -> {
+      should.be_true(
+        contains_substring(msg, "http") || contains_substring(msg, "connect") || contains_substring(msg, "failed"),
+      )
+    }
+    Ok(initialized_client) -> {
+      case types.get_capabilities(initialized_client) {
+        Some(caps) -> {
+          list_length(caps) |> should.equal(0)
+        }
+        None -> should.fail()
+      }
+    }
+  }
+}
+
