@@ -978,12 +978,13 @@ auditor_prompt() {
     local last_impl_result="$2"
 
     cat <<EOF
-A:$PROJECT_LANG i:$iteration c:$TEST_CMD
-R:$REQUIREMENTS
-$([ -n "$last_impl_result" ] && echo "L:$last_impl_result")
-X:test/ 1test fail-first
-T:read src/ test/, write 1 test drives-design achievable-step
-O:{"s":"tw","t":{"n":"x_test","f":"test/factory_test.gleam","b":"what"},"r":"why"} or {"s":"rc"} if done
+AUDITOR:$PROJECT_LANG i:$iteration c:$TEST_CMD
+REQ:$REQUIREMENTS
+$([ -n "$last_impl_result" ] && echo "LAST:$last_impl_result")
+SCOPE:test/ 1test fail-first
+TASK:read src/ test/, write 1 test that drives design, achievable in 1 step
+CUE:#A from contract.cue - MUST output valid JSON
+OUT:{"s":"tw","t":{"n":"name_test","f":"test/factory_test.gleam","b":"behavior"},"c":0.0-1.0} or {"s":"rc","c":1.0} if done
 EOF
 }
 
@@ -995,12 +996,14 @@ implementer_prompt() {
     local is_escalated="${5:-false}"
 
     cat <<EOF
-I:$PROJECT_LANG c:$TEST_CMD a:$attempt/$MAX_IMPL_ATTEMPTS$([ "$is_escalated" = "true" ] && echo " ESC:$CONSECUTIVE_FAILURES")
-TCR:FAIL=REVERT
-X:src/ MIN-code NEVER:src/gleam/(shadows stdlib)
-E:$test_output
-T:read test, impl minimum, pass
-O:{"s":"ok","c":[{"f":"src/x.gleam","a":"+","l":N}],"r":"why"} or {"s":"bl","b":"blocker"}
+IMPL:$PROJECT_LANG c:$TEST_CMD a:$attempt/$MAX_IMPL_ATTEMPTS$([ "$is_escalated" = "true" ] && echo " ESC:$CONSECUTIVE_FAILURES")
+TCR:FAIL=REVERT - broken code discarded
+SCOPE:src/ MIN-code
+BAN:src/gleam/* (shadows stdlib - WILL BE REJECTED)
+ERR:$test_output
+TASK:read test, implement minimum code to pass
+CUE:#I from contract.cue - MUST output valid JSON
+OUT:{"s":"ok","c":[{"f":"src/x.gleam","a":"+"|"~","l":N}],"cf":0.0-1.0} or {"s":"bl","b":"blocker","cf":0}
 EOF
 }
 
@@ -1010,14 +1013,15 @@ architect_prompt() {
     local ai_learnings="$3"
 
     cat <<EOF
-R:$PROJECT_LANG i:$iteration c:$TEST_CMD cm:$TCR_COMMITS rv:$TCR_REVERTS
-DIR:MIN-CODE MAX-CLARITY
+ARCH:$PROJECT_LANG i:$iteration c:$TEST_CMD cm:$TCR_COMMITS rv:$TCR_REVERTS
+PRIME:MIN-CODE MAX-CLARITY - every line must earn its place
 CUPID:C=compose U=unix P=pure I=idiom D=domain
-LIM:fn<30 1thing no-dup no-unused pattern-match
-R:$REQUIREMENTS
-T:read modified, DELETE? SIMPLIFY? COMBINE? PURE?, refactor, test
-SM:CREATE_BEAD:<title> DESCRIPTION:<issue> PRIORITY:0-3 ---
-O:{"s":"rf","lb":N,"la":N,"c":[{"t":"d|s|x|r|i","w":"what"}]} or {"s":"nc"} sm:[{"t":"title","d":"desc","p":0-3}]
+LIMIT:fn<30lines 1thing no-dup no-unused pattern-match
+REQ:$REQUIREMENTS
+TASK:read modified files, ask: DELETE? SIMPLIFY? COMBINE? PURE?, refactor, test
+SMELL:CREATE_BEAD:<title> DESCRIPTION:<issue> PRIORITY:0-3 ---
+CUE:#R from contract.cue - MUST output valid JSON
+OUT:{"s":"rf","lb":N,"la":N,"c":[{"t":"d|s|x|r|i","w":"what"}],"cf":0.0-1.0,"sm":[]} or {"s":"nc","cf":1.0}
 EOF
 }
 
@@ -1028,11 +1032,12 @@ reviewer_prompt() {
     fi
 
     cat <<EOF
-V:$PROJECT_LANG c:$TEST_CMD cm:$TCR_COMMITS rv:$TCR_REVERTS
-R:$REQUIREMENTS
+REVIEW:$PROJECT_LANG c:$TEST_CMD cm:$TCR_COMMITS rv:$TCR_REVERTS
+REQ:$REQUIREMENTS
 $([ -n "$acceptance" ] && echo "AC[$CURRENT_BEAD_ID]:$acceptance")
-T:review src/ test/, verify reqs, security edge-cases API, test
-O:{"s":"p|f","m":true|false,"v":[{"c":"criterion","m":bool,"e":"file:line"}],"l":"learnings 50w max"}
+TASK:review src/ test/, verify requirements met, check security edge-cases API consistency, run tests
+CUE:#V from contract.cue - MUST output valid JSON
+OUT:{"s":"p","m":true,"v":[{"c":"criterion","m":true|false,"e":"file:line"}],"cf":0.9-1.0,"l":"50w learnings"} or {"s":"f","m":false,...,"cf":0.0-0.9}
 EOF
 }
 
