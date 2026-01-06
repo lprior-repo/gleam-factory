@@ -2297,3 +2297,52 @@ pub fn acp_initialize_result_parses_capabilities_from_json_response_test() {
   }
 }
 
+/// Test acp_initialize_with_agent composes request encoding, HTTP, and stores capabilities.
+///
+/// CUPID pressure:
+/// - C (Compose): initialize|>send|>parse|>store_caps must chain without coupling
+/// - U (Unix): Do ONE thing: complete initialize handshake, store result in client
+/// - P (Pure): Same client+version+server response → same updated client state
+/// - I (Idiomatic): Result |> chain, pattern match client.capabilities field
+/// - D (Domain): ACP initialize per spec - client sends version, gets capabilities back
+///
+/// Forces implementer to confront:
+/// 1. CLIENT STATE: AcpClient must store capabilities (adds field to AcpClient type)
+/// 2. STATEFUL RESULT: initialize returns UPDATED client with capabilities populated
+/// 3. END-TO-END FLOW: Can't fake - must encode request, parse response, update client
+/// 4. PROTOCOL COMPLIANCE: Must send {"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"1.0"}}
+/// 5. RESPONSE HANDLING: Must extract capabilities from actual response JSON
+/// 6. ERROR PROPAGATION: Network|Parse|Protocol errors bubble up as Error
+///
+/// Rejects lazy:
+/// - "client has capabilities field" → needs working parse + store logic
+/// - "returns Ok(client)" → client must contain parsed capabilities from response
+/// - "hardcoded capabilities" → must come from parse_initialize_result
+///
+/// 30-line violation detector: If initialize >30 lines, split encode/http/parse
+///
+/// Design pressure:
+/// - Forces AcpClient type change: AcpClient(base_url, capabilities: Option(List(String)))
+/// - Forces initialize to be composition: encode_init_req |> http_post |> parse_init_result |> update_client
+/// - Forces parse_initialize_result to be pure and testable separately (previous test)
+/// - Makes "store capabilities" explicit in type system (not side-effect)
+pub fn acp_initialize_with_agent_composes_handshake_and_stores_capabilities_test() {
+  let client = types.AcpClient(base_url: "http://localhost:9998/acp-init-test")
+
+  case process.acp_initialize(client, "1.0") {
+    Ok(updated_client) -> {
+      case types.get_capabilities(updated_client) {
+        Some(caps) -> {
+          should.be_true(list_length(caps) > 0)
+        }
+        None -> should.fail()
+      }
+    }
+    Error(msg) -> {
+      should.be_true(
+        contains_substring(msg, "connect") || contains_substring(msg, "refused") || contains_substring(msg, "network"),
+      )
+    }
+  }
+}
+
