@@ -63,6 +63,7 @@ pub fn parse_args(args: List(String)) -> Result(Command, String) {
       _ -> Error("Invalid strategy value: " <> strategy <> ". Valid values are: immediate, gradual, canary")
     }
     ["approve", "--slug", slug, "--force"] -> Ok(ApproveTask(slug, None, True))
+    ["approve", "--slug", slug, "-f"] -> Ok(ApproveTask(slug, None, True))
 
     ["show", "--slug", slug] -> Ok(ShowTask(slug, False))
     ["show", "--slug", slug, "--detailed"] -> Ok(ShowTask(slug, True))
