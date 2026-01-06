@@ -1382,7 +1382,7 @@ run_architect() {
         --session-id "$ARCHITECT_SESSION_ID" \
         --allowedTools "Read Write Edit Glob Grep Bash(gleam:*) Skill" \
         --append-system-prompt "You are the ARCHITECT. You may modify both src/ and test/. Your job is to REFACTOR the code for quality and maintainability. ALL TESTS MUST STILL PASS. Focus on CUPID, code minimization, and idiomatic patterns. Every line must earn its place. SCAN for code smells and CREATE_BEAD for issues you find. IMPORTANT: Use /gleam-code-generator skill for all Gleam code generation." \
-        "/gleam-code-generator $prompt" 2>&1)
+        "/gleam-code-generator $prompt" 2>&1 </dev/null)
 
     echo "$architect_output"
 
@@ -1428,7 +1428,7 @@ run_reviewer() {
         --session-id "$REVIEWER_SESSION_ID" \
         --allowedTools "Read Write Edit Glob Grep Bash(gleam:*) Skill" \
         --append-system-prompt "You are the REVIEWER doing final review. You may modify both src/ and test/. All tests MUST pass. Focus on production readiness and polish. You MUST output ACCEPTANCE_CRITERIA_MET: true or ACCEPTANCE_CRITERIA_MET: false in your response. IMPORTANT: Use /gleam-code-generator skill for all Gleam code generation." \
-        "/gleam-code-generator $prompt" 2>&1)
+        "/gleam-code-generator $prompt" 2>&1 </dev/null)
 
     echo "$REVIEWER_OUTPUT"
 

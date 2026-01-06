@@ -1,4 +1,4 @@
-//// Type definitions for process management.
+//// Type definitions for process management and workspace state.
 
 import gleam/erlang/process.{type Pid}
 
@@ -16,4 +16,26 @@ pub fn from_pid(pid: Pid) -> ProcessId {
 pub fn to_pid(process_id: ProcessId) -> Pid {
   let ProcessId(pid) = process_id
   pid
+}
+
+/// WorkspaceType represents the classification of a workspace.
+pub type WorkspaceType {
+  Jj
+  Reflink
+}
+
+/// WorkspaceId provides type-safe workspace identification.
+pub opaque type WorkspaceId {
+  WorkspaceId(String)
+}
+
+/// Workspace represents a managed workspace with metadata.
+pub type Workspace {
+  Workspace(
+    id: WorkspaceId,
+    path: String,
+    workspace_type: WorkspaceType,
+    owner_pid: ProcessId,
+    created_at: String,
+  )
 }
