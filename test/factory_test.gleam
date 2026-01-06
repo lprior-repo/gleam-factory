@@ -6,6 +6,7 @@ import validation
 import cli
 import utils
 import stages
+import worktree
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -335,6 +336,17 @@ pub fn validate_stage_transition_nonexistent_stage_invalid_test() {
   // When transitioning from or to non-existent stage, should fail
   stages.validate_stage_transition("invalid-stage", "implement")
   |> should.be_error
+}
+
+// ============================================================================
+// WORKTREE TESTS (continued)
+// ============================================================================
+
+pub fn cleanup_stale_worktrees_returns_count_test() {
+  // When cleanup_stale_worktrees is called with max_age_days
+  // It should return a Result containing the count of removed worktrees
+  worktree.cleanup_stale_worktrees(30)
+  |> should.be_ok
 }
 
 // ============================================================================
