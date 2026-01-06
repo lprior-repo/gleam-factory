@@ -20,9 +20,93 @@
 #   ./tdd-tcr-refactor-loop -b <bead-id>          # Short form
 #   ./tdd-tcr-refactor-loop --all                 # Process ALL open beads (sorted by priority)
 #   ./tdd-tcr-refactor-loop -a                    # Short form for --all
+#   ./tdd-tcr-refactor-loop --kill                # Kill all running TDD-TCR processes
+#   ./tdd-tcr-refactor-loop --reset               # Kill processes + reset git + unlock files
 #
 
 set -eo pipefail
+
+#---------------------------------------------------------------------------
+# Process Management - Kill/Reset functionality
+#---------------------------------------------------------------------------
+
+SCRIPT_NAME="tdd-tcr-refactor-loop"
+PIDFILE="/tmp/tdd-tcr-refactor.pid"
+
+# Kill all TDD-TCR related processes
+kill_all_processes() {
+    echo "Killing all TDD-TCR related processes..."
+    local my_pid=$$
+    local my_ppid=$PPID
+
+    # Kill child claude processes spawned by this script
+    pkill -9 -f "claude.*AUDITOR" 2>/dev/null || true
+    pkill -9 -f "claude.*IMPLEMENTER" 2>/dev/null || true
+    pkill -9 -f "claude.*ARCHITECT" 2>/dev/null || true
+    pkill -9 -f "claude.*REVIEWER" 2>/dev/null || true
+
+    # Kill any other instances of this script (except current PID and parent)
+    for pid in $(pgrep -f "$SCRIPT_NAME" 2>/dev/null || true); do
+        if [ "$pid" != "$my_pid" ] && [ "$pid" != "$my_ppid" ]; then
+            kill -9 "$pid" 2>/dev/null || true
+        fi
+    done
+
+    # Remove old PID file
+    rm -f "$PIDFILE"
+
+    sleep 1
+    echo "All TDD-TCR processes killed."
+}
+
+# Full reset: kill processes + reset git state + unlock files
+full_reset() {
+    echo "Performing full reset..."
+
+    # Kill processes first
+    kill_all_processes
+
+    # Unlock all files
+    echo "Unlocking all files..."
+    chmod -R u+w src/ 2>/dev/null || true
+    chmod -R u+w test/ 2>/dev/null || true
+
+    # Reset any in-progress beads back to open
+    if command -v bd >/dev/null 2>&1; then
+        echo "Resetting in-progress beads to open..."
+        bd list --status in-progress --json 2>/dev/null | jq -r '.[].id' 2>/dev/null | while read bead_id; do
+            [ -n "$bead_id" ] && bd update "$bead_id" --status open 2>/dev/null || true
+        done
+    fi
+
+    # Clean up temp files
+    rm -f "$HISTORY_FILE" 2>/dev/null || true
+    rm -f "$PIDFILE" 2>/dev/null || true
+
+    echo "Full reset complete. Ready for fresh start."
+}
+
+# Handle --kill and --reset flags (exit after)
+case "${1:-}" in
+    --kill|-k)
+        kill_all_processes
+        exit 0
+        ;;
+    --reset|-r)
+        full_reset
+        exit 0
+        ;;
+esac
+
+# ALWAYS reset on startup - clean slate every run
+echo "Resetting environment for clean start..."
+kill_all_processes
+chmod -R u+w src/ 2>/dev/null || true
+chmod -R u+w test/ 2>/dev/null || true
+rm -f "$HISTORY_FILE" 2>/dev/null || true
+
+# Write PID file for tracking
+echo $$ > "$PIDFILE"
 
 #---------------------------------------------------------------------------
 # Bead Issue Integration

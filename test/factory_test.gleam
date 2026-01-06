@@ -4,6 +4,7 @@ import config
 import domain
 import errors
 import gleam/erlang/process
+import gleam/list
 import gleam/option.{None, Some}
 import gleam/otp/actor
 import gleam/string
@@ -1441,18 +1442,18 @@ pub fn workspace_manager_can_list_all_registered_workspaces_test() {
 
       // Both workspaces should be present (order may vary due to Dict iteration)
       let has_alpha =
-        list.some(workspaces, fn(w) {
-          case w.id, w.path, w.workspace_type {
-            _, "/tmp/alpha", types.Jj -> True
-            _, _, _ -> False
+        list.any(workspaces, fn(w: types.Workspace) {
+          case w.workspace_type, w.path {
+            types.Jj, "/tmp/alpha" -> True
+            _, _ -> False
           }
         })
 
       let has_beta =
-        list.some(workspaces, fn(w) {
-          case w.id, w.path, w.workspace_type {
-            _, "/tmp/beta", types.Reflink -> True
-            _, _, _ -> False
+        list.any(workspaces, fn(w: types.Workspace) {
+          case w.workspace_type, w.path {
+            types.Reflink, "/tmp/beta" -> True
+            _, _ -> False
           }
         })
 
@@ -1502,4 +1503,30 @@ pub fn workspace_manager_can_send_register_workspace_message_test() {
   // Assert: If we got here without panicking, the message was accepted
   // The actor is still running and responsive to messages
   Nil
+}
+
+/// Test that workspace_manager.query_workspaces() returns an empty list initially.
+///
+/// This drives the implementation of:
+/// 1. A ListWorkspaces message type in WorkspaceManagerMessage
+/// 2. A query_workspaces(Subject) -> Result(List(Workspace), String) function
+/// 3. Handler logic to respond to ListWorkspaces by returning all workspaces from Dict
+///
+/// Design rationale: Before any workspaces are registered, the query should return
+/// an empty list. This establishes the baseline behavior and validates the query mechanism.
+///
+/// This test drives good design by:
+/// - Establishing a pattern for querying actor state without using actor.call FFI
+/// - Separating fire-and-forget messages (RegisterWorkspace) from query operations
+/// - Making the public API simple: just pass the subject, get a Result back
+pub fn workspace_manager_query_workspaces_returns_empty_list_initially_test() {
+  // Arrange: Start the workspace manager actor with no workspaces registered
+  let assert Ok(manager_subject) = workspace_manager.start_link()
+
+  // Act: Query all workspaces when the actor is empty
+  let result = workspace_manager.query_workspaces(manager_subject)
+
+  // Assert: Should return Ok with an empty list
+  result
+  |> should.equal(Ok([]))
 }
