@@ -110,3 +110,8 @@ fn is_valid_hex(input: String) -> Bool {
     }
   })
 }
+
+/// AcpNotification represents an Agent Communication Protocol notification.
+pub type AcpNotification {
+  AcpNotification(session_id: String, method: String)
+}

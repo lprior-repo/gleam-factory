@@ -3,6 +3,7 @@
 import gleam/list as gleam_list
 import gleam/string
 import simplifile
+import types
 
 /// Result of command execution
 pub type CommandResult {
@@ -186,8 +187,8 @@ pub fn run_command_safe(
 }
 
 /// Send ACP cancel notification for session
-pub fn acp_cancel(_session_id: String) -> Result(Nil, String) {
-  Ok(Nil)
+pub fn acp_cancel(session_id: String) -> Result(types.AcpNotification, String) {
+  Ok(types.AcpNotification(session_id: session_id, method: "session/cancel"))
 }
 
 /// Read text file content
