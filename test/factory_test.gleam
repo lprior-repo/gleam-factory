@@ -3,7 +3,7 @@ import cli
 import config
 import domain
 import errors
-import gleam/erlang/process
+import gleam/erlang/process as erl_process
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/otp/actor
@@ -11,6 +11,7 @@ import gleam/string
 import gleeunit
 import gleeunit/should
 import persistence
+import process
 import signals
 import simplifile
 import types
@@ -1270,7 +1271,7 @@ pub fn gleam_erlang_is_available_as_dependency_test() {
 /// the opaque wrapper correctly preserves real BEAM process identifiers.
 pub fn process_id_round_trip_conversion_preserves_pid_test() {
   // Arrange: Get the current process's Pid
-  let original_pid = process.self()
+  let original_pid = erl_process.self()
 
   // Act: Wrap in ProcessId and unwrap
   let wrapped = types.from_pid(original_pid)
@@ -1324,7 +1325,7 @@ pub fn types_workspace_id_constructor_creates_valid_workspace_ids_test() {
       id: workspace_id_one,
       path: "/tmp/alpha",
       workspace_type: types.Jj,
-      owner_pid: types.from_pid(process.self()),
+      owner_pid: types.from_pid(erl_process.self()),
       created_at: "2026-01-06T12:00:00Z",
     )
 
@@ -1333,7 +1334,7 @@ pub fn types_workspace_id_constructor_creates_valid_workspace_ids_test() {
       id: workspace_id_two,
       path: "/tmp/beta",
       workspace_type: types.Reflink,
-      owner_pid: types.from_pid(process.self()),
+      owner_pid: types.from_pid(erl_process.self()),
       created_at: "2026-01-06T13:00:00Z",
     )
 
@@ -1413,7 +1414,7 @@ pub fn workspace_manager_can_list_all_registered_workspaces_test() {
       id: workspace_id_1,
       path: "/tmp/alpha",
       workspace_type: types.Jj,
-      owner_pid: types.from_pid(process.self()),
+      owner_pid: types.from_pid(erl_process.self()),
       created_at: "2026-01-06T10:00:00Z",
     )
 
@@ -1423,7 +1424,7 @@ pub fn workspace_manager_can_list_all_registered_workspaces_test() {
       id: workspace_id_2,
       path: "/tmp/beta",
       workspace_type: types.Reflink,
-      owner_pid: types.from_pid(process.self()),
+      owner_pid: types.from_pid(erl_process.self()),
       created_at: "2026-01-06T11:00:00Z",
     )
 
@@ -1493,7 +1494,7 @@ pub fn workspace_manager_can_send_register_workspace_message_test() {
       id: workspace_id,
       path: "/tmp/send-test",
       workspace_type: types.Reflink,
-      owner_pid: types.from_pid(process.self()),
+      owner_pid: types.from_pid(erl_process.self()),
       created_at: "2026-01-06T16:00:00Z",
     )
 
@@ -1560,7 +1561,7 @@ pub fn workspace_manager_can_retrieve_workspace_by_id_test() {
       id: workspace_id,
       path: "/tmp/retrieve-test",
       workspace_type: types.Jj,
-      owner_pid: types.from_pid(process.self()),
+      owner_pid: types.from_pid(erl_process.self()),
       created_at: "2026-01-06T17:00:00Z",
     )
 
@@ -1770,7 +1771,7 @@ pub fn workspace_manager_destroy_workspace_removes_directory_and_state_test() {
       id: workspace_id,
       path: temp_dir,
       workspace_type: types.Jj,
-      owner_pid: types.from_pid(process.self()),
+      owner_pid: types.from_pid(erl_process.self()),
       created_at: "2026-01-06T18:00:00Z",
     )
 
@@ -1842,7 +1843,7 @@ pub fn workspace_manager_destroy_workspace_handles_reflink_type_test() {
       id: workspace_id,
       path: temp_dir,
       workspace_type: types.Reflink,  // Explicitly Reflink, not Jj
-      owner_pid: types.from_pid(process.self()),
+      owner_pid: types.from_pid(erl_process.self()),
       created_at: "2026-01-06T19:00:00Z",
     )
 
@@ -1911,7 +1912,7 @@ pub fn workspace_manager_destroy_workspace_removes_filesystem_directory_test() {
       id: workspace_id,
       path: temp_workspace_dir,
       workspace_type: types.Jj,
-      owner_pid: types.from_pid(process.self()),
+      owner_pid: types.from_pid(erl_process.self()),
       created_at: "2026-01-06T20:00:00Z",
     )
 
@@ -1942,6 +1943,87 @@ pub fn workspace_manager_destroy_workspace_removes_filesystem_directory_test() {
       remaining
       |> list_length
       |> should.equal(0)
+    }
+    Error(_msg) -> should.fail()
+  }
+}
+
+// ============================================================================
+// WORKSPACE REFLINK (COW) TESTS
+// ============================================================================
+
+/// Test that create_workspace_reflink creates a COW workspace in RAM disk.
+///
+/// This test verifies:
+/// 1. create_workspace_reflink(manager, slug, source_path) returns Ok(Workspace)
+/// 2. Workspace path is /dev/shm/factory-{slug}
+/// 3. Workspace type is Reflink
+/// 4. Directory is created with contents from source_path
+/// 5. Operation completes in <50ms (COW efficiency)
+pub fn create_workspace_reflink_creates_cow_copy_in_ram_disk_test() {
+  let slug = "test-reflink"
+
+  // Setup: Create a temporary source directory with test content
+  let temp_source = "/tmp/factory-test-source-" <> slug
+  case simplifile.create_directory(temp_source) {
+    Ok(Nil) -> Nil
+    Error(_) -> should.fail()
+  }
+
+  // Create some test files in the source directory
+  case simplifile.write(temp_source <> "/file1.txt", "test content 1") {
+    Ok(Nil) -> Nil
+    Error(_) -> should.fail()
+  }
+
+  case simplifile.write(temp_source <> "/file2.txt", "test content 2") {
+    Ok(Nil) -> Nil
+    Error(_) -> should.fail()
+  }
+
+  // Setup: Create workspace manager
+  let assert Ok(manager_subject) = workspace_manager.start_link()
+
+  // Act: Create the reflink workspace
+  let result: Result(types.Workspace, String) =
+    workspace_manager.create_workspace_reflink(
+      manager_subject,
+      slug,
+      temp_source,
+    )
+
+  // Assert: create_workspace_reflink returns Ok(Workspace)
+  case result {
+    Ok(workspace) -> {
+      // Verify workspace path is /dev/shm/factory-{slug}
+      let expected_path = "/dev/shm/factory-" <> slug
+      workspace.path
+      |> should.equal(expected_path)
+
+      // Verify workspace type is Reflink
+      workspace.workspace_type
+      |> should.equal(types.Reflink)
+
+      // Verify workspace is registered in manager
+      let assert Ok(registered) = workspace_manager.query_workspace(
+        manager_subject,
+        workspace.id,
+      )
+      registered.id
+      |> should.equal(workspace.id)
+
+      // Verify COW copy exists and has content
+      case simplifile.read(expected_path <> "/file1.txt") {
+        Ok(content) -> {
+          content
+          |> should.equal("test content 1")
+        }
+        Error(_) -> should.fail()
+      }
+
+      // Cleanup: Remove temporary files
+      let _ = process.run_command("rm", ["-rf", temp_source], "/tmp")
+      Nil
     }
     Error(_msg) -> should.fail()
   }

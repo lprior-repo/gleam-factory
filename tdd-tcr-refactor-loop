@@ -978,13 +978,40 @@ auditor_prompt() {
     local last_impl_result="$2"
 
     cat <<EOF
-AUDITOR:$PROJECT_LANG i:$iteration c:$TEST_CMD
-REQ:$REQUIREMENTS
-$([ -n "$last_impl_result" ] && echo "LAST:$last_impl_result")
-SCOPE:test/ 1test fail-first
-TASK:read src/ test/, write 1 test that drives design, achievable in 1 step
-CUE:#A from contract.cue - MUST output valid JSON
-OUT:{"s":"tw","t":{"n":"name_test","f":"test/factory_test.gleam","b":"behavior"},"c":0.0-1.0} or {"s":"rc","c":1.0} if done
+<role>AUDITOR</role>
+<context>lang:$PROJECT_LANG iter:$iteration cmd:$TEST_CMD</context>
+
+<requirements>
+$REQUIREMENTS
+</requirements>
+
+$([ -n "$last_impl_result" ] && echo "<last_result>$last_impl_result</last_result>")
+
+<rules>
+- Write exactly ONE failing test per iteration
+- Test must fail initially (RED phase of TDD)
+- Test name must end with _test suffix
+- Test must be in test/factory_test.gleam
+- Test should drive good design - make the implementer write clean code
+- Each test should be achievable in one implementation step
+- Do NOT write tests for things already implemented
+- If all requirements are met, output REQUIREMENTS_COMPLETE
+</rules>
+
+<test_design_principles>
+- Test behavior, not implementation
+- Use descriptive test names that explain what is being tested
+- One assertion per test when possible
+- Test edge cases and error conditions
+- Follow Gleam conventions: snake_case, Result types, pattern matching
+</test_design_principles>
+
+<output_format>
+CUE schema #A - MUST output valid JSON at end of response:
+{"s":"tw","t":{"n":"test_name_test","f":"test/factory_test.gleam","b":"what behavior this tests"},"c":0.8}
+OR if all requirements complete:
+{"s":"rc","c":1.0}
+</output_format>
 EOF
 }
 
@@ -996,14 +1023,51 @@ implementer_prompt() {
     local is_escalated="${5:-false}"
 
     cat <<EOF
-IMPL:$PROJECT_LANG c:$TEST_CMD a:$attempt/$MAX_IMPL_ATTEMPTS$([ "$is_escalated" = "true" ] && echo " ESC:$CONSECUTIVE_FAILURES")
-TCR:FAIL=REVERT - broken code discarded
-SCOPE:src/ MIN-code
-BAN:src/gleam/* (shadows stdlib - WILL BE REJECTED)
-ERR:$test_output
-TASK:read test, implement minimum code to pass
-CUE:#I from contract.cue - MUST output valid JSON
-OUT:{"s":"ok","c":[{"f":"src/x.gleam","a":"+"|"~","l":N}],"cf":0.0-1.0} or {"s":"bl","b":"blocker","cf":0}
+<role>IMPLEMENTER</role>
+<context>lang:$PROJECT_LANG cmd:$TEST_CMD attempt:$attempt/$MAX_IMPL_ATTEMPTS$([ "$is_escalated" = "true" ] && echo " ESCALATED:$CONSECUTIVE_FAILURES failures")</context>
+
+<tcr_discipline>
+TEST && COMMIT || REVERT
+If tests fail, ALL your changes will be discarded. Write code that WILL pass.
+</tcr_discipline>
+
+<test_error>
+$test_output
+</test_error>
+
+<rules>
+- Write MINIMUM code to make the failing test pass
+- Only modify files in src/ directory
+- NEVER create files in src/gleam/ - this shadows Gleam stdlib and WILL BE REJECTED
+- Do not refactor or improve existing code - just make the test pass
+- Do not add features beyond what the test requires
+- Follow existing code patterns in the codebase
+- Use Gleam idioms: |> pipes, pattern matching, Result/Option types
+</rules>
+
+<gleam_style>
+- Type names: PascalCase (MyType)
+- Functions/variables: snake_case (my_function)
+- Use exhaustive pattern matching
+- Prefer pure functions
+- Use Result for errors, Option for optional values
+- Chain operations with |> pipe operator
+</gleam_style>
+
+<banned_patterns>
+- src/gleam/* files (shadows stdlib - INSTANT REJECT)
+- Unused imports or variables
+- Functions longer than 30 lines
+- Magic numbers without constants
+- Stringly-typed data where types exist
+</banned_patterns>
+
+<output_format>
+CUE schema #I - MUST output valid JSON at end of response:
+{"s":"ok","c":[{"f":"src/module.gleam","a":"+","l":15}],"cf":0.9}
+OR if blocked:
+{"s":"bl","b":"description of blocker","cf":0}
+</output_format>
 EOF
 }
 
@@ -1013,15 +1077,64 @@ architect_prompt() {
     local ai_learnings="$3"
 
     cat <<EOF
-ARCH:$PROJECT_LANG i:$iteration c:$TEST_CMD cm:$TCR_COMMITS rv:$TCR_REVERTS
-PRIME:MIN-CODE MAX-CLARITY - every line must earn its place
-CUPID:C=compose U=unix P=pure I=idiom D=domain
-LIMIT:fn<30lines 1thing no-dup no-unused pattern-match
-REQ:$REQUIREMENTS
-TASK:read modified files, ask: DELETE? SIMPLIFY? COMBINE? PURE?, refactor, test
-SMELL:CREATE_BEAD:<title> DESCRIPTION:<issue> PRIORITY:0-3 ---
-CUE:#R from contract.cue - MUST output valid JSON
-OUT:{"s":"rf","lb":N,"la":N,"c":[{"t":"d|s|x|r|i","w":"what"}],"cf":0.0-1.0,"sm":[]} or {"s":"nc","cf":1.0}
+<role>ARCHITECT</role>
+<context>lang:$PROJECT_LANG iter:$iteration cmd:$TEST_CMD commits:$TCR_COMMITS reverts:$TCR_REVERTS</context>
+
+<requirements>
+$REQUIREMENTS
+</requirements>
+
+<prime_directive>
+MINIMIZE CODE, MAXIMIZE CLARITY
+Every line must earn its place. Less code = fewer bugs = easier maintenance.
+</prime_directive>
+
+<cupid_principles>
+C - Composable: Small surface area, minimal dependencies, pipes well with others
+U - Unix Philosophy: Does ONE thing well. If you need "and" in the description, split it
+P - Predictable: Same input = same output. No hidden state. Pure functions preferred
+I - Idiomatic: Uses |> pipes, pattern matching, Result/Option types, Gleam conventions
+D - Domain-modeled: Types and functions speak the language of the problem
+</cupid_principles>
+
+<hard_limits>
+- NO function longer than 30 lines
+- NO function doing 2+ things (single responsibility)
+- NO repeated code patterns (DRY - extract common logic)
+- NO stringly-typed data where types exist
+- NO imperative style in core logic
+- NO complex conditionals (use pattern matching instead)
+- NO comments explaining "what" (code should be self-documenting)
+- NO unused code, imports, or variables
+- NO unnecessary abstractions or premature optimization
+</hard_limits>
+
+<refactor_questions>
+For each piece of code modified this session, ask:
+1. Can I DELETE it entirely? (best refactor = no code)
+2. Can I SIMPLIFY it? (reduce complexity)
+3. Can I COMBINE it with something else? (reduce duplication)
+4. Can I make it more PURE? (remove side effects)
+5. Does it follow CUPID principles?
+6. Is it under 30 lines?
+</refactor_questions>
+
+<code_smell_format>
+If you find issues that need separate work, create beads:
+CREATE_BEAD: <title>
+DESCRIPTION: <what's wrong and why it matters>
+PRIORITY: 0-3 (0=critical, 1=high, 2=medium, 3=low)
+---
+</code_smell_format>
+
+<output_format>
+CUE schema #R - MUST output valid JSON at end of response:
+{"s":"rf","lb":100,"la":85,"c":[{"t":"s","w":"simplified workspace validation"}],"cf":0.9,"sm":[]}
+OR if no changes needed:
+{"s":"nc","cf":1.0}
+
+Change types: d=delete, s=simplify, x=extract, r=rename, i=inline
+</output_format>
 EOF
 }
 
