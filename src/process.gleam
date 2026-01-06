@@ -1,6 +1,7 @@
 // Shell module - Execute external commands
 
 import gleam/list as gleam_list
+import gleam/result
 import gleam/string
 import simplifile
 import types
@@ -188,9 +189,25 @@ pub fn run_command_safe(
 
 /// Send ACP cancel notification for session via HTTP transport
 pub fn acp_send_cancel(client: types.AcpClient, session_id: String) -> Result(Nil, String) {
-  let types.AcpClient(_base_url) = client
-  let _notification = types.AcpNotification(session_id:, method: "session/cancel")
-  Error("network connection failed")
+  let types.AcpClient(base_url) = client
+  use json_body <- result.try(
+    types.encode_acp_notification(types.AcpNotification(session_id:, method: "session/cancel"))
+    |> result.map_error(fn(_) { "Failed to encode notification" })
+  )
+
+  run_command("curl", [
+    "-X", "POST",
+    "-H", "Content-Type: application/json",
+    "-d", json_body,
+    base_url
+  ], "")
+  |> result.try(fn(r) {
+    case r {
+      Success(_, _, 0) -> Ok(Nil)
+      Success(_, _, code) -> Error("http request failed with exit code " <> string.inspect(code))
+      Failure(err, code) -> Error("http request failed: " <> err <> " (code " <> string.inspect(code) <> ")")
+    }
+  })
 }
 
 /// Read text file content

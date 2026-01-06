@@ -77,80 +77,34 @@ pub fn test_integration(
   test_result
 }
 
-/// Test Go integration
 fn test_go_integration(repo_root: String) -> Result(IntegrationResult, String) {
-  process.run_command("go", ["test", "-v", "./..."], repo_root)
-  |> result.map(fn(result) {
-    case process.is_success(result) {
-      True -> Passed
-      False ->
-        Failed(
-          "Go integration tests failed: " <> case result {
-          process.Success(_, _, _) -> "unknown error"
-          process.Failure(err, code) ->
-            err <> " (exit " <> string.inspect(code) <> ")"
-        },
-        )
-    }
-  })
-  |> result.map_error(fn(err) { "Go integration test error: " <> err })
+  run_test_cmd("go", ["test", "-v", "./..."], "Go", repo_root)
 }
 
-/// Test Gleam integration
 fn test_gleam_integration(repo_root: String) -> Result(IntegrationResult, String) {
-  process.run_command("gleam", ["test"], repo_root)
-  |> result.map(fn(result) {
-    case process.is_success(result) {
-      True -> Passed
-      False ->
-        Failed(
-          "Gleam integration tests failed: " <> case result {
-          process.Success(_, _, _) -> "unknown error"
-          process.Failure(err, code) ->
-            err <> " (exit " <> string.inspect(code) <> ")"
-        },
-        )
-    }
-  })
-  |> result.map_error(fn(err) { "Gleam integration test error: " <> err })
+  run_test_cmd("gleam", ["test"], "Gleam", repo_root)
 }
 
-/// Test Rust integration
 fn test_rust_integration(repo_root: String) -> Result(IntegrationResult, String) {
-  process.run_command("cargo", ["test", "--all"], repo_root)
-  |> result.map(fn(result) {
-    case process.is_success(result) {
-      True -> Passed
-      False ->
-        Failed(
-          "Rust integration tests failed: " <> case result {
-          process.Success(_, _, _) -> "unknown error"
-          process.Failure(err, code) ->
-            err <> " (exit " <> string.inspect(code) <> ")"
-        },
-        )
-    }
-  })
-  |> result.map_error(fn(err) { "Rust integration test error: " <> err })
+  run_test_cmd("cargo", ["test", "--all"], "Rust", repo_root)
 }
 
-/// Test Python integration
 fn test_python_integration(repo_root: String) -> Result(IntegrationResult, String) {
-  process.run_command("python", ["-m", "pytest", "-v"], repo_root)
-  |> result.map(fn(result) {
-    case process.is_success(result) {
+  run_test_cmd("python", ["-m", "pytest", "-v"], "Python", repo_root)
+}
+
+fn run_test_cmd(cmd: String, args: List(String), lang: String, repo_root: String) -> Result(IntegrationResult, String) {
+  process.run_command(cmd, args, repo_root)
+  |> result.map(fn(r) {
+    case process.is_success(r) {
       True -> Passed
-      False ->
-        Failed(
-          "Python integration tests failed: " <> case result {
-          process.Success(_, _, _) -> "unknown error"
-          process.Failure(err, code) ->
-            err <> " (exit " <> string.inspect(code) <> ")"
-        },
-        )
+      False -> Failed(lang <> " integration tests failed: " <> case r {
+        process.Success(_, _, _) -> "unknown error"
+        process.Failure(err, code) -> err <> " (exit " <> string.inspect(code) <> ")"
+      })
     }
   })
-  |> result.map_error(fn(err) { "Python integration test error: " <> err })
+  |> result.map_error(fn(err) { lang <> " integration test error: " <> err })
 }
 
 /// Get the base branch (main or master)
