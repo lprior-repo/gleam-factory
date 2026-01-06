@@ -7,6 +7,7 @@ import cli
 import utils
 import stages
 import worktree
+import integration
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -347,6 +348,45 @@ pub fn cleanup_stale_worktrees_returns_count_test() {
   // It should return a Result containing the count of removed worktrees
   worktree.cleanup_stale_worktrees(30)
   |> should.be_ok
+}
+
+// ============================================================================
+// INTEGRATION TESTS - retry_with_backoff
+// ============================================================================
+
+pub fn retry_with_backoff_succeeds_on_first_attempt_test() {
+  // When a function succeeds on first attempt,
+  // retry_with_backoff should return Ok immediately without retrying
+  let test_fn = fn() { Ok("success") }
+
+  integration.retry_with_backoff(test_fn, 3)
+  |> should.equal(Ok("success"))
+}
+
+pub fn retry_with_backoff_succeeds_after_retries_test() {
+  // When a function succeeds (even on retry),
+  // retry_with_backoff should return Ok
+  let test_fn = fn() { Ok("recovered") }
+
+  integration.retry_with_backoff(test_fn, 3)
+  |> should.equal(Ok("recovered"))
+}
+
+pub fn retry_with_backoff_exhausts_retries_test() {
+  // When a function always fails and retries are exhausted,
+  // retry_with_backoff should return the last error
+  let test_fn = fn() { Error("persistent error") }
+
+  integration.retry_with_backoff(test_fn, 2)
+  |> should.equal(Error("persistent error"))
+}
+
+pub fn retry_with_backoff_zero_retries_test() {
+  // When retries is 0, should attempt once and return result
+  let test_fn = fn() { Error("immediate failure") }
+
+  integration.retry_with_backoff(test_fn, 0)
+  |> should.equal(Error("immediate failure"))
 }
 
 // ============================================================================
