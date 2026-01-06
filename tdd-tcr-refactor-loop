@@ -44,15 +44,10 @@ find_bead() {
     local bead_id="$1"
     local bead_json=""
 
-    # Try bv first (best: includes graph metrics)
-    if command -v bv >/dev/null 2>&1; then
-        # bv doesn't have a show command, so we use grep with fallback
-        :
-    fi
-
     # Try bd command (if available) for better integration
+    # Note: bd show --json returns an array, so extract first element
     if command -v bd >/dev/null 2>&1; then
-        bead_json=$(bd show "$bead_id" --json 2>/dev/null)
+        bead_json=$(bd show "$bead_id" --json 2>/dev/null | jq '.[0]' 2>/dev/null)
         if [ -n "$bead_json" ] && [ "$bead_json" != "null" ]; then
             echo "$bead_json"
             return 0
