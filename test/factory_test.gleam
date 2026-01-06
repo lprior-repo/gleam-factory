@@ -1606,3 +1606,128 @@ pub fn workspace_manager_query_workspace_returns_error_when_not_found_test() {
     Error(_msg) -> Nil  // Graceful error handling
   }
 }
+
+// ============================================================================
+// GIT HASH TESTS
+// ============================================================================
+
+/// Test that GitHash.parse validates a valid 40-character lowercase hex string.
+///
+/// This drives the implementation of:
+/// 1. A GitHash opaque type in src/types.gleam
+/// 2. A parse(String) -> Result(GitHash, String) function that validates the input
+/// 3. Validation rules: exactly 40 characters, all lowercase hexadecimal digits
+///
+/// Design rationale: Git commit hashes are always 40 hex characters (SHA-1).
+/// Making this an opaque type ensures type safety and prevents invalid hashes
+/// from being used throughout the system.
+///
+/// This drives good design by:
+/// - Enforcing validation at the boundary (during parsing)
+/// - Using Result type for explicit error handling
+/// - Making illegal states unrepresentable (can't have a GitHash that's invalid)
+///
+/// Edge case: Tests with a realistic git SHA-1 hash to ensure the validation
+/// accepts the exact format that git actually produces.
+pub fn git_hash_parse_accepts_valid_40_char_lowercase_hex_test() {
+  // Arrange: A valid git SHA-1 hash (40 lowercase hex characters)
+  let valid_hash = "a1b2c3d4e5f6789012345678901234567890abcd"
+
+  // Act: Parse the valid hash
+  let result = types.git_hash_parse(valid_hash)
+
+  // Assert: Should successfully parse and return Ok(GitHash)
+  result
+  |> should.be_ok
+}
+
+/// Test that GitHash.parse rejects hashes that are too short.
+///
+/// This drives validation of the 40-character requirement.
+/// Any hash shorter than 40 characters is invalid and should return Error.
+pub fn git_hash_parse_rejects_hash_too_short_test() {
+  // Arrange: A hash that's too short (39 characters)
+  let short_hash = "a1b2c3d4e5f6789012345678901234567890abc"
+
+  // Act: Try to parse the short hash
+  let result = types.git_hash_parse(short_hash)
+
+  // Assert: Should reject with Error
+  result
+  |> should.be_error
+}
+
+/// Test that GitHash.parse rejects hashes that are too long.
+///
+/// This drives validation of the 40-character requirement.
+/// Any hash longer than 40 characters is invalid and should return Error.
+pub fn git_hash_parse_rejects_hash_too_long_test() {
+  // Arrange: A hash that's too long (41 characters)
+  let long_hash = "a1b2c3d4e5f6789012345678901234567890abcde"
+
+  // Act: Try to parse the long hash
+  let result = types.git_hash_parse(long_hash)
+
+  // Assert: Should reject with Error
+  result
+  |> should.be_error
+}
+
+/// Test that GitHash.parse rejects hashes with uppercase characters.
+///
+/// This drives validation that hashes must be lowercase hexadecimal.
+/// Git hashes are typically displayed in lowercase, and this constraint
+/// ensures consistency.
+pub fn git_hash_parse_rejects_uppercase_hex_test() {
+  // Arrange: A 40-character hex string with uppercase letters
+  let uppercase_hash = "A1B2C3D4E5F6789012345678901234567890ABCD"
+
+  // Act: Try to parse the uppercase hash
+  let result = types.git_hash_parse(uppercase_hash)
+
+  // Assert: Should reject with Error
+  result
+  |> should.be_error
+}
+
+/// Test that GitHash.parse rejects hashes with non-hexadecimal characters.
+///
+/// This drives validation that only 0-9 and a-f are valid characters.
+/// Any other character should cause rejection.
+pub fn git_hash_parse_rejects_non_hex_characters_test() {
+  // Arrange: A 40-character string with invalid characters (g, h, z, space, etc.)
+  let invalid_hash = "z1b2c3d4e5f6789012345678901234567890abcd"
+
+  // Act: Try to parse the invalid hash
+  let result = types.git_hash_parse(invalid_hash)
+
+  // Assert: Should reject with Error
+  result
+  |> should.be_error
+}
+
+/// Test that GitHash.to_string unwraps the opaque type back to a String.
+///
+/// This drives the implementation of:
+/// 1. A to_string(GitHash) -> String function
+/// 2. Recovery of the original hash string from the opaque wrapper
+///
+/// Design rationale: While GitHash is opaque for type safety, we need a way
+/// to extract the underlying string for display, serialization, or comparison.
+///
+/// This drives good design by:
+/// - Providing the minimal interface needed to work with the opaque type
+/// - Using a simple, predictable function name (to_string)
+/// - Maintaining the guarantee that a GitHash can always be converted back
+pub fn git_hash_to_string_unwraps_valid_hash_test() {
+  // Arrange: A valid hash that we parse
+  let valid_hash = "b2c3d4e5f6789012345678901234567890abcd1a"
+  let assert Ok(git_hash) = types.git_hash_parse(valid_hash)
+
+  // Act: Convert back to string
+  let result = types.git_hash_to_string(git_hash)
+
+  // Assert: Should return the original hash string
+  result
+  |> should.equal(valid_hash)
+}
