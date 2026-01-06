@@ -916,6 +916,25 @@ pub fn default_config_returns_config_with_sensible_defaults_test() {
   |> should.equal(False)
 }
 
+/// Test that get_data_dir returns the data directory from a config.
+/// This is a simple accessor function that provides encapsulation
+/// and makes it easier to change the internal representation later.
+pub fn get_data_dir_returns_data_directory_test() {
+  // Arrange: create a config with a known data_dir
+  let cfg = config.Config(
+    data_dir: "/custom/data/path",
+    default_priority: config.P1,
+    verbose: True,
+  )
+
+  // Act: get the data directory using the accessor
+  let result = config.get_data_dir(cfg)
+
+  // Assert: should return the data_dir value from the config
+  result
+  |> should.equal("/custom/data/path")
+}
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
