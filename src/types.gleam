@@ -29,6 +29,11 @@ pub opaque type WorkspaceId {
   WorkspaceId(String)
 }
 
+/// Converts a string to a WorkspaceId opaque type.
+pub fn new_workspace_id(id: String) -> WorkspaceId {
+  WorkspaceId(id)
+}
+
 /// Workspace represents a managed workspace with metadata.
 pub type Workspace {
   Workspace(
