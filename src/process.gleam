@@ -229,7 +229,7 @@ pub fn acp_initialize(client: types.AcpClient, version: String) -> Result(types.
   run_command("curl", ["-X", "POST", "-d", "{\"version\":\"" <> version <> "\"}", base_url], "")
   |> result.try(fn(r) {
     case r {
-      Success(_, _, 0) -> Ok(types.set_capabilities(client, []))
+      Success(_, _, 0) -> Ok(client)
       Success(_, _, code) -> Error("http request failed with exit code " <> string.inspect(code))
       Failure(err, _) -> Error(err)
     }

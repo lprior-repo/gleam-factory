@@ -115,7 +115,7 @@ fn is_valid_hex(input: String) -> Bool {
 
 /// AcpClient represents an Agent Communication Protocol HTTP client.
 pub type AcpClient {
-  AcpClient(base_url: String, capabilities: option.Option(List(String)))
+  AcpClient(base_url: String)
 }
 
 /// AcpNotification represents an Agent Communication Protocol notification.
@@ -180,17 +180,37 @@ pub fn can_cancel(
   }
 }
 
-/// Extracts agent capabilities from AcpClient if present.
-pub fn get_agent_capabilities(client: AcpClient) -> option.Option(List(String)) {
-  client.capabilities
-}
-
-/// Updates AcpClient with discovered capabilities.
-pub fn set_capabilities(client: AcpClient, caps: List(String)) -> AcpClient {
-  AcpClient(..client, capabilities: option.Some(caps))
-}
 
 /// Extracts base_url from AcpClient.
 pub fn get_base_url(client: AcpClient) -> String {
   client.base_url
+}
+
+/// Parses ACP initialize response JSON extracting capabilities list.
+pub fn parse_initialize_result(json_str: String) -> Result(List(String), String) {
+  case string.contains(json_str, "capabilities") {
+    False -> Error("No capabilities field")
+    True -> {
+      json_str
+      |> extract_capabilities_array
+      |> Ok
+    }
+  }
+}
+
+fn extract_capabilities_array(json_str: String) -> List(String) {
+  json_str
+  |> string.split("\"capabilities\":[")
+  |> list.last
+  |> option.from_result
+  |> option.then(fn(s) { string.split(s, "]") |> list.first |> option.from_result })
+  |> option.map(parse_json_string_array)
+  |> option.unwrap([])
+}
+
+fn parse_json_string_array(s: String) -> List(String) {
+  s
+  |> string.replace("\"", "")
+  |> string.split(",")
+  |> list.filter(fn(x) { string.length(string.trim(x)) > 0 })
 }
