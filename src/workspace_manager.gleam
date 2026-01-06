@@ -6,6 +6,7 @@
 import gleam/dict
 import gleam/erlang/process.{type Subject}
 import gleam/otp/actor
+import simplifile
 import types.{type WorkspaceId, type Workspace}
 
 /// Message type for workspace manager actor.
@@ -68,13 +69,21 @@ fn handle_message(
       actor.continue(state)
     }
     DestroyWorkspace(id, reply_with) -> {
-      case dict.has_key(state.workspaces, id) {
-        True -> {
-          let new_workspaces = dict.delete(state.workspaces, id)
-          process.send(reply_with, Ok(Nil))
-          actor.continue(WorkspaceManagerState(workspaces: new_workspaces))
+      case dict.get(state.workspaces, id) {
+        Ok(workspace) -> {
+          case simplifile.delete_all([workspace.path]) {
+            Ok(Nil) -> {
+              let new_workspaces = dict.delete(state.workspaces, id)
+              process.send(reply_with, Ok(Nil))
+              actor.continue(WorkspaceManagerState(workspaces: new_workspaces))
+            }
+            Error(_) -> {
+              process.send(reply_with, Error("Failed to delete workspace directory"))
+              actor.continue(state)
+            }
+          }
         }
-        False -> {
+        Error(Nil) -> {
           process.send(reply_with, Error("Workspace not found"))
           actor.continue(state)
         }
