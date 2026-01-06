@@ -560,6 +560,25 @@ pub fn parse_args_new_command_with_flexible_flag_order_test() {
   |> should.equal(Ok(cli.NewTask("my-task", Some("path/to/contract.md"), False)))
 }
 
+/// Test that 'new' command without required --slug flag returns an error
+/// This tests requirement #3: validation for required arguments
+pub fn parse_args_new_command_missing_slug_returns_error_test() {
+  // Arrange: 'new' command with NO --slug flag at all
+  let args = ["new"]
+
+  // Act: parse the args
+  let result = cli.parse_args(args)
+
+  // Assert: should return Error with a message mentioning --slug is required
+  case result {
+    Error(msg) -> {
+      // The error message should clearly indicate that --slug is required
+      should.be_true(contains_substring(msg, "slug") || contains_substring(msg, "required"))
+    }
+    Ok(_) -> should.fail()
+  }
+}
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
