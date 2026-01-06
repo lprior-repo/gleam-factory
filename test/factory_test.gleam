@@ -671,6 +671,28 @@ pub fn parse_args_list_command_rejects_invalid_status_test() {
   }
 }
 
+/// Test that --strategy flag value must be immediate, gradual, or canary
+/// This tests requirement #5: flag value validation for --strategy
+pub fn parse_args_approve_command_rejects_invalid_strategy_test() {
+  // Arrange: 'approve' command with an invalid strategy value
+  // (not immediate, gradual, or canary)
+  let args = ["approve", "--slug", "my-task", "--strategy", "fast"]
+
+  // Act: parse the args
+  let result = cli.parse_args(args)
+
+  // Assert: should return Error with a message about invalid strategy value
+  // Valid values are: immediate, gradual, canary
+  case result {
+    Error(msg) -> {
+      // The error message should indicate that the strategy value is invalid
+      // and ideally mention valid values (immediate, gradual, canary)
+      should.be_true(contains_substring(msg, "strategy") || contains_substring(msg, "immediate"))
+    }
+    Ok(_) -> should.fail()
+  }
+}
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
