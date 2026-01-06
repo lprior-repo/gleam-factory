@@ -832,6 +832,28 @@ pub fn parse_args_unknown_command_returns_error_test() {
   }
 }
 
+/// Test that list command accepts both --priority and --status together
+pub fn parse_args_list_command_with_both_priority_and_status_test() {
+  cli.parse_args(["list", "--priority", "P1", "--status", "open"])
+  |> should.equal(Ok(cli.ListTasks(Some("P1"), Some("open"))))
+}
+
+/// Test that stage command with short -s for slug works correctly
+pub fn parse_args_stage_command_with_short_slug_test() {
+  cli.parse_args(["stage", "-s", "my-task", "--stage", "implement"])
+  |> should.equal(Ok(cli.RunStage("my-task", "implement", False, None, None)))
+}
+
+/// Test that stage command missing slug returns clear error
+pub fn parse_args_stage_command_missing_slug_returns_error_test() {
+  case cli.parse_args(["stage", "--stage", "implement"]) {
+    Error(msg) -> {
+      should.be_true(contains_substring(msg, "--slug") && contains_substring(msg, "required"))
+    }
+    Ok(_) -> should.fail()
+  }
+}
+
 /// Test flexible flag ordering for 'stage' command: --stage before --slug should work
 /// This tests requirement #2: flags can appear in any order for all commands
 pub fn parse_args_stage_command_with_flexible_flag_order_test() {

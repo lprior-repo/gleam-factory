@@ -145,40 +145,144 @@ get_recent_history() {
 # Utility functions
 #---------------------------------------------------------------------------
 
-log_phase() {
+# Get terminal width
+get_term_width() {
+    tput cols 2>/dev/null || echo 80
+}
+
+# Draw a horizontal line
+draw_line() {
+    local char="${1:-═}"
+    local width="${2:-$(get_term_width)}"
+    printf '%*s' "$width" '' | tr ' ' "$char"
+}
+
+# Center text
+center_text() {
+    local text="$1"
+    local width="${2:-$(get_term_width)}"
+    local text_len=${#text}
+    local padding=$(( (width - text_len) / 2 ))
+    printf '%*s%s' "$padding" '' "$text"
+}
+
+# Draw fancy box
+draw_box() {
+    local title="$1"
+    local color="$2"
+    local width=$(get_term_width)
+    local inner_width=$((width - 4))
+
     echo ""
-    echo -e "${BLUE}════════════════════════════════════════════════════════════${NC}"
-    echo -e "${BLUE}  $1${NC}"
-    echo -e "${BLUE}════════════════════════════════════════════════════════════${NC}"
+    echo -e "${color}╔$(draw_line '═' $((width-2)))╗${NC}"
+    echo -e "${color}║$(center_text "$title" $((width-2)))║${NC}"
+    echo -e "${color}╚$(draw_line '═' $((width-2)))╝${NC}"
+    echo ""
+}
+
+# Draw status dashboard
+draw_dashboard() {
+    local iteration="$1"
+    local width=$(get_term_width)
+
+    echo -e "${DIM}$(draw_line '─' $width)${NC}"
+    echo -e "${BOLD}  📊 DASHBOARD${NC}  │  Iteration: ${CYAN}$iteration${NC}  │  Commits: ${GREEN}$TCR_COMMITS${NC}  │  Reverts: ${RED}$TCR_REVERTS${NC}  │  Refactors: ${WHITE}$REFACTOR_COUNT${NC}"
+    echo -e "${DIM}$(draw_line '─' $width)${NC}"
+}
+
+# Progress bar
+draw_progress() {
+    local current="$1"
+    local total="$2"
+    local width=30
+    local filled=$((current * width / total))
+    local empty=$((width - filled))
+    local percent=$((current * 100 / total))
+
+    printf "${CYAN}["
+    printf '%*s' "$filled" '' | tr ' ' "$PROGRESS_FULL"
+    printf '%*s' "$empty" '' | tr ' ' "$PROGRESS_EMPTY"
+    printf "] ${WHITE}%3d%%${NC}" "$percent"
+}
+
+log_phase() {
+    local title="$1"
+    draw_box "$title" "${BLUE}"
+}
+
+log_auditor() {
+    echo ""
+    echo -e "${YELLOW}┌$(draw_line '─' 58)┐${NC}"
+    echo -e "${YELLOW}│  🔍 AUDITOR: ${BOLD}$1${NC}${YELLOW}$(printf '%*s' $((44 - ${#1})) '')│${NC}"
+    echo -e "${YELLOW}└$(draw_line '─' 58)┘${NC}"
+    echo ""
+}
+
+log_implementer() {
+    echo ""
+    echo -e "${GREEN}┌$(draw_line '─' 58)┐${NC}"
+    echo -e "${GREEN}│  🔧 IMPLEMENTER: ${BOLD}$1${NC}${GREEN}$(printf '%*s' $((40 - ${#1})) '')│${NC}"
+    echo -e "${GREEN}└$(draw_line '─' 58)┘${NC}"
     echo ""
 }
 
 log_architect() {
     echo ""
-    echo -e "${WHITE}╔══════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${WHITE}║  🏛️  ARCHITECT: $1${NC}"
-    echo -e "${WHITE}╚══════════════════════════════════════════════════════════╝${NC}"
+    echo -e "${WHITE}${BOLD}╔$(draw_line '═' 58)╗${NC}"
+    echo -e "${WHITE}${BOLD}║  🏛️  ARCHITECT: $1$(printf '%*s' $((40 - ${#1})) '')║${NC}"
+    echo -e "${WHITE}${BOLD}╚$(draw_line '═' 58)╝${NC}"
+    echo ""
+}
+
+log_reviewer() {
+    echo ""
+    echo -e "${MAGENTA}╔$(draw_line '═' 58)╗${NC}"
+    echo -e "${MAGENTA}║  📋 REVIEWER: ${BOLD}$1${NC}${MAGENTA}$(printf '%*s' $((42 - ${#1})) '')║${NC}"
+    echo -e "${MAGENTA}╚$(draw_line '═' 58)╝${NC}"
     echo ""
 }
 
 log_info() {
-    echo -e "${CYAN}→ $1${NC}"
+    echo -e "  ${CYAN}→${NC} $1"
 }
 
 log_success() {
-    echo -e "${GREEN}✓ $1${NC}"
+    echo -e "  ${GREEN}✓${NC} ${GREEN}$1${NC}"
 }
 
 log_warning() {
-    echo -e "${YELLOW}⚠ $1${NC}"
+    echo -e "  ${YELLOW}⚠${NC} ${YELLOW}$1${NC}"
 }
 
 log_error() {
-    echo -e "${RED}✗ $1${NC}"
+    echo -e "  ${RED}✗${NC} ${RED}$1${NC}"
 }
 
 log_tcr() {
-    echo -e "${MAGENTA}⟳ TCR: $1${NC}"
+    echo -e "  ${MAGENTA}⟳${NC} ${BOLD}TCR:${NC} $1"
+}
+
+log_tdd_phase() {
+    local phase="$1"
+    local color="$2"
+    local emoji="$3"
+    echo -e "\n  ${color}${emoji} ${BOLD}${phase}${NC}"
+}
+
+# Show TDD cycle indicator
+show_tdd_cycle() {
+    local phase="$1"  # red, green, refactor
+    local r_color="${DIM}"
+    local g_color="${DIM}"
+    local f_color="${DIM}"
+
+    case "$phase" in
+        red) r_color="${RED}${BOLD}" ;;
+        green) g_color="${GREEN}${BOLD}" ;;
+        refactor) f_color="${WHITE}${BOLD}" ;;
+    esac
+
+    echo -e "\n  TDD Cycle: [${r_color}RED${NC}] → [${g_color}GREEN${NC}] → [${f_color}REFACTOR${NC}]"
 }
 
 #---------------------------------------------------------------------------
@@ -578,7 +682,9 @@ run_auditor() {
     local last_result="$2"
     local prompt
 
-    log_phase "AUDITOR PHASE (Iteration $iteration)"
+    show_tdd_cycle "red"
+    log_auditor "Writing failing test (Iteration $iteration)"
+    draw_dashboard "$iteration"
 
     lock_src
     unlock_tests
@@ -615,10 +721,12 @@ run_implementer() {
     local iteration="$2"
     local attempt=1
 
-    log_phase "IMPLEMENTER PHASE (with TCR)"
+    show_tdd_cycle "green"
+    log_implementer "Making test pass (Iteration $iteration)"
+    draw_dashboard "$iteration"
 
     while [ $attempt -le $MAX_IMPL_ATTEMPTS ]; do
-        log_info "Implementation attempt $attempt of $MAX_IMPL_ATTEMPTS"
+        log_info "Implementation attempt $attempt of $MAX_IMPL_ATTEMPTS $(draw_progress $attempt $MAX_IMPL_ATTEMPTS)"
 
         lock_tests
         unlock_src
@@ -670,7 +778,9 @@ run_implementer() {
 run_architect() {
     local iteration="$1"
 
-    log_architect "REFACTOR PHASE (after $SUCCESSFUL_IMPLS successful implementations)"
+    show_tdd_cycle "refactor"
+    log_architect "REFACTOR PHASE (after $SUCCESSFUL_IMPLS green cycles)"
+    draw_dashboard "$iteration"
 
     unlock_all
 
@@ -711,7 +821,8 @@ run_architect() {
 }
 
 run_reviewer() {
-    log_phase "FINAL REVIEW PHASE"
+    log_reviewer "Final Production Polish"
+    draw_dashboard "FINAL"
 
     unlock_all
 
