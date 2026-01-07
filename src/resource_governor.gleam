@@ -66,8 +66,20 @@ fn handle_message(state: State, msg: GovernorMessage) -> actor.Next(State, Gover
         }
       }
     }
-    ReleaseMutator -> actor.continue(State(..state, mutators: state.mutators - 1))
-    ReleaseLoop -> actor.continue(State(..state, loops: state.loops - 1))
+    ReleaseMutator -> {
+      let new_count = case state.mutators - 1 < 0 {
+        True -> 0
+        False -> state.mutators - 1
+      }
+      actor.continue(State(..state, mutators: new_count))
+    }
+    ReleaseLoop -> {
+      let new_count = case state.loops - 1 < 0 {
+        True -> 0
+        False -> state.loops - 1
+      }
+      actor.continue(State(..state, loops: new_count))
+    }
   }
 }
 

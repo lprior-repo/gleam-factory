@@ -5,11 +5,13 @@
 import gleam/dict
 import gleam/erlang/process.{type Subject}
 
+import signals
+
 /// Signal types that can be published/subscribed.
 pub type Signal {
   TestFailure
   TestPassing
-  BeadAssigned
+  BeadAssigned(signals.BeadAssigned)
   PatchProposed
   PatchAccepted
   PatchRejected

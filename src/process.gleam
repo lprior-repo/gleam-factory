@@ -202,6 +202,63 @@ pub fn acp_send_cancel(client: types.AcpClient, session_id: String) -> Result(Ni
   })
 }
 
+/// Create a new ACP session via HTTP transport, returns session_id
+pub fn acp_new_session(client: types.AcpClient) -> Result(String, String) {
+  let json_body = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"session/new\",\"params\":{}}"
+  use cmd_result <- result.try(run_command("curl", ["-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", json_body, types.get_base_url(client)], ""))
+  use json <- result.try(case cmd_result {
+    Success(stdout, _, 0) -> Ok(stdout)
+    Success(_, _, code) | Failure(_, code) -> Error("http failed code " <> string.inspect(code))
+  })
+  parse_session_id(json)
+}
+
+fn parse_session_id(json: String) -> Result(String, String) {
+  case string.split(json, "\"sessionId\":\"") {
+    [_, rest, ..] -> case string.split(rest, "\"") {
+      [session_id, ..] -> Ok(session_id)
+      [] -> Error("malformed session_id response")
+    }
+    _ -> Error("no sessionId in response")
+  }
+}
+
+/// Send a prompt to an ACP session, returns response content
+pub fn acp_session_prompt(
+  client: types.AcpClient,
+  session_id: String,
+  prompt: String,
+) -> Result(String, String) {
+  let json_body = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"session/prompt\",\"params\":{\"meta\":{\"sessionId\":\""
+    <> session_id
+    <> "\"},\"text\":\""
+    <> escape_json_string(prompt)
+    <> "\"}}"
+  use cmd_result <- result.try(run_command("curl", ["-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", json_body, types.get_base_url(client)], ""))
+  use json <- result.try(case cmd_result {
+    Success(stdout, _, 0) -> Ok(stdout)
+    Success(_, _, code) | Failure(_, code) -> Error("http failed code " <> string.inspect(code))
+  })
+  extract_response_text(json)
+}
+
+fn extract_response_text(json: String) -> Result(String, String) {
+  case string.split(json, "\"text\":\"") {
+    [_, rest, ..] -> case string.split(rest, "\"") {
+      [text, ..] -> Ok(text)
+      [] -> Error("malformed response text")
+    }
+    _ -> Error("no text in response")
+  }
+}
+
+fn escape_json_string(s: String) -> String {
+  s
+  |> string.replace("\\", "\\\\")
+  |> string.replace("\"", "\\\"")
+  |> string.replace("\n", "\\n")
+}
+
 /// Read text file content
 pub fn fs_read_text_file(path: String) -> Result(String, String) {
   simplifile.read(path)
@@ -212,6 +269,36 @@ fn map_simplifile_error(result: Result(String, simplifile.FileError)) -> Result(
   case result {
     Ok(content) -> Ok(content)
     Error(_) -> Error("File read failed")
+  }
+}
+
+/// Role-based filesystem permissions
+pub type FsRole {
+  Auditor
+  Implementer
+}
+
+/// Write text file with role-based path enforcement
+pub fn fs_write_text_file(
+  path: String,
+  content: String,
+  role: FsRole,
+) -> Result(Nil, String) {
+  case is_path_allowed(path, role) {
+    False -> Error("Path not allowed for role")
+    True -> {
+      case simplifile.write(path, content) {
+        Ok(Nil) -> Ok(Nil)
+        Error(_) -> Error("File write failed")
+      }
+    }
+  }
+}
+
+fn is_path_allowed(path: String, role: FsRole) -> Bool {
+  case role {
+    Auditor -> string.contains(path, "test/")
+    Implementer -> string.contains(path, "src/") && !string.contains(path, "src/gleam/")
   }
 }
 
