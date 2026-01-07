@@ -318,9 +318,9 @@ fn release_valid_ticket(state: GpuState, ticket: GpuTicket, reply: Subject(Resul
       gpu_loop(GpuState(..state, issued: new_issued), selector)
     }
     [w, ..rest] -> {
-      process.send(w, Ok(GpuTicket(state.gov_id, state.next)))
+      process.send(w, Ok(GpuTicket(state.gov_id, ticket.id)))
       process.send(reply, Ok(Nil))
-      gpu_loop(GpuState(..state, next: state.next + 1, issued: [state.next, ..new_issued], waiters: rest), selector)
+      gpu_loop(GpuState(..state, issued: new_issued, waiters: rest), selector)
     }
   }
 }
