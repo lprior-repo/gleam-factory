@@ -7,6 +7,7 @@ import gleam/erlang/process as erl_process
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/otp/actor
+import gleam/result
 import gleam/string
 import gleeunit
 import gleeunit/should
@@ -2621,5 +2622,17 @@ pub fn acp_notification_parsing_preserves_idempotency_test() {
 
   parsed1_a
   |> should.not_equal(parsed2_a)
+}
+
+pub fn acp_notification_method_extraction_composes_with_routing_test() {
+  let thought = "{\"method\":\"thought\",\"params\":{\"session_id\":\"s1\",\"content\":\"analyzing\"}}"
+  let tool_start = "{\"method\":\"tool_call_start\",\"params\":{\"session_id\":\"s1\",\"tool\":\"read\"}}"
+  let tool_update = "{\"method\":\"tool_call_update\",\"params\":{\"session_id\":\"s1\",\"chunk\":\"data\"}}"
+  let message = "{\"method\":\"agent_message\",\"params\":{\"session_id\":\"s1\",\"text\":\"done\"}}"
+
+  [thought, tool_start, tool_update, message]
+  |> list.filter_map(types.parse_acp_notification)
+  |> list.map(fn(n) { n.method })
+  |> should.equal(["thought", "tool_call_start", "tool_call_update", "agent_message"])
 }
 
