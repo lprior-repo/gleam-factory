@@ -2651,3 +2651,43 @@ pub fn acp_session_update_store_queries_by_session_id_test() {
   |> should.equal(2)
 }
 
+pub fn acp_update_filter_by_method_composes_with_session_query_test() {
+  let store = types.new_update_store()
+  let t1 = types.AcpNotification("s1", "thought")
+  let t2 = types.AcpNotification("s1", "tool_call_start")
+  let t3 = types.AcpNotification("s1", "thought")
+  let t4 = types.AcpNotification("s2", "thought")
+  let t5 = types.AcpNotification("s1", "agent_message")
+
+  let filter_thoughts = fn(notifs) {
+    list.filter(notifs, fn(n) { n.method == "thought" })
+  }
+
+  let s1_thoughts =
+    store
+    |> types.store_update(t1)
+    |> types.store_update(t2)
+    |> types.store_update(t3)
+    |> types.store_update(t4)
+    |> types.store_update(t5)
+    |> types.query_updates("s1")
+    |> filter_thoughts
+    |> list.length
+
+  s1_thoughts
+  |> should.equal(2)
+
+  let all_thoughts =
+    store
+    |> types.store_update(t1)
+    |> types.store_update(t2)
+    |> types.store_update(t3)
+    |> types.store_update(t4)
+    |> types.query_all_updates
+    |> filter_thoughts
+    |> list.length
+
+  all_thoughts
+  |> should.equal(3)
+}
+

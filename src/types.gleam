@@ -371,3 +371,24 @@ pub fn with_gpu_ticket(
   let _ = release_gpu_ticket(gov, ticket)
   work_result
 }
+
+import gleam/dict
+
+pub opaque type UpdateStore {
+  UpdateStore(store: dict.Dict(String, List(AcpNotification)))
+}
+
+pub fn new_update_store() -> UpdateStore {
+  UpdateStore(dict.new())
+}
+
+pub fn store_update(store: UpdateStore, notif: AcpNotification) -> UpdateStore {
+  let UpdateStore(d) = store
+  let AcpNotification(sid, _) = notif
+  UpdateStore(dict.upsert(d, sid, fn(opt) { case opt { option.Some(ns) -> [notif, ..ns] option.None -> [notif] }}))
+}
+
+pub fn query_updates(store: UpdateStore, sid: String) -> List(AcpNotification) {
+  let UpdateStore(d) = store
+  dict.get(d, sid) |> result.unwrap([]) |> list.reverse
+}
