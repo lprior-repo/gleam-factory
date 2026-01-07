@@ -2487,3 +2487,57 @@ pub fn gpu_governor_ticket_composes_with_work_pipeline_test() {
   Nil
 }
 
+/// Test GPU ticket release unblocks exactly one waiter in FIFO order.
+///
+/// CUPID pressure:
+/// - C (Compose): Multiple concurrent acquirers must compose without race
+/// - U (Unix): Governor does ONE thing - fair ticket dispatch
+/// - P (Pure): Same release order → same unblock order (deterministic)
+/// - I (Idiomatic): Process composition via Subject, not locks/semaphores
+/// - D (Domain): FIFO fairness prevents starvation in GPU queue
+///
+/// Forces implementer to confront:
+/// 1. FAIRNESS: Must track waiter order, not just "any waiter"
+/// 2. CONCURRENCY: Spawned waiters must actually block, not busy-wait
+/// 3. WAKEUP PRECISION: Release unblocks ONE waiter, not broadcast
+/// 4. STATE INTEGRITY: Ticket count accurate across concurrent ops
+/// 5. ACTOR MODEL: Waiters queue via Subject, implementer can't use mutex
+///
+/// Rejects lazy:
+/// - "no waiter queue" → random/unfair wakeup order
+/// - "broadcast wakeup" → race condition, multiple get same ticket
+/// - "busy wait loop" → wastes CPU, not idiomatic BEAM
+/// - "ticket count wrong" → double-release or phantom tickets
+///
+/// 30-line rule: handle_release logic should stay <30 lines for queue mgmt
+pub fn gpu_governor_unblocks_waiters_fifo_test() {
+  let assert Ok(gov) = types.new_gpu_governor(1)
+  let assert Ok(t1) = types.request_gpu_ticket(gov)
+
+  let parent = erl_process.new_subject()
+
+  erl_process.spawn(fn() {
+    let _t2 = types.request_gpu_ticket(gov)
+    erl_process.send(parent, "waiter2")
+  })
+
+  erl_process.spawn(fn() {
+    let _t3 = types.request_gpu_ticket(gov)
+    erl_process.send(parent, "waiter3")
+  })
+
+  erl_process.sleep(50)
+
+  let assert Ok(Nil) = types.release_gpu_ticket(gov, t1)
+
+  case erl_process.receive(parent, 100) {
+    Ok(msg) -> msg |> should.equal("waiter2")
+    Error(_) -> should.fail()
+  }
+
+  case erl_process.receive(parent, 50) {
+    Ok(_) -> should.fail()
+    Error(_) -> Nil
+  }
+}
+
