@@ -16,6 +16,8 @@ pub type ResourceLimits {
 pub type GovernorMessage {
   AcquireMutator(reply_with: Subject(Result(Nil, String)))
   AcquireLoop(reply_with: Subject(Result(Nil, String)))
+  ReleaseMutator
+  ReleaseLoop
 }
 
 type State {
@@ -59,6 +61,8 @@ fn handle_message(state: State, msg: GovernorMessage) -> actor.Next(State, Gover
         }
       }
     }
+    ReleaseMutator -> actor.continue(State(..state, mutators: state.mutators - 1))
+    ReleaseLoop -> actor.continue(State(..state, loops: state.loops - 1))
   }
 }
 
@@ -78,4 +82,8 @@ pub fn acquire_loop(gov: Subject(GovernorMessage)) -> Result(Nil, String) {
     Ok(result) -> result
     Error(Nil) -> Error("timeout")
   }
+}
+
+pub fn release(gov: Subject(GovernorMessage), _ticket: Nil) -> Nil {
+  process.send(gov, ReleaseMutator)
 }
