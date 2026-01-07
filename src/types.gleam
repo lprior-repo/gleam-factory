@@ -240,12 +240,15 @@ pub fn encode_initialize_request(
   |> Ok
 }
 
-pub type GpuTicket {
-  GpuTicket(id: Int)
+@external(erlang, "erlang", "phash2")
+fn hash_pid(pid: process.Pid) -> Int
+
+pub opaque type GpuTicket {
+  GpuTicket(gov_id: Int, id: Int)
 }
 
 pub opaque type GpuGovernor {
-  GpuGovernor(subject: Subject(GpuMessage))
+  GpuGovernor(gov_id: Int, subject: Subject(GpuMessage))
 }
 
 type GpuMessage {
@@ -254,23 +257,25 @@ type GpuMessage {
 }
 
 type GpuState {
-  GpuState(limit: Int, issued: Int, waiters: List(Subject(Result(GpuTicket, Nil))))
+  GpuState(gov_id: Int, limit: Int, next: Int, issued: List(Int), waiters: List(Subject(Result(GpuTicket, Nil))))
 }
 
 pub fn new_gpu_governor(limit: Int) -> Result(GpuGovernor, Nil) {
   case limit > 0 {
     False -> Error(Nil)
     True -> {
-      let initial = GpuState(limit:, issued: 0, waiters: [])
       let parent_subject = process.new_subject()
       process.spawn(fn() {
         let child_subject = process.new_subject()
-        process.send(parent_subject, child_subject)
+        let assert Ok(pid) = process.subject_owner(child_subject)
+        let gov_id = hash_pid(pid)
+        let initial = GpuState(gov_id:, limit:, next: 0, issued: [], waiters: [])
+        process.send(parent_subject, #(gov_id, child_subject))
         let selector = process.new_selector() |> process.select(child_subject)
         gpu_loop(initial, selector)
       })
       case process.receive(parent_subject, 5000) {
-        Ok(child_subject) -> Ok(GpuGovernor(child_subject))
+        Ok(#(gov_id, child_subject)) -> Ok(GpuGovernor(gov_id, child_subject))
         Error(_) -> Error(Nil)
       }
     }
@@ -280,32 +285,41 @@ pub fn new_gpu_governor(limit: Int) -> Result(GpuGovernor, Nil) {
 fn gpu_loop(state: GpuState, selector: process.Selector(GpuMessage)) -> Nil {
   case process.selector_receive_forever(selector) {
     Request(reply:) ->
-      case state.issued < state.limit {
+      case list.length(state.issued) < state.limit {
         True -> {
-          let ticket = GpuTicket(state.issued)
+          let ticket = GpuTicket(state.gov_id, state.next)
           process.send(reply, Ok(ticket))
-          gpu_loop(GpuState(..state, issued: state.issued + 1), selector)
+          gpu_loop(GpuState(..state, next: state.next + 1, issued: [state.next, ..state.issued]), selector)
         }
         False -> gpu_loop(GpuState(..state, waiters: [reply, ..state.waiters]), selector)
       }
-    Release(_ticket, reply:) ->
-      case state.waiters {
-        [] -> {
-          process.send(reply, Ok(Nil))
-          gpu_loop(GpuState(..state, issued: state.issued - 1), selector)
+    Release(ticket, reply:) ->
+      case ticket.gov_id == state.gov_id && list.contains(state.issued, ticket.id) {
+        False -> {
+          process.send(reply, Error(Nil))
+          gpu_loop(state, selector)
         }
-        [w, ..rest] -> {
-          let new_ticket = GpuTicket(state.issued)
-          process.send(w, Ok(new_ticket))
-          process.send(reply, Ok(Nil))
-          gpu_loop(GpuState(..state, waiters: rest), selector)
+        True -> {
+          let new_issued = list.filter(state.issued, fn(id) { id != ticket.id })
+          case state.waiters {
+            [] -> {
+              process.send(reply, Ok(Nil))
+              gpu_loop(GpuState(..state, issued: new_issued), selector)
+            }
+            [w, ..rest] -> {
+              let new_ticket = GpuTicket(state.gov_id, state.next)
+              process.send(w, Ok(new_ticket))
+              process.send(reply, Ok(Nil))
+              gpu_loop(GpuState(..state, next: state.next + 1, issued: [state.next, ..new_issued], waiters: rest), selector)
+            }
+          }
         }
       }
   }
 }
 
 pub fn request_gpu_ticket(gov: GpuGovernor) -> Result(GpuTicket, Nil) {
-  let GpuGovernor(subj) = gov
+  let GpuGovernor(_, subj) = gov
   let reply_subj = process.new_subject()
   process.send(subj, Request(reply_subj))
   case process.receive(reply_subj, 5000) {
@@ -319,7 +333,7 @@ pub fn release_gpu_ticket(
   gov: GpuGovernor,
   ticket: GpuTicket,
 ) -> Result(Nil, Nil) {
-  let GpuGovernor(subj) = gov
+  let GpuGovernor(_, subj) = gov
   let reply_subj = process.new_subject()
   process.send(subj, Release(ticket, reply_subj))
   case process.receive(reply_subj, 5000) {
