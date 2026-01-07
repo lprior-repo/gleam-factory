@@ -176,3 +176,24 @@ pub fn print_error_context(
     io.println("  " <> key <> ": " <> value)
   })
 }
+
+/// Convert int to string (replaces duplicates across audit, validation, llm_router)
+pub fn int_to_string(n: Int) -> String {
+  case n < 0 {
+    True -> "-" <> int_to_string(-n)
+    False ->
+      case n {
+        0 -> "0"
+        1 -> "1"
+        2 -> "2"
+        3 -> "3"
+        4 -> "4"
+        5 -> "5"
+        6 -> "6"
+        7 -> "7"
+        8 -> "8"
+        9 -> "9"
+        _ -> int_to_string(n / 10) <> int_to_string(n % 10)
+      }
+  }
+}

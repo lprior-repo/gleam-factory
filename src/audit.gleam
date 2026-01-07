@@ -8,6 +8,7 @@ import gleam/result
 import gleam/json
 import gleam/dynamic/decode
 import simplifile
+import factory/utils
 
 /// Type of audit event
 pub type AuditEventType {
@@ -234,7 +235,7 @@ pub fn log_stage_started(
 ) -> Result(Nil, String) {
   log_event(repo_root, StageStarted, task_slug, "Stage started: " <> stage_name, [
     #("stage", stage_name),
-    #("attempt", int_to_string(attempt)),
+    #("attempt", utils.int_to_string(attempt)),
   ])
 }
 
@@ -247,7 +248,7 @@ pub fn log_stage_passed(
 ) -> Result(Nil, String) {
   log_event(repo_root, StagePassed, task_slug, "Stage passed: " <> stage_name, [
     #("stage", stage_name),
-    #("duration_ms", int_to_string(duration_ms)),
+    #("duration_ms", utils.int_to_string(duration_ms)),
   ])
 }
 
@@ -285,8 +286,8 @@ pub fn log_deployment_started(
     repo_root,
     DeploymentStarted,
     task_slug,
-    "Deployment started at " <> int_to_string(rollout_percentage) <> "%",
-    [#("rollout_percentage", int_to_string(rollout_percentage))],
+    "Deployment started at " <> utils.int_to_string(rollout_percentage) <> "%",
+    [#("rollout_percentage", utils.int_to_string(rollout_percentage))],
   )
 }
 
@@ -393,23 +394,3 @@ fn json_to_entry(json_string: String) -> Result(AuditEntry, Nil) {
   }
 }
 
-/// Helper to convert int to string
-fn int_to_string(n: Int) -> String {
-  case n < 0 {
-    True -> "-" <> int_to_string(-n)
-    False ->
-      case n {
-        0 -> "0"
-        1 -> "1"
-        2 -> "2"
-        3 -> "3"
-        4 -> "4"
-        5 -> "5"
-        6 -> "6"
-        7 -> "7"
-        8 -> "8"
-        9 -> "9"
-        _ -> int_to_string(n / 10) <> int_to_string(n % 10)
-      }
-  }
-}
