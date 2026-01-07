@@ -241,3 +241,30 @@ fn parse_json_string_array(s: String) -> List(String) {
   |> string.split(",")
   |> list.filter(fn(x) { string.length(string.trim(x)) > 0 })
 }
+
+/// Encodes MCP initialize request to JSON string.
+pub fn encode_initialize_request(
+  protocol_version: String,
+  client_name: String,
+  client_version: String,
+) -> Result(String, Nil) {
+  json.object([
+    #("jsonrpc", json.string("2.0")),
+    #("method", json.string("initialize")),
+    #(
+      "params",
+      json.object([
+        #("protocolVersion", json.string(protocol_version)),
+        #(
+          "clientInfo",
+          json.object([
+            #("name", json.string(client_name)),
+            #("version", json.string(client_version)),
+          ]),
+        ),
+      ]),
+    ),
+  ])
+  |> json.to_string
+  |> Ok
+}
