@@ -285,49 +285,55 @@ pub fn new_gpu_governor(limit: Int) -> Result(GpuGovernor, Nil) {
 
 fn gpu_loop(state: GpuState, selector: process.Selector(GpuMessage)) -> Nil {
   case process.selector_receive_forever(selector) {
-    Request(reply:) ->
-      case list.length(state.issued) < state.limit {
-        True -> {
-          let ticket = GpuTicket(state.gov_id, state.next)
-          process.send(reply, Ok(ticket))
-          gpu_loop(GpuState(..state, next: state.next + 1, issued: [state.next, ..state.issued]), selector)
-        }
-        False -> gpu_loop(GpuState(..state, waiters: [reply, ..state.waiters]), selector)
-      }
-    Release(ticket, reply:) ->
-      case ticket.gov_id == state.gov_id && list.contains(state.issued, ticket.id) {
-        False -> {
-          process.send(reply, Error(Nil))
-          gpu_loop(state, selector)
-        }
-        True -> {
-          let new_issued = list.filter(state.issued, fn(id) { id != ticket.id })
-          case state.waiters {
-            [] -> {
-              process.send(reply, Ok(Nil))
-              gpu_loop(GpuState(..state, issued: new_issued), selector)
-            }
-            [w, ..rest] -> {
-              let new_ticket = GpuTicket(state.gov_id, state.next)
-              process.send(w, Ok(new_ticket))
-              process.send(reply, Ok(Nil))
-              gpu_loop(GpuState(..state, next: state.next + 1, issued: [state.next, ..new_issued], waiters: rest), selector)
-            }
-          }
-        }
-      }
+    Request(reply:) -> handle_request(state, reply, selector)
+    Release(ticket, reply:) -> handle_release(state, ticket, reply, selector)
   }
+}
+
+fn handle_request(state: GpuState, reply: Subject(Result(GpuTicket, Nil)), selector: process.Selector(GpuMessage)) -> Nil {
+  case list.length(state.issued) < state.limit {
+    True -> {
+      process.send(reply, Ok(GpuTicket(state.gov_id, state.next)))
+      gpu_loop(GpuState(..state, next: state.next + 1, issued: [state.next, ..state.issued]), selector)
+    }
+    False -> gpu_loop(GpuState(..state, waiters: [reply, ..state.waiters]), selector)
+  }
+}
+
+fn handle_release(state: GpuState, ticket: GpuTicket, reply: Subject(Result(Nil, Nil)), selector: process.Selector(GpuMessage)) -> Nil {
+  case ticket.gov_id == state.gov_id && list.contains(state.issued, ticket.id) {
+    False -> {
+      process.send(reply, Error(Nil))
+      gpu_loop(state, selector)
+    }
+    True -> release_valid_ticket(state, ticket, reply, selector)
+  }
+}
+
+fn release_valid_ticket(state: GpuState, ticket: GpuTicket, reply: Subject(Result(Nil, Nil)), selector: process.Selector(GpuMessage)) -> Nil {
+  let new_issued = list.filter(state.issued, fn(id) { id != ticket.id })
+  case state.waiters {
+    [] -> {
+      process.send(reply, Ok(Nil))
+      gpu_loop(GpuState(..state, issued: new_issued), selector)
+    }
+    [w, ..rest] -> {
+      process.send(w, Ok(GpuTicket(state.gov_id, state.next)))
+      process.send(reply, Ok(Nil))
+      gpu_loop(GpuState(..state, next: state.next + 1, issued: [state.next, ..new_issued], waiters: rest), selector)
+    }
+  }
+}
+
+fn gpu_rpc(subj: Subject(GpuMessage), msg: fn(Subject(Result(a, Nil))) -> GpuMessage) -> Result(a, Nil) {
+  let reply_subj = process.new_subject()
+  process.send(subj, msg(reply_subj))
+  result.flatten(process.receive(reply_subj, 5000))
 }
 
 pub fn request_gpu_ticket(gov: GpuGovernor) -> Result(GpuTicket, Nil) {
   let GpuGovernor(_, subj) = gov
-  let reply_subj = process.new_subject()
-  process.send(subj, Request(reply_subj))
-  case process.receive(reply_subj, 5000) {
-    Ok(Ok(ticket)) -> Ok(ticket)
-    Ok(Error(e)) -> Error(e)
-    Error(e) -> Error(e)
-  }
+  gpu_rpc(subj, Request)
 }
 
 pub fn release_gpu_ticket(
@@ -335,13 +341,7 @@ pub fn release_gpu_ticket(
   ticket: GpuTicket,
 ) -> Result(Nil, Nil) {
   let GpuGovernor(_, subj) = gov
-  let reply_subj = process.new_subject()
-  process.send(subj, Release(ticket, reply_subj))
-  case process.receive(reply_subj, 5000) {
-    Ok(Ok(v)) -> Ok(v)
-    Ok(Error(e)) -> Error(e)
-    Error(e) -> Error(e)
-  }
+  gpu_rpc(subj, Release(ticket, _))
 }
 
 pub fn with_gpu_ticket(
