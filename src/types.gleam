@@ -5,6 +5,7 @@ import gleam/int
 import gleam/json
 import gleam/list
 import gleam/option
+import gleam/result
 import gleam/string
 
 /// ProcessId wraps a process identifier to provide type-safe process references.
@@ -341,4 +342,14 @@ pub fn release_gpu_ticket(
     Ok(Error(e)) -> Error(e)
     Error(e) -> Error(e)
   }
+}
+
+pub fn with_gpu_ticket(
+  gov: GpuGovernor,
+  work_fn: fn(GpuTicket) -> Result(a, Nil),
+) -> Result(a, Nil) {
+  use ticket <- result.try(request_gpu_ticket(gov))
+  let work_result = work_fn(ticket)
+  let _ = release_gpu_ticket(gov, ticket)
+  work_result
 }
