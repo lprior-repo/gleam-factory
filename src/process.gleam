@@ -1,5 +1,6 @@
 // Shell module - Execute external commands
 
+import gleam/erlang/process as erl_process
 import gleam/list as gleam_list
 import gleam/result
 import gleam/string
@@ -224,4 +225,8 @@ pub fn acp_initialize(client: types.AcpClient, version: String) -> Result(types.
   })
   use caps <- result.try(types.parse_initialize_result(json))
   Ok(types.store_capabilities(client, caps))
+}
+
+pub fn start_linked(f: fn() -> a) -> erl_process.Pid {
+  erl_process.spawn(f)
 }

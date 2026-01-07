@@ -1,6 +1,6 @@
 //// Type definitions for process management and workspace state.
 
-import gleam/erlang/process.{type Pid}
+import gleam/erlang/process.{type Pid, type Subject}
 import gleam/int
 import gleam/json
 import gleam/list
@@ -238,4 +238,93 @@ pub fn encode_initialize_request(
   ])
   |> json.to_string
   |> Ok
+}
+
+pub type GpuTicket {
+  GpuTicket(id: Int)
+}
+
+pub opaque type GpuGovernor {
+  GpuGovernor(subject: Subject(GpuMessage))
+}
+
+type GpuMessage {
+  Request(reply: Subject(Result(GpuTicket, Nil)))
+  Release(ticket: GpuTicket, reply: Subject(Result(Nil, Nil)))
+}
+
+type GpuState {
+  GpuState(limit: Int, issued: Int, waiters: List(Subject(Result(GpuTicket, Nil))))
+}
+
+pub fn new_gpu_governor(limit: Int) -> Result(GpuGovernor, Nil) {
+  case limit > 0 {
+    False -> Error(Nil)
+    True -> {
+      let initial = GpuState(limit:, issued: 0, waiters: [])
+      let parent_subject = process.new_subject()
+      process.spawn(fn() {
+        let child_subject = process.new_subject()
+        process.send(parent_subject, child_subject)
+        let selector = process.new_selector() |> process.select(child_subject)
+        gpu_loop(initial, selector)
+      })
+      case process.receive(parent_subject, 5000) {
+        Ok(child_subject) -> Ok(GpuGovernor(child_subject))
+        Error(_) -> Error(Nil)
+      }
+    }
+  }
+}
+
+fn gpu_loop(state: GpuState, selector: process.Selector(GpuMessage)) -> Nil {
+  case process.selector_receive_forever(selector) {
+    Request(reply:) ->
+      case state.issued < state.limit {
+        True -> {
+          let ticket = GpuTicket(state.issued)
+          process.send(reply, Ok(ticket))
+          gpu_loop(GpuState(..state, issued: state.issued + 1), selector)
+        }
+        False -> gpu_loop(GpuState(..state, waiters: [reply, ..state.waiters]), selector)
+      }
+    Release(_ticket, reply:) ->
+      case state.waiters {
+        [] -> {
+          process.send(reply, Ok(Nil))
+          gpu_loop(GpuState(..state, issued: state.issued - 1), selector)
+        }
+        [w, ..rest] -> {
+          let new_ticket = GpuTicket(state.issued)
+          process.send(w, Ok(new_ticket))
+          process.send(reply, Ok(Nil))
+          gpu_loop(GpuState(..state, waiters: rest), selector)
+        }
+      }
+  }
+}
+
+pub fn request_gpu_ticket(gov: GpuGovernor) -> Result(GpuTicket, Nil) {
+  let GpuGovernor(subj) = gov
+  let reply_subj = process.new_subject()
+  process.send(subj, Request(reply_subj))
+  case process.receive(reply_subj, 5000) {
+    Ok(Ok(ticket)) -> Ok(ticket)
+    Ok(Error(e)) -> Error(e)
+    Error(e) -> Error(e)
+  }
+}
+
+pub fn release_gpu_ticket(
+  gov: GpuGovernor,
+  ticket: GpuTicket,
+) -> Result(Nil, Nil) {
+  let GpuGovernor(subj) = gov
+  let reply_subj = process.new_subject()
+  process.send(subj, Release(ticket, reply_subj))
+  case process.receive(reply_subj, 5000) {
+    Ok(Ok(v)) -> Ok(v)
+    Ok(Error(e)) -> Error(e)
+    Error(e) -> Error(e)
+  }
 }
