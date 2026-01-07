@@ -258,7 +258,7 @@ type GpuMessage {
 }
 
 type GpuState {
-  GpuState(gov_id: Int, limit: Int, next: Int, issued: List(Int), waiters: List(Subject(Result(GpuTicket, Nil))))
+  GpuState(limit: Int, next: Int, issued: List(Int), waiters: List(Subject(Result(GpuTicket, Nil))))
 }
 
 pub fn new_gpu_governor(limit: Int) -> Result(GpuGovernor, Nil) {
@@ -270,10 +270,10 @@ pub fn new_gpu_governor(limit: Int) -> Result(GpuGovernor, Nil) {
         let child_subject = process.new_subject()
         let assert Ok(pid) = process.subject_owner(child_subject)
         let gov_id = hash_pid(pid)
-        let initial = GpuState(gov_id:, limit:, next: 0, issued: [], waiters: [])
+        let initial = GpuState(limit:, next: 0, issued: [], waiters: [])
         process.send(parent_subject, #(gov_id, child_subject))
         let selector = process.new_selector() |> process.select(child_subject)
-        gpu_loop(initial, selector)
+        gpu_loop(gov_id, initial, selector)
       })
       case process.receive(parent_subject, 5000) {
         Ok(#(gov_id, child_subject)) -> Ok(GpuGovernor(gov_id, child_subject))
@@ -283,57 +283,50 @@ pub fn new_gpu_governor(limit: Int) -> Result(GpuGovernor, Nil) {
   }
 }
 
-fn gpu_loop(state: GpuState, selector: process.Selector(GpuMessage)) -> Nil {
+fn gpu_loop(gov_id: Int, state: GpuState, selector: process.Selector(GpuMessage)) -> Nil {
   case process.selector_receive_forever(selector) {
-    Request(reply:) -> handle_request(state, reply, selector)
-    Release(ticket, reply:) -> handle_release(state, ticket, reply, selector)
+    Request(reply:) -> handle_request(gov_id, state, reply, selector)
+    Release(ticket, reply:) -> handle_release(gov_id, state, ticket, reply, selector)
   }
 }
 
-fn handle_request(state: GpuState, reply: Subject(Result(GpuTicket, Nil)), selector: process.Selector(GpuMessage)) -> Nil {
+fn handle_request(gov_id: Int, state: GpuState, reply: Subject(Result(GpuTicket, Nil)), selector: process.Selector(GpuMessage)) -> Nil {
   case list.length(state.issued) < state.limit {
     True -> {
-      process.send(reply, Ok(GpuTicket(state.gov_id, state.next)))
-      gpu_loop(GpuState(..state, next: state.next + 1, issued: [state.next, ..state.issued]), selector)
+      process.send(reply, Ok(GpuTicket(gov_id, state.next)))
+      gpu_loop(gov_id, GpuState(..state, next: state.next + 1, issued: [state.next, ..state.issued]), selector)
     }
-    False -> gpu_loop(GpuState(..state, waiters: list.append(state.waiters, [reply])), selector)
+    False -> gpu_loop(gov_id, GpuState(..state, waiters: list.append(state.waiters, [reply])), selector)
   }
 }
 
-fn handle_release(state: GpuState, ticket: GpuTicket, reply: Subject(Result(Nil, Nil)), selector: process.Selector(GpuMessage)) -> Nil {
-  case ticket.gov_id == state.gov_id && list.contains(state.issued, ticket.id) {
+fn handle_release(gov_id: Int, state: GpuState, ticket: GpuTicket, reply: Subject(Result(Nil, Nil)), selector: process.Selector(GpuMessage)) -> Nil {
+  case ticket.gov_id == gov_id && list.contains(state.issued, ticket.id) {
     False -> {
       process.send(reply, Error(Nil))
-      gpu_loop(state, selector)
+      gpu_loop(gov_id, state, selector)
     }
-    True -> release_valid_ticket(state, ticket, reply, selector)
+    True -> release_valid_ticket(gov_id, state, ticket, reply, selector)
   }
 }
 
-fn release_valid_ticket(state: GpuState, ticket: GpuTicket, reply: Subject(Result(Nil, Nil)), selector: process.Selector(GpuMessage)) -> Nil {
+fn release_valid_ticket(gov_id: Int, state: GpuState, ticket: GpuTicket, reply: Subject(Result(Nil, Nil)), selector: process.Selector(GpuMessage)) -> Nil {
   let new_issued = list.filter(state.issued, fn(id) { id != ticket.id })
+  process.send(reply, Ok(Nil))
   case state.waiters {
-    [] -> {
-      process.send(reply, Ok(Nil))
-      gpu_loop(GpuState(..state, issued: new_issued), selector)
-    }
+    [] -> gpu_loop(gov_id, GpuState(..state, issued: new_issued), selector)
     [w, ..rest] -> {
-      process.send(w, Ok(GpuTicket(state.gov_id, ticket.id)))
-      process.send(reply, Ok(Nil))
-      gpu_loop(GpuState(..state, issued: new_issued, waiters: rest), selector)
+      process.send(w, Ok(GpuTicket(gov_id, ticket.id)))
+      gpu_loop(gov_id, GpuState(..state, issued: new_issued, waiters: rest), selector)
     }
   }
-}
-
-fn gpu_rpc(subj: Subject(GpuMessage), msg: fn(Subject(Result(a, Nil))) -> GpuMessage) -> Result(a, Nil) {
-  let reply_subj = process.new_subject()
-  process.send(subj, msg(reply_subj))
-  result.flatten(process.receive(reply_subj, 5000))
 }
 
 pub fn request_gpu_ticket(gov: GpuGovernor) -> Result(GpuTicket, Nil) {
   let GpuGovernor(_, subj) = gov
-  gpu_rpc(subj, Request)
+  let reply_subj = process.new_subject()
+  process.send(subj, Request(reply_subj))
+  result.flatten(process.receive(reply_subj, 5000))
 }
 
 pub fn release_gpu_ticket(
@@ -341,7 +334,9 @@ pub fn release_gpu_ticket(
   ticket: GpuTicket,
 ) -> Result(Nil, Nil) {
   let GpuGovernor(_, subj) = gov
-  gpu_rpc(subj, Release(ticket, _))
+  let reply_subj = process.new_subject()
+  process.send(subj, Release(ticket, reply_subj))
+  result.flatten(process.receive(reply_subj, 5000))
 }
 
 pub fn with_gpu_ticket(
