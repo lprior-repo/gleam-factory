@@ -2768,7 +2768,7 @@ pub fn governor_release_correct_resource_type_test() {
   let assert Ok(gov) = resource_governor.start_link(config)
 
   let assert Ok(loop_ticket) = resource_governor.acquire_loop(gov)
-  let assert Ok(mutator_ticket) = resource_governor.acquire_mutator(gov)
+  let assert Ok(_mutator_ticket) = resource_governor.acquire_mutator(gov)
 
   resource_governor.release(gov, loop_ticket)
 

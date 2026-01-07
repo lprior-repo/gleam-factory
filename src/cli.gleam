@@ -22,15 +22,6 @@ pub type Command {
 }
 
 pub fn parse_args(args: List(String)) -> Result(Command, String) {
-  normalize_short_flags(args) |> do_parse
-}
-
-pub fn parse() -> Result(Command, String) {
-  parse_args(argv.load().arguments)
-}
-
-/// Pure argument parser - takes args list directly
-pub fn parse_args(args: List(String)) -> Result(Command, String) {
   case args {
     [] | ["help"] -> Ok(Help(None))
     ["help", topic] -> Ok(Help(Some(topic)))
@@ -42,6 +33,10 @@ pub fn parse_args(args: List(String)) -> Result(Command, String) {
     ["list", ..rest] -> parse_list(rest)
     [cmd, ..] -> Error("Unknown command: " <> cmd)
   }
+}
+
+pub fn parse() -> Result(Command, String) {
+  parse_args(argv.load().arguments)
 }
 
 fn get_flag(args: List(String), long: String, short: String) -> Option(String) {

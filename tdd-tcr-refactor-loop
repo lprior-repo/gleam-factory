@@ -887,6 +887,138 @@ unlock_all() {
 }
 
 #---------------------------------------------------------------------------
+# MUNGER PATCH 1: THE CHECKLIST (State Management)
+#---------------------------------------------------------------------------
+
+TODO_FILE=".tdd-todo.md"
+
+init_todo() {
+    if [ ! -f "$TODO_FILE" ]; then
+        cat > "$TODO_FILE" << 'TODOEOF'
+# Implementation Checklist
+
+TODOEOF
+        # Extract requirements into checklist items
+        if [ -n "$REQUIREMENTS" ]; then
+            echo "$REQUIREMENTS" | grep -E "^[-*]|^[0-9]+\." | sed 's/^/- [ ] /' >> "$TODO_FILE" || {
+                echo "- [ ] Implement requirements" >> "$TODO_FILE"
+            }
+        else
+            echo "- [ ] Implement core logic" >> "$TODO_FILE"
+        fi
+    fi
+}
+
+update_todo() {
+    local completed_item="$1"
+    if [ -f "$TODO_FILE" ]; then
+        # Escape special chars for sed
+        local escaped_item=$(printf '%s\n' "$completed_item" | sed 's/[\/&]/\\&/g')
+        sed -i "s/- \[ \] $escaped_item/- [x] $escaped_item/g" "$TODO_FILE" 2>/dev/null || true
+    fi
+}
+
+get_todo_context() {
+    if [ -f "$TODO_FILE" ]; then
+        cat "$TODO_FILE"
+    else
+        echo "(checklist not yet initialized)"
+    fi
+}
+
+#---------------------------------------------------------------------------
+# MUNGER PATCH 2 & 3: HOSTILE NEGOTIATION + CIRCUIT BREAKER
+#---------------------------------------------------------------------------
+
+negotiate_contract() {
+    local iteration="$1"
+    local last_result="$2"
+
+    # PARETO OPTIMIZATION: Only negotiate if we just failed (MUNGER PATCH 4)
+    if [ "$CONSECUTIVE_FAILURES" -eq 0 ] && [ $((iteration % 5)) -ne 0 ]; then
+        log_info "Smooth sailing - skipping negotiation (no failures detected)"
+        return 0
+    fi
+
+    if [ "$CONSECUTIVE_FAILURES" -gt 0 ]; then
+        log_phase "COUNCIL OF WAR (triggered by $CONSECUTIVE_FAILURES failure(s))"
+    else
+        log_phase "COUNCIL OF WAR (scheduled 5-cycle check)"
+    fi
+
+    local attempts=0
+    local max_attempts=3
+    local agreed_plan=""
+
+    while [ $attempts -lt $max_attempts ]; do
+        log_info "Negotiation attempt $((attempts + 1)) of $max_attempts"
+
+        # 1. Auditor Proposal (With Checklist Context)
+        local todo_content=$(get_todo_context)
+
+        log_info "Auditor proposing next test..."
+        local proposal=$(claude -p \
+            --model sonnet \
+            --append-system-prompt "PROPOSE: Pick next unchecked item from checklist. Create focused test plan." \
+            "CHECKLIST:
+$todo_content
+
+LAST_RESULT: $last_result
+
+Pick ONE unchecked item. Propose a test that forces good design. Be specific." 2>&1 </dev/null)
+
+        if [ $? -ne 0 ]; then
+            log_warning "Auditor failed to respond, retrying..."
+            attempts=$((attempts + 1))
+            continue
+        fi
+
+        # 2. Implementer Veto (HOSTILE PERSONA)
+        log_info "Hostile implementer reviewing proposal..."
+        local verdict=$(claude -p \
+            --model sonnet \
+            --append-system-prompt "You are a HOSTILE Senior Engineer. VETO bad ideas. If it's vague, too big, or untestable, SAY 'VETO:reason'. If solid, SAY 'AGREED'." \
+            "PROPOSAL:
+$proposal
+
+CRITIQUE: Is this proposal vague? Too big (>30 lines)? Untestable? If ANY flaw, VETO it. Otherwise AGREE." 2>&1 </dev/null)
+
+        if [ $? -ne 0 ]; then
+            log_warning "Implementer failed to respond, retrying..."
+            attempts=$((attempts + 1))
+            continue
+        fi
+
+        if echo "$verdict" | grep -qi "AGREED"; then
+            log_success "Negotiation successful - plan agreed"
+            echo "$proposal"
+            return 0
+        fi
+
+        log_warning "VETO: $(echo "$verdict" | head -n 1)"
+        attempts=$((attempts + 1))
+    done
+
+    # CIRCUIT BREAKER (MUNGER PATCH 3)
+    log_error "Negotiation deadlocked after $max_attempts attempts - forcing emergency plan"
+    log_warning "Forcing escalation to simpler test strategy"
+
+    cat > /tmp/emergency_plan.txt << 'EMERGENCYEOF'
+Emergency fallback: Write a trivial test for a helper function.
+Do not attempt complex logic. Test should:
+1. Have clear input
+2. Have predictable output
+3. Take <5 lines to pass
+
+Example: test that a simple pure function returns expected value.
+EMERGENCYEOF
+
+    cat /tmp/emergency_plan.txt
+    rm /tmp/emergency_plan.txt
+    return 1
+}
+
+#---------------------------------------------------------------------------
 # Git/TCR operations
 #---------------------------------------------------------------------------
 
@@ -1033,11 +1165,13 @@ jf() { echo "$1" | jq -r "$2" 2>/dev/null; }
 auditor_prompt() {
     local iteration="$1"
     local last_impl_result="$2"
+    local todo_context="$3"
 
     # CHALLENGER prompt - forces design-driving tests, not lazy field checks
     cat <<EOF
 CHALLENGER:$PROJECT_LANG i:$iteration c:$TEST_CMD
 REQ:$REQUIREMENTS
+$([ -n "$todo_context" ] && echo "CHECKLIST:$todo_context")
 $([ -n "$last_impl_result" ] && echo "PREV:$last_impl_result")
 
 YOUR JOB: Write a test that FORCES better design. You FAIL if implementer passes with trivial code.
@@ -1207,6 +1341,7 @@ run_auditor() {
     local iteration="$1"
     local last_result="$2"
     local prompt
+    local todo_context
 
     show_tdd_cycle "red"
     log_auditor "Writing failing test (Iteration $iteration)"
@@ -1215,7 +1350,9 @@ run_auditor() {
     lock_src
     unlock_tests
 
-    prompt=$(auditor_prompt "$iteration" "$last_result")
+    # Feed checklist context to auditor (MUNGER PATCH 1)
+    todo_context=$(get_todo_context)
+    prompt=$(auditor_prompt "$iteration" "$last_result" "$todo_context")
 
     log_info "Invoking auditor AI (new session, sonnet-4.5)..."
     AUDITOR_SESSION_ID=$(uuidgen)
@@ -1301,6 +1438,14 @@ run_implementer() {
             log_success "HARD GATES PASS! Implementation committed."
             SUCCESSFUL_IMPLS=$((SUCCESSFUL_IMPLS + 1))
             CONSECUTIVE_FAILURES=0  # Reset failure counter on success
+
+            # Update todo checklist with successful implementation (MUNGER PATCH 1)
+            if [ -f "$TODO_FILE" ]; then
+                log_info "Updating todo checklist..."
+                # Mark first unchecked item as checked
+                sed -i '0,/- \[ \]/s/- \[ \]/- [x]/' "$TODO_FILE" 2>/dev/null || true
+            fi
+
             return 0
         else
             tcr_revert "$iteration"
@@ -1632,10 +1777,15 @@ process_single_bead() {
     log_info "Initializing AI learning system..."
     init_ai_learning
 
+    # Initialize TODO checklist (MUNGER PATCH 1)
+    log_info "Initializing TODO checklist for state tracking..."
+    init_todo
+
     # Initialize history file for context passing between agents
     log_info "Initializing session history for context passing..."
     init_history
     append_history "SESSION START" "0" "Requirements: $REQUIREMENTS"
+    append_history "CHECKLIST" "0" "$(get_todo_context)"
 
     log_info "Ensuring clean git state..."
     git add -A
@@ -1740,6 +1890,14 @@ process_single_bead() {
         else
             last_impl_result="Implementation failed after $MAX_IMPL_ATTEMPTS attempts (all reverted). Test may be too ambitious - consider smaller steps."
             log_warning "Continuing despite implementation failure..."
+
+            # MUNGER PATCH 2 & 3: Trigger negotiation on failure (circuit breaker prevents infinite loops)
+            log_info "Invoking COUNCIL OF WAR due to implementation failure..."
+            if negotiate_contract "$iteration" "$last_impl_result"; then
+                log_info "Negotiation succeeded, proceeding with agreed plan"
+            else
+                log_error "Negotiation failed - forcing emergency fallback test"
+            fi
         fi
 
         iteration=$((iteration + 1))
