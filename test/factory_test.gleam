@@ -26,6 +26,30 @@ pub fn main() -> Nil {
 }
 
 // ============================================================================
+// RESOURCE GOVERNOR TESTS
+// ============================================================================
+
+pub fn governor_releasing_never_acquired_ticket_stays_non_negative_test() {
+  let limits =
+    resource_governor.ResourceLimits(
+      max_mutators: 2,
+      max_loops: 1,
+      max_workspaces: 1,
+      min_free_ram_mb: 512,
+      gpu_tickets: 0,
+    )
+  let assert Ok(gov) = resource_governor.start_link(limits)
+
+  resource_governor.release(gov, resource_governor.MutatorTicket)
+  resource_governor.release(gov, resource_governor.MutatorTicket)
+
+  let assert Ok(_) = resource_governor.acquire_mutator(gov)
+  let assert Ok(_) = resource_governor.acquire_mutator(gov)
+  resource_governor.acquire_mutator(gov)
+  |> should.be_error
+}
+
+// ============================================================================
 // DOMAIN MODEL TESTS
 // ============================================================================
 
