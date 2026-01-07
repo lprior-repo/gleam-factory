@@ -2407,3 +2407,47 @@ pub fn gpu_governor_blocks_when_exhausted_and_releases_on_free_test() {
   }
 }
 
+/// Test GPU governor rejects invalid ticket release.
+///
+/// CUPID pressure:
+/// - P (Pure): release(gov, invalid_ticket) always Error for that ticket
+/// - D (Domain): Ticket must be opaque, not Int - prevents forged releases
+/// - I (Idiomatic): Result for error handling, not panic
+/// - U (Unix): Does ONE thing: validate ticket ownership before release
+///
+/// Forces implementer to confront:
+/// 1. TICKET TYPE: Can't be Int - must be opaque with identity
+/// 2. VALIDATION: release checks ticket came from THIS governor
+/// 3. DOUBLE-RELEASE: releasing same ticket twice must Error
+/// 4. SECURITY: Can't forge tickets by guessing numbers
+/// 5. OWNERSHIP: Ticket tied to governor instance
+///
+/// Rejects lazy:
+/// - "ticket is Int" → enables forgery
+/// - "no validation" → allows double-release
+/// - "always Ok" → doesn't check ticket validity
+///
+/// Design pressure: Opaque GpuTicket type with internal ID
+pub fn gpu_governor_rejects_invalid_ticket_release_test() {
+  let assert Ok(gov1) = types.new_gpu_governor(2)
+  let assert Ok(gov2) = types.new_gpu_governor(2)
+
+  let assert Ok(ticket1) = types.request_gpu_ticket(gov1)
+  let assert Ok(ticket2) = types.request_gpu_ticket(gov2)
+
+  case types.release_gpu_ticket(gov1, ticket2) {
+    Error(_) -> Nil
+    Ok(_) -> should.fail()
+  }
+
+  case types.release_gpu_ticket(gov1, ticket1) {
+    Ok(_) -> Nil
+    Error(_) -> should.fail()
+  }
+
+  case types.release_gpu_ticket(gov1, ticket1) {
+    Error(_) -> Nil
+    Ok(_) -> should.fail()
+  }
+}
+
