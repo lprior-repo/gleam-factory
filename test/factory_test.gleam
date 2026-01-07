@@ -2711,3 +2711,22 @@ pub fn governor_composes_with_two_resource_types_test() {
   |> should.be_error
 }
 
+pub fn governor_release_enables_reacquisition_test() {
+  let config =
+    resource_governor.ResourceLimits(
+      max_mutators: 1,
+      max_loops: 0,
+      max_workspaces: 0,
+      min_free_ram_mb: 0,
+      gpu_tickets: 0,
+    )
+
+  let assert Ok(gov) = resource_governor.start_link(config)
+
+  let assert Ok(ticket1) = resource_governor.acquire_mutator(gov)
+  resource_governor.acquire_mutator(gov) |> should.be_error
+
+  resource_governor.release(gov, ticket1)
+
+  resource_governor.acquire_mutator(gov) |> should.be_ok
+}
