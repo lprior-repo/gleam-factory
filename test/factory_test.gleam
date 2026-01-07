@@ -2541,3 +2541,54 @@ pub fn gpu_governor_unblocks_waiters_fifo_test() {
   }
 }
 
+/// Test GPU ticket double-release is rejected and doesn't corrupt pool.
+///
+/// CUPID pressure:
+/// - D (Domain): Released ticket becomes invalid - one-time-use token
+/// - P (Pure): Same ticket used twice → first Ok, second Error (stateful but deterministic sequence)
+/// - C (Compose): Governor+retry logic must handle stale tickets gracefully
+/// - I (Idiomatic): Linear types approximation via runtime tracking
+/// - U (Unix): Governor maintains pool integrity under misuse
+///
+/// Forces implementer to confront:
+/// 1. TICKET LIFECYCLE: Must track active vs consumed tickets, not just count
+/// 2. POOL INTEGRITY: Double-release shouldn't grant phantom ticket to pool
+/// 3. CONCURRENCY SAFE: Released ticket set must be thread-safe under actors
+/// 4. COMPOSABILITY: Retry wrapper can't accidentally "create" tickets via stale refs
+/// 5. ERROR CLARITY: Second release returns Error, not Ok or panic
+///
+/// Rejects lazy:
+/// - "no tracking" → double release succeeds, corrupts available count
+/// - "counter only" → limit+1 tickets become available (logic bomb)
+/// - "panic on reuse" → breaks composability, kills actor
+/// - "FIFO queue only" → released twice = two waiters get same ticket ID
+///
+/// 30-line rule: Active ticket tracking logic <20 lines total
+pub fn gpu_governor_rejects_double_release_prevents_pool_corruption_test() {
+  let assert Ok(gov) = types.new_gpu_governor(2)
+
+  let assert Ok(t1) = types.request_gpu_ticket(gov)
+  let assert Ok(t2) = types.request_gpu_ticket(gov)
+
+  case types.request_gpu_ticket(gov) {
+    Error(_) -> Nil
+    Ok(_) -> should.fail()
+  }
+
+  types.release_gpu_ticket(gov, t1) |> should.be_ok
+
+  case types.release_gpu_ticket(gov, t1) {
+    Error(_) -> Nil
+    Ok(_) -> should.fail()
+  }
+
+  let assert Ok(_t3) = types.request_gpu_ticket(gov)
+
+  case types.request_gpu_ticket(gov) {
+    Error(_) -> Nil
+    Ok(_) -> should.fail()
+  }
+
+  types.release_gpu_ticket(gov, t2) |> should.be_ok
+}
+
