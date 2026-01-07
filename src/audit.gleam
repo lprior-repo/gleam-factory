@@ -8,7 +8,7 @@ import gleam/result
 import gleam/json
 import gleam/dynamic/decode
 import simplifile
-import factory/utils
+import utils
 
 /// Type of audit event
 pub type AuditEventType {
