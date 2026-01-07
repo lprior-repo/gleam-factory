@@ -2451,3 +2451,39 @@ pub fn gpu_governor_rejects_invalid_ticket_release_test() {
   }
 }
 
+/// Test GPU ticket acquisition composes with pipelined work execution.
+///
+/// CUPID pressure:
+/// - C (Compose): request|>work|>release must chain in pipeline
+/// - P (Pure): Same work fn + same ticket → deterministic result
+/// - I (Idiomatic): use |> for ticket lifecycle, Result all the way
+/// - D (Domain): Ticket represents exclusive GPU access window
+///
+/// Forces implementer to confront:
+/// 1. COMPOSABILITY: Can't use mutable ref - ticket must thread through
+/// 2. PIPELINE: ticket|>map(do_work)|>release must work idiomatically
+/// 3. RESOURCE SAFETY: Use construct ensures release on both Ok/Error
+/// 4. EXPRESSIVENESS: Should feel like |> not imperative try-finally
+/// 5. TYPE DRIVEN: Ticket in pipeline prevents forgetting release
+///
+/// Rejects lazy:
+/// - "no pipeline support" → awkward imperative code
+/// - "manual release" → easy to leak tickets
+/// - "ticket not value" → can't pass through |>
+///
+/// 30-line rule: with_ticket helper should be <15 lines
+pub fn gpu_governor_ticket_composes_with_work_pipeline_test() {
+  let assert Ok(gov) = types.new_gpu_governor(1)
+
+  let work_fn = fn(_ticket) {
+    Ok(42)
+  }
+
+  let result = types.with_gpu_ticket(gov, work_fn)
+
+  result |> should.equal(Ok(42))
+
+  let assert Ok(_second_ticket) = types.request_gpu_ticket(gov)
+  Nil
+}
+
