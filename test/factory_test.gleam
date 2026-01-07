@@ -2592,3 +2592,19 @@ pub fn gpu_governor_rejects_double_release_prevents_pool_corruption_test() {
   types.release_gpu_ticket(gov, t2) |> should.be_ok
 }
 
+pub fn acp_parse_notification_composes_with_session_tracker_test() {
+  let tracker = types.new_acp_session_tracker()
+
+  types.AcpNotification("s1", "agent_message")
+  |> fn(notif) { #(notif.session_id, types.Running) }
+  |> fn(pair) { types.register_session(tracker, pair.0, pair.1) }
+  |> types.can_cancel("s1")
+  |> should.equal(Ok(True))
+
+  types.AcpNotification("s2", "tool_call_start")
+  |> fn(notif) { #(notif.session_id, types.Complete) }
+  |> fn(pair) { types.register_session(tracker, pair.0, pair.1) }
+  |> types.can_cancel("s2")
+  |> should.equal(Ok(False))
+}
+
