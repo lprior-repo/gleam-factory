@@ -13,9 +13,14 @@ pub type ResourceLimits {
   )
 }
 
+pub type Ticket {
+  MutatorTicket
+  LoopTicket
+}
+
 pub type GovernorMessage {
-  AcquireMutator(reply_with: Subject(Result(Nil, String)))
-  AcquireLoop(reply_with: Subject(Result(Nil, String)))
+  AcquireMutator(reply_with: Subject(Result(Ticket, String)))
+  AcquireLoop(reply_with: Subject(Result(Ticket, String)))
   ReleaseMutator
   ReleaseLoop
 }
@@ -40,7 +45,7 @@ fn handle_message(state: State, msg: GovernorMessage) -> actor.Next(State, Gover
     AcquireMutator(reply) -> {
       case state.mutators < state.limits.max_mutators {
         True -> {
-          process.send(reply, Ok(Nil))
+          process.send(reply, Ok(MutatorTicket))
           actor.continue(State(..state, mutators: state.mutators + 1))
         }
         False -> {
@@ -52,7 +57,7 @@ fn handle_message(state: State, msg: GovernorMessage) -> actor.Next(State, Gover
     AcquireLoop(reply) -> {
       case state.loops < state.limits.max_loops {
         True -> {
-          process.send(reply, Ok(Nil))
+          process.send(reply, Ok(LoopTicket))
           actor.continue(State(..state, loops: state.loops + 1))
         }
         False -> {
@@ -66,7 +71,7 @@ fn handle_message(state: State, msg: GovernorMessage) -> actor.Next(State, Gover
   }
 }
 
-pub fn acquire_mutator(gov: Subject(GovernorMessage)) -> Result(Nil, String) {
+pub fn acquire_mutator(gov: Subject(GovernorMessage)) -> Result(Ticket, String) {
   let reply = process.new_subject()
   process.send(gov, AcquireMutator(reply_with: reply))
   case process.receive(reply, 5000) {
@@ -75,7 +80,7 @@ pub fn acquire_mutator(gov: Subject(GovernorMessage)) -> Result(Nil, String) {
   }
 }
 
-pub fn acquire_loop(gov: Subject(GovernorMessage)) -> Result(Nil, String) {
+pub fn acquire_loop(gov: Subject(GovernorMessage)) -> Result(Ticket, String) {
   let reply = process.new_subject()
   process.send(gov, AcquireLoop(reply_with: reply))
   case process.receive(reply, 5000) {
@@ -84,6 +89,9 @@ pub fn acquire_loop(gov: Subject(GovernorMessage)) -> Result(Nil, String) {
   }
 }
 
-pub fn release(gov: Subject(GovernorMessage), _ticket: Nil) -> Nil {
-  process.send(gov, ReleaseMutator)
+pub fn release(gov: Subject(GovernorMessage), ticket: Ticket) -> Nil {
+  case ticket {
+    MutatorTicket -> process.send(gov, ReleaseMutator)
+    LoopTicket -> process.send(gov, ReleaseLoop)
+  }
 }
