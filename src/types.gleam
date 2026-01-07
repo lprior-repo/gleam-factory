@@ -131,6 +131,29 @@ pub type AcpNotification {
   AcpNotification(session_id: String, method: String)
 }
 
+/// Parses JSON string to AcpNotification extracting method and session_id.
+pub fn parse_acp_notification(json_str: String) -> Result(AcpNotification, String) {
+  case extract_field(json_str, "method"), extract_session_id(json_str) {
+    Ok(method), Ok(session_id) -> Ok(AcpNotification(session_id:, method:))
+    Error(_), _ -> Error("Missing method field")
+    _, Error(_) -> Error("Missing session_id in params")
+  }
+}
+
+fn extract_field(json_str: String, field: String) -> Result(String, Nil) {
+  json_str
+  |> string.split("\"" <> field <> "\":\"")
+  |> list.last
+  |> result.try(fn(s) { string.split(s, "\"") |> list.first })
+}
+
+fn extract_session_id(json_str: String) -> Result(String, Nil) {
+  json_str
+  |> string.split("\"session_id\":\"")
+  |> list.last
+  |> result.try(fn(s) { string.split(s, "\"") |> list.first })
+}
+
 /// SessionStatus represents the state of an ACP session.
 pub type SessionStatus {
   Running
