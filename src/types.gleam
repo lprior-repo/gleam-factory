@@ -124,31 +124,10 @@ pub fn new_acp_client(base_url: String) -> AcpClient {
   AcpClient(base_url:)
 }
 
-/// Creates AcpClient with capabilities.
-pub fn new_acp_client_with_capabilities(base_url: String, capabilities: List(String)) -> AcpClient {
-  AcpClientWithCaps(base_url:, capabilities:)
-}
 
 /// AcpNotification represents an Agent Communication Protocol notification.
 pub type AcpNotification {
   AcpNotification(session_id: String, method: String)
-}
-
-/// Encodes AcpNotification to JSON string.
-pub fn encode_acp_notification(
-  notification: AcpNotification,
-) -> Result(String, Nil) {
-  let AcpNotification(session_id, method) = notification
-  json.object([
-    #("jsonrpc", json.string("2.0")),
-    #("method", json.string(method)),
-    #(
-      "params",
-      json.object([#("meta", json.object([#("sessionId", json.string(session_id))]))]),
-    ),
-  ])
-  |> json.to_string
-  |> Ok
 }
 
 /// SessionStatus represents the state of an ACP session.
@@ -217,29 +196,21 @@ pub fn store_capabilities(client: AcpClient, caps: List(String)) -> AcpClient {
 pub fn parse_initialize_result(json_str: String) -> Result(List(String), String) {
   case string.contains(json_str, "capabilities") {
     False -> Error("No capabilities field")
-    True -> {
+    True ->
       json_str
-      |> extract_capabilities_array
+      |> string.split("\"capabilities\":[")
+      |> list.last
+      |> option.from_result
+      |> option.then(fn(s) { string.split(s, "]") |> list.first |> option.from_result })
+      |> option.map(fn(s) {
+        s
+        |> string.replace("\"", "")
+        |> string.split(",")
+        |> list.filter(fn(x) { string.length(string.trim(x)) > 0 })
+      })
+      |> option.unwrap([])
       |> Ok
-    }
   }
-}
-
-fn extract_capabilities_array(json_str: String) -> List(String) {
-  json_str
-  |> string.split("\"capabilities\":[")
-  |> list.last
-  |> option.from_result
-  |> option.then(fn(s) { string.split(s, "]") |> list.first |> option.from_result })
-  |> option.map(parse_json_string_array)
-  |> option.unwrap([])
-}
-
-fn parse_json_string_array(s: String) -> List(String) {
-  s
-  |> string.replace("\"", "")
-  |> string.split(",")
-  |> list.filter(fn(x) { string.length(string.trim(x)) > 0 })
 }
 
 /// Encodes MCP initialize request to JSON string.

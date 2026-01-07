@@ -189,23 +189,14 @@ pub fn run_command_safe(
 
 /// Send ACP cancel notification for session via HTTP transport
 pub fn acp_send_cancel(client: types.AcpClient, session_id: String) -> Result(Nil, String) {
-  let base_url = types.get_base_url(client)
-  use json_body <- result.try(
-    types.encode_acp_notification(types.AcpNotification(session_id:, method: "session/cancel"))
-    |> result.map_error(fn(_) { "Failed to encode notification" })
-  )
-
-  run_command("curl", [
-    "-X", "POST",
-    "-H", "Content-Type: application/json",
-    "-d", json_body,
-    base_url
-  ], "")
+  let json_body =
+    "{\"jsonrpc\":\"2.0\",\"method\":\"session/cancel\",\"params\":{\"meta\":{\"sessionId\":\""
+    <> session_id <> "\"}}}"
+  run_command("curl", ["-X", "POST", "-H", "Content-Type: application/json", "-d", json_body, types.get_base_url(client)], "")
   |> result.try(fn(r) {
     case r {
       Success(_, _, 0) -> Ok(Nil)
-      Success(_, _, code) -> Error("http request failed with exit code " <> string.inspect(code))
-      Failure(err, code) -> Error("http request failed: " <> err <> " (code " <> string.inspect(code) <> ")")
+      Success(_, _, code) | Failure(_, code) -> Error("http request failed with code " <> string.inspect(code))
     }
   })
 }
@@ -225,13 +216,12 @@ fn map_simplifile_error(result: Result(String, simplifile.FileError)) -> Result(
 
 /// Initialize ACP connection and retrieve agent capabilities
 pub fn acp_initialize(client: types.AcpClient, version: String) -> Result(types.AcpClient, String) {
-  let base_url = types.get_base_url(client)
-  use cmd_result <- result.try(run_command("curl", ["-X", "POST", "-d", "{\"version\":\"" <> version <> "\"}", base_url], ""))
-  use json_response <- result.try(case cmd_result {
+  use req <- result.try(types.encode_initialize_request(version, "factory", "0.1.0") |> result.map_error(fn(_) { "encode failed" }))
+  use cmd_result <- result.try(run_command("curl", ["-X", "POST", "-H", "Content-Type: application/json", "-d", req, types.get_base_url(client)], ""))
+  use json <- result.try(case cmd_result {
     Success(stdout, _, 0) -> Ok(stdout)
-    Success(_, _, code) -> Error("http request failed with exit code " <> string.inspect(code))
-    Failure(err, _) -> Error(err)
+    Success(_, _, code) | Failure(_, code) -> Error("http failed code " <> string.inspect(code))
   })
-  use caps <- result.try(types.parse_initialize_result(json_response))
-  Ok(types.new_acp_client_with_capabilities(base_url, caps))
+  use caps <- result.try(types.parse_initialize_result(json))
+  Ok(types.store_capabilities(client, caps))
 }
