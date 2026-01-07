@@ -2608,3 +2608,18 @@ pub fn acp_parse_notification_composes_with_session_tracker_test() {
   |> should.equal(Ok(False))
 }
 
+pub fn acp_notification_parsing_preserves_idempotency_test() {
+  let raw1 = "{\"method\":\"agent_message\",\"params\":{\"session_id\":\"abc\"}}"
+  let raw2 = "{\"method\":\"tool_call_update\",\"params\":{\"session_id\":\"xyz\",\"data\":\"chunk\"}}"
+
+  let parsed1_a = types.parse_acp_notification(raw1)
+  let parsed1_b = types.parse_acp_notification(raw1)
+  let parsed2_a = types.parse_acp_notification(raw2)
+
+  parsed1_a
+  |> should.equal(parsed1_b)
+
+  parsed1_a
+  |> should.not_equal(parsed2_a)
+}
+
