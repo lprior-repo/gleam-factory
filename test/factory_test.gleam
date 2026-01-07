@@ -2636,3 +2636,18 @@ pub fn acp_notification_method_extraction_composes_with_routing_test() {
   |> should.equal(["thought", "tool_call_start", "tool_call_update", "agent_message"])
 }
 
+pub fn acp_session_update_store_queries_by_session_id_test() {
+  let store = types.new_update_store()
+  let n1 = types.AcpNotification("s1", "thought")
+  let n2 = types.AcpNotification("s1", "tool_call_start")
+  let n3 = types.AcpNotification("s2", "agent_message")
+
+  store
+  |> types.store_update(n1)
+  |> types.store_update(n2)
+  |> types.store_update(n3)
+  |> types.query_updates("s1")
+  |> list.length
+  |> should.equal(2)
+}
+
