@@ -144,3 +144,23 @@ pub fn result_to_string(result: IntegrationResult) -> String {
     Failed(reason) -> "✗ Integration tests failed: " <> reason
   }
 }
+
+/// Retry a function with exponential backoff
+/// Returns Ok if function succeeds, Error if all retries exhausted
+pub fn retry_with_backoff(
+  f: fn() -> Result(a, e),
+  retries: Int,
+) -> Result(a, e) {
+  do_retry(f, retries)
+}
+
+fn do_retry(f: fn() -> Result(a, e), retries_remaining: Int) -> Result(a, e) {
+  case f() {
+    Ok(value) -> Ok(value)
+    Error(err) ->
+      case retries_remaining {
+        0 -> Error(err)
+        _ -> do_retry(f, retries_remaining - 1)
+      }
+  }
+}

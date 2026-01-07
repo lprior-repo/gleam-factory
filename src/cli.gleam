@@ -1,8 +1,3 @@
-// Unified CLI module
-// Single source of truth for all CLI operations
-// Uses: argv, clip, spinner, stdin, shellout
-// NO alternatives - this is the only way to parse CLI
-
 import gleam/io
 import gleam/option.{type Option, None, Some}
 import gleam/result
@@ -16,7 +11,6 @@ import stages
 import worktree
 import audit
 
-/// All possible Factory commands
 pub type Command {
   NewTask(slug: String, contract_path: Option(String), interactive: Bool)
   RunStage(slug: String, stage_name: String, dry_run: Bool, from: Option(String), to: Option(String))
@@ -27,8 +21,10 @@ pub type Command {
   Version
 }
 
-/// Parse CLI arguments from argv
-/// This is the ONLY parser - no alternatives
+pub fn parse_args(args: List(String)) -> Result(Command, String) {
+  normalize_short_flags(args) |> do_parse
+}
+
 pub fn parse() -> Result(Command, String) {
   parse_args(argv.load().arguments)
 }
@@ -166,8 +162,6 @@ pub fn execute(cmd: Command) -> Result(Nil, String) {
   }
 }
 
-// Implementation functions (placeholders until filled in)
-
 fn execute_new(
   slug: String,
   _contract: Option(String),
@@ -199,7 +193,6 @@ fn execute_stage(
   use _ <- result.try(domain.validate_slug(slug))
   use repo_root <- result.try(repo.detect_repo_root())
   use task <- result.try(persistence.load_task_record(slug, repo_root))
-
   use message <- result.try(execute_stage_impl(slug, stage, task, repo_root))
   io.println(message)
   Ok(Nil)
@@ -234,16 +227,7 @@ fn execute_show(slug: String, _detailed: Bool) -> Result(Nil, String) {
   use repo_root <- result.try(repo.detect_repo_root())
   use task <- result.try(persistence.load_task_record(slug, repo_root))
 
-  let status_str = case task.status {
-    domain.Created -> "created"
-    domain.InProgress(stage) -> "in_progress (" <> stage <> ")"
-    domain.PassedPipeline -> "passed_pipeline"
-    domain.FailedPipeline(stage, reason) ->
-      "failed_pipeline (" <> stage <> ": " <> reason <> ")"
-    domain.Integrated -> "integrated"
-  }
-
-  io.println(slug <> ": " <> status_str)
+  io.println(slug <> ": " <> format_status(task.status))
   Ok(Nil)
 }
 
@@ -253,19 +237,25 @@ fn execute_list(_priority: Option(String), _status: Option(String)) -> Result(Ni
 
   case tasks {
     [] -> io.println("No active tasks")
-    ts -> {
+    ts ->
       ts
       |> list.map(fn(task) { task.slug <> " (" <> task.branch <> ")" })
       |> string.join("\n")
       |> io.println
-    }
   }
   Ok(Nil)
 }
 
-// ============================================================================
-// IMPLEMENTATION HELPERS
-// ============================================================================
+fn format_status(status: domain.TaskStatus) -> String {
+  case status {
+    domain.Created -> "created"
+    domain.InProgress(stage) -> "in_progress (" <> stage <> ")"
+    domain.PassedPipeline -> "passed_pipeline"
+    domain.FailedPipeline(stage, reason) ->
+      "failed_pipeline (" <> stage <> ": " <> reason <> ")"
+    domain.Integrated -> "integrated"
+  }
+}
 
 fn execute_new_impl(
   slug: String,
