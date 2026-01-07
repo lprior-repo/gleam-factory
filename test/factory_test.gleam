@@ -13,6 +13,7 @@ import gleeunit/should
 import golden_master
 import persistence
 import process
+import resource_governor
 import signal_bus
 import signals
 import simplifile
@@ -2688,5 +2689,25 @@ pub fn acp_update_filter_by_method_composes_with_session_query_test() {
 
   all_thoughts
   |> should.equal(3)
+}
+
+pub fn governor_composes_with_two_resource_types_test() {
+  let config =
+    resource_governor.ResourceLimits(
+      max_mutators: 2,
+      max_loops: 1,
+      max_workspaces: 0,
+      min_free_ram_mb: 0,
+      gpu_tickets: 0,
+    )
+
+  let assert Ok(gov) = resource_governor.start_link(config)
+
+  let assert Ok(_) = resource_governor.acquire_mutator(gov)
+  let assert Ok(_) = resource_governor.acquire_loop(gov)
+  let assert Ok(_) = resource_governor.acquire_mutator(gov)
+
+  resource_governor.acquire_loop(gov)
+  |> should.be_error
 }
 
