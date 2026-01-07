@@ -296,7 +296,7 @@ fn handle_request(state: GpuState, reply: Subject(Result(GpuTicket, Nil)), selec
       process.send(reply, Ok(GpuTicket(state.gov_id, state.next)))
       gpu_loop(GpuState(..state, next: state.next + 1, issued: [state.next, ..state.issued]), selector)
     }
-    False -> gpu_loop(GpuState(..state, waiters: [reply, ..state.waiters]), selector)
+    False -> gpu_loop(GpuState(..state, waiters: list.append(state.waiters, [reply])), selector)
   }
 }
 
