@@ -2730,3 +2730,24 @@ pub fn governor_release_enables_reacquisition_test() {
 
   resource_governor.acquire_mutator(gov) |> should.be_ok
 }
+
+pub fn governor_release_correct_resource_type_test() {
+  let config =
+    resource_governor.ResourceLimits(
+      max_mutators: 1,
+      max_loops: 1,
+      max_workspaces: 0,
+      min_free_ram_mb: 0,
+      gpu_tickets: 0,
+    )
+
+  let assert Ok(gov) = resource_governor.start_link(config)
+
+  let assert Ok(loop_ticket) = resource_governor.acquire_loop(gov)
+  let assert Ok(mutator_ticket) = resource_governor.acquire_mutator(gov)
+
+  resource_governor.release(gov, loop_ticket)
+
+  resource_governor.acquire_loop(gov) |> should.be_ok
+  resource_governor.acquire_mutator(gov) |> should.be_error
+}
