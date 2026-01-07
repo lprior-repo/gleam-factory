@@ -54,7 +54,7 @@ pub fn governor_releasing_never_acquired_ticket_stays_non_negative_test() {
 // ============================================================================
 
 pub fn validate_slug_valid_test() {
-  domain.validate_slug("bd-52.1")
+  domain.validate_slug("bd-52_1")
   |> should.be_ok
 }
 

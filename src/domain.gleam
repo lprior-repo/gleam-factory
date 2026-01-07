@@ -63,19 +63,31 @@ pub fn validate_slug(slug: String) -> Result(Slug, String) {
         True -> Ok(slug)
         False ->
           Error(
-            "slug contains invalid characters (use a-z, A-Z, 0-9, -, _)",
+            "slug contains invalid characters (use a-z, 0-9, -, _)",
           )
       }
   }
 }
 
 /// Check if string contains only valid slug characters
+/// Valid: lowercase a-z, digits 0-9, hyphen, underscore
 fn is_valid_slug_chars(s: String) -> Bool {
-  // Gleam strings can only contain valid slug chars through pattern matching
-  // This is a simplified check - just ensure no spaces or special chars
-  let invalid_chars = " !@#$%^&*()+=[]{}|;:'\"<>,.?/~`"
-  !string.contains(s, invalid_chars)
-    && string.length(s) > 0
+  case string.length(s) {
+    0 -> False
+    _ ->
+      s
+      |> string.to_graphemes
+      |> list.all(fn(char) {
+        case char {
+          "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j"
+          | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t"
+          | "u" | "v" | "w" | "x" | "y" | "z"
+          | "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+          | "-" | "_" -> True
+          _ -> False
+        }
+      })
+  }
 }
 
 /// Stage type - defines a single gate in the pipeline
