@@ -2351,3 +2351,59 @@ pub fn acp_encode_initialize_request_contains_mcp_compliant_json_test() {
   }
 }
 
+// ============================================================================
+// GPU GOVERNOR TESTS
+// ============================================================================
+
+/// Test GPU governor blocks when tickets exhausted and releases.
+///
+/// CUPID pressure:
+/// - P (Pure): release|>request round-trip restores count
+/// - U (Unix): Does ONE thing: ticket semaphore for GPU concurrency
+/// - C (Compose): governor|>request|>work|>release chain
+/// - I (Idiomatic): Blocking via process.receive, Option for tickets
+/// - D (Domain): Models GPU limit, prevents OOM via tickets
+///
+/// Forces implementer to confront:
+/// 1. BLOCKING: request_ticket blocks when count=0, NOT Error
+/// 2. STATE: Governor actor tracks available Int counter
+/// 3. FAIRNESS: Multiple requesters queue, served FIFO
+/// 4. RELEASE: release_ticket increments, wakes blocked caller
+/// 5. NO TRIVIAL: Can't return Ok immediately - must block
+///
+/// Rejects lazy:
+/// - "returns Ok" → needs actual blocking until release
+/// - "Error when full" → spec says BLOCK, not fail
+/// - "ticket exists" → needs prove blocking+wakeup works
+///
+/// 30-line violation: Split governor actor / ticket request logic
+pub fn gpu_governor_blocks_when_exhausted_and_releases_on_free_test() {
+  let limit = 1
+  let assert Ok(gov) = types.new_gpu_governor(limit)
+
+  let ticket_1 = types.request_gpu_ticket(gov)
+  ticket_1 |> should.be_ok
+
+  let subject = erl_process.new_subject()
+
+  process.start_linked(fn() {
+    let ticket_2 = types.request_gpu_ticket(gov)
+    erl_process.send(subject, ticket_2)
+  })
+
+  case erl_process.receive(subject, 100) {
+    Ok(_) -> should.fail()
+    Error(_) -> Nil
+  }
+
+  case ticket_1 {
+    Ok(t) -> types.release_gpu_ticket(gov, t) |> should.be_ok
+    Error(_) -> should.fail()
+  }
+
+  case erl_process.receive(subject, 500) {
+    Ok(Ok(_)) -> Nil
+    _ -> should.fail()
+  }
+}
+
