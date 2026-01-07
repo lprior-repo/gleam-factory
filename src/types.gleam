@@ -18,10 +18,9 @@ pub fn from_pid(pid: Pid) -> ProcessId {
   ProcessId(pid)
 }
 
-/// Converts a ProcessId back to its underlying Pid.
-pub fn to_pid(process_id: ProcessId) -> Pid {
-  let ProcessId(pid) = process_id
-  pid
+/// Unwraps ProcessId to Pid.
+pub fn to_pid(pid: ProcessId) -> Pid {
+  pid.pid
 }
 
 /// WorkspaceType represents the classification of a workspace.
@@ -57,58 +56,27 @@ pub opaque type GitHash {
   GitHash(hash: String)
 }
 
-/// Parses a string into a GitHash, validating that it is exactly 40 lowercase
-/// hexadecimal characters (valid git SHA-1 hash format).
-///
-/// Returns Ok(GitHash) if the string is valid, Error(String) with a descriptive
-/// message if validation fails.
-///
-/// Validation rules:
-/// - Must be exactly 40 characters long
-/// - Must contain only lowercase hexadecimal characters (0-9, a-f)
-/// - Uppercase letters (A-F) are rejected to ensure consistency with git output
+/// Parses string to GitHash (40 lowercase hex chars).
 pub fn git_hash_parse(input: String) -> Result(GitHash, String) {
   let trimmed = string.trim(input)
-  let length = string.length(trimmed)
-
-  case length == 40 {
-    False ->
-      Error(
-        "Invalid git hash: expected 40 characters, got "
-        <> int.to_string(length),
-      )
-    True -> {
-      // Validate that all characters are lowercase hexadecimal (0-9, a-f)
-      case is_valid_hex(trimmed) {
-        True -> Ok(GitHash(trimmed))
-        False ->
-          Error(
-            "Invalid git hash: must contain only lowercase hexadecimal characters (0-9, a-f)",
-          )
-      }
-    }
+  case string.length(trimmed), is_valid_hex(trimmed) {
+    40, True -> Ok(GitHash(trimmed))
+    40, False -> Error("Invalid git hash: must contain only lowercase hexadecimal characters (0-9, a-f)")
+    len, _ -> Error("Invalid git hash: expected 40 characters, got " <> int.to_string(len))
   }
 }
 
-/// Converts a GitHash back to its string representation.
-/// This unwraps the opaque type to access the underlying hash string.
-///
-/// This function is needed for serialization, display, and comparison operations
-/// where we need to work with the raw hash value.
-pub fn git_hash_to_string(git_hash: GitHash) -> String {
-  let GitHash(hash) = git_hash
-  hash
+/// Unwraps GitHash to string.
+pub fn git_hash_to_string(hash: GitHash) -> String {
+  hash.hash
 }
 
-/// Internal helper to validate that a string contains only lowercase hex characters.
-/// Returns True if all characters are in [0-9a-f], False otherwise.
 fn is_valid_hex(input: String) -> Bool {
   input
   |> string.split("")
-  |> list.all(fn(char) {
-    case char {
-      "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" -> True
-      "a" | "b" | "c" | "d" | "e" | "f" -> True
+  |> list.all(fn(c) {
+    case c {
+      "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "a" | "b" | "c" | "d" | "e" | "f" -> True
       _ -> False
     }
   })
@@ -133,7 +101,7 @@ pub type AcpNotification {
 
 /// Parses JSON string to AcpNotification extracting method and session_id.
 pub fn parse_acp_notification(json_str: String) -> Result(AcpNotification, String) {
-  case extract_field(json_str, "method"), extract_session_id(json_str) {
+  case extract_field(json_str, "method"), extract_field(json_str, "session_id") {
     Ok(method), Ok(session_id) -> Ok(AcpNotification(session_id:, method:))
     Error(_), _ -> Error("Missing method field")
     _, Error(_) -> Error("Missing session_id in params")
@@ -143,13 +111,6 @@ pub fn parse_acp_notification(json_str: String) -> Result(AcpNotification, Strin
 fn extract_field(json_str: String, field: String) -> Result(String, Nil) {
   json_str
   |> string.split("\"" <> field <> "\":\"")
-  |> list.last
-  |> result.try(fn(s) { string.split(s, "\"") |> list.first })
-}
-
-fn extract_session_id(json_str: String) -> Result(String, Nil) {
-  json_str
-  |> string.split("\"session_id\":\"")
   |> list.last
   |> result.try(fn(s) { string.split(s, "\"") |> list.first })
 }
@@ -198,8 +159,7 @@ pub fn can_cancel(
 /// Extracts base_url from AcpClient.
 pub fn get_base_url(client: AcpClient) -> String {
   case client {
-    AcpClient(base_url:) -> base_url
-    AcpClientWithCaps(base_url:, ..) -> base_url
+    AcpClient(base_url:) | AcpClientWithCaps(base_url:, ..) -> base_url
   }
 }
 
@@ -213,27 +173,25 @@ pub fn get_capabilities(client: AcpClient) -> option.Option(List(String)) {
 
 /// Stores capabilities in AcpClient, returning updated client.
 pub fn store_capabilities(client: AcpClient, caps: List(String)) -> AcpClient {
-  AcpClientWithCaps(base_url: get_base_url(client), capabilities: caps)
+  case client {
+    AcpClient(base_url:) | AcpClientWithCaps(base_url:, ..) ->
+      AcpClientWithCaps(base_url:, capabilities: caps)
+  }
 }
 
 /// Parses ACP initialize response JSON extracting capabilities list.
 pub fn parse_initialize_result(json_str: String) -> Result(List(String), String) {
   case string.contains(json_str, "capabilities") {
     False -> Error("No capabilities field")
-    True ->
-      json_str
-      |> string.split("\"capabilities\":[")
-      |> list.last
-      |> option.from_result
-      |> option.then(fn(s) { string.split(s, "]") |> list.first |> option.from_result })
-      |> option.map(fn(s) {
-        s
+    True -> {
+      use after_cap <- result.try(json_str |> string.split("\"capabilities\":[") |> list.last |> result.replace_error(""))
+      use caps_str <- result.try(after_cap |> string.split("]") |> list.first |> result.replace_error(""))
+      caps_str
         |> string.replace("\"", "")
         |> string.split(",")
         |> list.filter(fn(x) { string.length(string.trim(x)) > 0 })
-      })
-      |> option.unwrap([])
-      |> Ok
+        |> Ok
+    }
   }
 }
 
@@ -319,7 +277,7 @@ fn handle_request(gov_id: Int, state: GpuState, reply: Subject(Result(GpuTicket,
       process.send(reply, Ok(GpuTicket(gov_id, state.next)))
       gpu_loop(gov_id, GpuState(..state, next: state.next + 1, issued: [state.next, ..state.issued]), selector)
     }
-    False -> gpu_loop(gov_id, GpuState(..state, waiters: list.append(state.waiters, [reply])), selector)
+    False -> gpu_loop(gov_id, GpuState(..state, waiters: [reply, ..state.waiters]), selector)
   }
 }
 
@@ -336,11 +294,11 @@ fn handle_release(gov_id: Int, state: GpuState, ticket: GpuTicket, reply: Subjec
 fn release_valid_ticket(gov_id: Int, state: GpuState, ticket: GpuTicket, reply: Subject(Result(Nil, Nil)), selector: process.Selector(GpuMessage)) -> Nil {
   let new_issued = list.filter(state.issued, fn(id) { id != ticket.id })
   process.send(reply, Ok(Nil))
-  case state.waiters {
-    [] -> gpu_loop(gov_id, GpuState(..state, issued: new_issued), selector)
+  case list.reverse(state.waiters) {
+    [] -> gpu_loop(gov_id, GpuState(..state, issued: new_issued, waiters: []), selector)
     [w, ..rest] -> {
       process.send(w, Ok(GpuTicket(gov_id, ticket.id)))
-      gpu_loop(gov_id, GpuState(..state, issued: new_issued, waiters: rest), selector)
+      gpu_loop(gov_id, GpuState(..state, issued: new_issued, waiters: list.reverse(rest)), selector)
     }
   }
 }
@@ -384,11 +342,27 @@ pub fn new_update_store() -> UpdateStore {
 
 pub fn store_update(store: UpdateStore, notif: AcpNotification) -> UpdateStore {
   let UpdateStore(d) = store
-  let AcpNotification(sid, _) = notif
-  UpdateStore(dict.upsert(d, sid, fn(opt) { case opt { option.Some(ns) -> [notif, ..ns] option.None -> [notif] }}))
+  UpdateStore(dict.upsert(d, notif.session_id, fn(opt) {
+    case opt {
+      option.Some(ns) -> [notif, ..ns]
+      option.None -> [notif]
+    }
+  }))
 }
 
 pub fn query_updates(store: UpdateStore, sid: String) -> List(AcpNotification) {
   let UpdateStore(d) = store
   dict.get(d, sid) |> result.unwrap([]) |> list.reverse
+}
+
+pub fn filter_by_method(
+  notifs: List(AcpNotification),
+  method: String,
+) -> List(AcpNotification) {
+  list.filter(notifs, fn(n) { n.method == method })
+}
+
+pub fn query_all_updates(store: UpdateStore) -> List(AcpNotification) {
+  let UpdateStore(d) = store
+  dict.values(d) |> list.flatten |> list.reverse
 }

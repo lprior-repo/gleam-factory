@@ -7,7 +7,6 @@ import gleam/erlang/process as erl_process
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/otp/actor
-import gleam/result
 import gleam/string
 import gleeunit
 import gleeunit/should
@@ -2659,8 +2658,8 @@ pub fn acp_update_filter_by_method_composes_with_session_query_test() {
   let t4 = types.AcpNotification("s2", "thought")
   let t5 = types.AcpNotification("s1", "agent_message")
 
-  let filter_thoughts = fn(notifs) {
-    list.filter(notifs, fn(n) { n.method == "thought" })
+  let filter_thoughts = fn(notifs: List(types.AcpNotification)) {
+    list.filter(notifs, fn(n: types.AcpNotification) { n.method == "thought" })
   }
 
   let s1_thoughts =
