@@ -1,11 +1,18 @@
 // Shell module - Execute external commands
 
 import gleam/erlang/process as erl_process
-import gleam/list as gleam_list
+import gleam/list
 import gleam/result
 import gleam/string
+import gleam/json
+import gleam/dynamic/decode
 import simplifile
 import types
+
+/// Escape a string for safe shell execution using single quotes
+fn shell_escape(s: String) -> String {
+  "'" <> string.replace(s, "'", "'\"'\"'") <> "'"
+}
 
 /// Result of command execution
 pub type CommandResult {
@@ -20,16 +27,18 @@ pub fn run_command(
   args: List(String),
   cwd: String,
 ) -> Result(CommandResult, String) {
-  // Build full command string
+  // Build full command string with proper shell escaping
+  let escaped_cmd = shell_escape(cmd)
+  let escaped_args = list.map(args, shell_escape)
   let full_cmd = case args {
-    [] -> cmd
-    _ -> cmd <> " " <> string.join(args, " ")
+    [] -> escaped_cmd
+    _ -> escaped_cmd <> " " <> string.join(escaped_args, " ")
   }
 
   // Create shell command that changes to cwd first and captures exit code
   let shell_cmd = case cwd {
     "" -> full_cmd <> " 2>&1; echo $?"
-    _ -> "cd " <> cwd <> " && " <> full_cmd <> " 2>&1; echo $?"
+    _ -> "cd " <> shell_escape(cwd) <> " && " <> full_cmd <> " 2>&1; echo $?"
   }
 
   // Execute via os:cmd
@@ -38,7 +47,7 @@ pub fn run_command(
   // Extract exit code from last non-empty line
   let lines = output
     |> string.split("\n")
-    |> gleam_list.filter(fn(line) { string.trim(line) != "" })
+    |> list.filter(fn(line) { string.trim(line) != "" })
 
   case lines {
     [] -> Ok(Success("", "", 0))
@@ -214,13 +223,9 @@ pub fn acp_new_session(client: types.AcpClient) -> Result(String, String) {
 }
 
 fn parse_session_id(json: String) -> Result(String, String) {
-  case string.split(json, "\"sessionId\":\"") {
-    [_, rest, ..] -> case string.split(rest, "\"") {
-      [session_id, ..] -> Ok(session_id)
-      [] -> Error("malformed session_id response")
-    }
-    _ -> Error("no sessionId in response")
-  }
+  let decoder = decode.at(["result", "sessionId"], decode.string)
+  json.parse(json, decoder)
+  |> result.map_error(fn(_) { "invalid session response JSON" })
 }
 
 /// Send a prompt to an ACP session, returns response content
@@ -243,13 +248,9 @@ pub fn acp_session_prompt(
 }
 
 fn extract_response_text(json: String) -> Result(String, String) {
-  case string.split(json, "\"text\":\"") {
-    [_, rest, ..] -> case string.split(rest, "\"") {
-      [text, ..] -> Ok(text)
-      [] -> Error("malformed response text")
-    }
-    _ -> Error("no text in response")
-  }
+  let decoder = decode.at(["result", "text"], decode.string)
+  json.parse(json, decoder)
+  |> result.map_error(fn(_) { "invalid response text JSON" })
 }
 
 fn escape_json_string(s: String) -> String {
@@ -296,9 +297,20 @@ pub fn fs_write_text_file(
 }
 
 fn is_path_allowed(path: String, role: FsRole) -> Bool {
-  case role {
-    Auditor -> string.contains(path, "test/")
-    Implementer -> string.contains(path, "src/") && !string.contains(path, "src/gleam/")
+  // Reject dangerous patterns: absolute paths, traversal, hidden files
+  let is_safe = !string.starts_with(path, "/")
+    && !string.contains(path, "..")
+    && !string.starts_with(path, ".")
+
+  case is_safe {
+    False -> False
+    True ->
+      case role {
+        Auditor -> string.starts_with(path, "test/")
+        Implementer ->
+          string.starts_with(path, "src/")
+          && !string.starts_with(path, "src/gleam/")
+      }
   }
 }
 
