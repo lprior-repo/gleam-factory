@@ -85,9 +85,7 @@ fn find_error_lines(
     0, _ -> list_reverse(acc)
     _, [] -> list_reverse(acc)
     _, [line, ..rest] ->
-      case
-        string.contains(line, "Error") || string.contains(line, "error")
-      {
+      case string.contains(line, "Error") || string.contains(line, "error") {
         True -> find_error_lines(rest, remaining - 1, [line, ..acc])
         False -> find_error_lines(rest, remaining, acc)
       }

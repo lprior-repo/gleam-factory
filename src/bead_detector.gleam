@@ -1,15 +1,12 @@
 //// Bead detector - Identifies new open beads by comparing snapshots.
 //// Maintains state of previously seen beads and detects additions.
 
+import bead_manager
 import gleam/list
 import gleam/result
-import bead_manager
 
 pub type BeadSnapshot {
-  BeadSnapshot(
-    beads: List(bead_manager.Bead),
-    last_check_ms: Int,
-  )
+  BeadSnapshot(beads: List(bead_manager.Bead), last_check_ms: Int)
 }
 
 pub type DetectionResult {
@@ -36,11 +33,7 @@ pub fn detect_changes(
   let removed_beads = find_removed_beads(current_beads, previous.beads)
   let snapshot = BeadSnapshot(beads: current_beads, last_check_ms: 0)
 
-  Ok(DetectionResult(
-    new_beads:,
-    removed_beads:,
-    current_snapshot: snapshot,
-  ))
+  Ok(DetectionResult(new_beads:, removed_beads:, current_snapshot: snapshot))
 }
 
 /// Find beads in current that aren't in previous

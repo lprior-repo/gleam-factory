@@ -40,11 +40,7 @@ pub type LLMError {
   AuthError(String)
 }
 
-pub fn new_request(
-  model: String,
-  prompt: String,
-  max_tokens: Int,
-) -> LLMRequest {
+pub fn new_request(model: String, prompt: String, max_tokens: Int) -> LLMRequest {
   LLMRequest(
     model:,
     prompt:,

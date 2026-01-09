@@ -1,8 +1,8 @@
 // Property-based tests for repo module using qcheck
 // Tests path validation and output parsing invariants
 
-import gleam/string
 import gleam/list
+import gleam/string
 import qcheck
 
 // PATH VALIDATION - Property: repo paths always non-empty after processing
@@ -32,17 +32,18 @@ pub fn prop_modified_files_empty_is_empty__test() {
   // Simulating what modified_files does with empty git output
   let output = ""
   let lines = string.split(output, "\n")
-  let result = list.filter_map(lines, fn(line) {
-    case string.trim(line) {
-      "" -> Error(Nil)
-      l -> {
-        case string.length(l) {
-          len if len > 3 -> Ok(string.drop_start(l, 3))
-          _ -> Error(Nil)
+  let result =
+    list.filter_map(lines, fn(line) {
+      case string.trim(line) {
+        "" -> Error(Nil)
+        l -> {
+          case string.length(l) {
+            len if len > 3 -> Ok(string.drop_start(l, 3))
+            _ -> Error(Nil)
+          }
         }
       }
-    }
-  })
+    })
   assert result == []
 }
 
@@ -150,9 +151,9 @@ pub fn prop_language_manifest_names_consistent__test() {
   let python_manifest = "pyproject.toml"
 
   assert string.contains(gleam_manifest, ".")
-  && string.contains(go_manifest, ".")
-  && string.contains(rust_manifest, ".")
-  && string.contains(python_manifest, ".")
+    && string.contains(go_manifest, ".")
+    && string.contains(rust_manifest, ".")
+    && string.contains(python_manifest, ".")
 }
 
 // LANGUAGE DETECTION - Property: Gleam manifest is specific format

@@ -2,13 +2,13 @@
 // Provides full audit trail for compliance and debugging
 // Inspired by beads' actor tracking and timestamp system
 
-import gleam/list
-import gleam/string
-import gleam/result
-import gleam/json
 import gleam/dynamic/decode
+import gleam/int
+import gleam/json
+import gleam/list
+import gleam/result
+import gleam/string
 import simplifile
-import utils
 
 /// Type of audit event
 pub type AuditEventType {
@@ -233,10 +233,16 @@ pub fn log_stage_started(
   stage_name: String,
   attempt: Int,
 ) -> Result(Nil, String) {
-  log_event(repo_root, StageStarted, task_slug, "Stage started: " <> stage_name, [
-    #("stage", stage_name),
-    #("attempt", utils.int_to_string(attempt)),
-  ])
+  log_event(
+    repo_root,
+    StageStarted,
+    task_slug,
+    "Stage started: " <> stage_name,
+    [
+      #("stage", stage_name),
+      #("attempt", int.to_string(attempt)),
+    ],
+  )
 }
 
 /// Log stage pass
@@ -248,7 +254,7 @@ pub fn log_stage_passed(
 ) -> Result(Nil, String) {
   log_event(repo_root, StagePassed, task_slug, "Stage passed: " <> stage_name, [
     #("stage", stage_name),
-    #("duration_ms", utils.int_to_string(duration_ms)),
+    #("duration_ms", int.to_string(duration_ms)),
   ])
 }
 
@@ -286,8 +292,8 @@ pub fn log_deployment_started(
     repo_root,
     DeploymentStarted,
     task_slug,
-    "Deployment started at " <> utils.int_to_string(rollout_percentage) <> "%",
-    [#("rollout_percentage", utils.int_to_string(rollout_percentage))],
+    "Deployment started at " <> int.to_string(rollout_percentage) <> "%",
+    [#("rollout_percentage", int.to_string(rollout_percentage))],
   )
 }
 
@@ -393,4 +399,3 @@ fn json_to_entry(json_string: String) -> Result(AuditEntry, Nil) {
     Error(_) -> Error(Nil)
   }
 }
-

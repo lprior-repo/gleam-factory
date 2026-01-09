@@ -61,8 +61,14 @@ pub fn git_hash_parse(input: String) -> Result(GitHash, String) {
   let trimmed = string.trim(input)
   case string.length(trimmed), is_valid_hex(trimmed) {
     40, True -> Ok(GitHash(trimmed))
-    40, False -> Error("Invalid git hash: must contain only lowercase hexadecimal characters (0-9, a-f)")
-    len, _ -> Error("Invalid git hash: expected 40 characters, got " <> int.to_string(len))
+    40, False ->
+      Error(
+        "Invalid git hash: must contain only lowercase hexadecimal characters (0-9, a-f)",
+      )
+    len, _ ->
+      Error(
+        "Invalid git hash: expected 40 characters, got " <> int.to_string(len),
+      )
   }
 }
 
@@ -71,15 +77,18 @@ pub fn git_hash_to_string(hash: GitHash) -> String {
   hash.hash
 }
 
+fn is_hex_char(c: String) -> Bool {
+  case c {
+    "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+    | "a" | "b" | "c" | "d" | "e" | "f" -> True
+    _ -> False
+  }
+}
+
 fn is_valid_hex(input: String) -> Bool {
   input
   |> string.split("")
-  |> list.all(fn(c) {
-    case c {
-      "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "a" | "b" | "c" | "d" | "e" | "f" -> True
-      _ -> False
-    }
-  })
+  |> list.all(is_hex_char)
 }
 
 /// AcpClient represents an Agent Communication Protocol HTTP client.
@@ -93,15 +102,19 @@ pub fn new_acp_client(base_url: String) -> AcpClient {
   AcpClient(base_url:)
 }
 
-
 /// AcpNotification represents an Agent Communication Protocol notification.
 pub type AcpNotification {
   AcpNotification(session_id: String, method: String)
 }
 
 /// Parses JSON string to AcpNotification extracting method and session_id.
-pub fn parse_acp_notification(json_str: String) -> Result(AcpNotification, String) {
-  case extract_field(json_str, "method"), extract_field(json_str, "session_id") {
+pub fn parse_acp_notification(
+  json_str: String,
+) -> Result(AcpNotification, String) {
+  case
+    extract_field(json_str, "method"),
+    extract_field(json_str, "session_id")
+  {
     Ok(method), Ok(session_id) -> Ok(AcpNotification(session_id:, method:))
     Error(_), _ -> Error("Missing method field")
     _, Error(_) -> Error("Missing session_id in params")
@@ -155,7 +168,6 @@ pub fn can_cancel(
   }
 }
 
-
 /// Extracts base_url from AcpClient.
 pub fn get_base_url(client: AcpClient) -> String {
   case client {
@@ -184,13 +196,20 @@ pub fn parse_initialize_result(json_str: String) -> Result(List(String), String)
   case string.contains(json_str, "capabilities") {
     False -> Error("No capabilities field")
     True -> {
-      use after_cap <- result.try(json_str |> string.split("\"capabilities\":[") |> list.last |> result.replace_error(""))
-      use caps_str <- result.try(after_cap |> string.split("]") |> list.first |> result.replace_error(""))
+      use after_cap <- result.try(
+        json_str
+        |> string.split("\"capabilities\":[")
+        |> list.last
+        |> result.replace_error(""),
+      )
+      use caps_str <- result.try(
+        after_cap |> string.split("]") |> list.first |> result.replace_error(""),
+      )
       caps_str
-        |> string.replace("\"", "")
-        |> string.split(",")
-        |> list.filter(fn(x) { string.length(string.trim(x)) > 0 })
-        |> Ok
+      |> string.replace("\"", "")
+      |> string.split(",")
+      |> list.filter(fn(x) { string.length(string.trim(x)) > 0 })
+      |> Ok
     }
   }
 }
@@ -239,7 +258,12 @@ type GpuMessage {
 }
 
 type GpuState {
-  GpuState(limit: Int, next: Int, issued: List(Int), waiters: List(Subject(Result(GpuTicket, Nil))))
+  GpuState(
+    limit: Int,
+    next: Int,
+    issued: List(Int),
+    waiters: List(Subject(Result(GpuTicket, Nil))),
+  )
 }
 
 pub fn new_gpu_governor(limit: Int) -> Result(GpuGovernor, Nil) {
@@ -264,24 +288,52 @@ pub fn new_gpu_governor(limit: Int) -> Result(GpuGovernor, Nil) {
   }
 }
 
-fn gpu_loop(gov_id: Int, state: GpuState, selector: process.Selector(GpuMessage)) -> Nil {
+fn gpu_loop(
+  gov_id: Int,
+  state: GpuState,
+  selector: process.Selector(GpuMessage),
+) -> Nil {
   case process.selector_receive_forever(selector) {
     Request(reply:) -> handle_request(gov_id, state, reply, selector)
-    Release(ticket, reply:) -> handle_release(gov_id, state, ticket, reply, selector)
+    Release(ticket, reply:) ->
+      handle_release(gov_id, state, ticket, reply, selector)
   }
 }
 
-fn handle_request(gov_id: Int, state: GpuState, reply: Subject(Result(GpuTicket, Nil)), selector: process.Selector(GpuMessage)) -> Nil {
+fn handle_request(
+  gov_id: Int,
+  state: GpuState,
+  reply: Subject(Result(GpuTicket, Nil)),
+  selector: process.Selector(GpuMessage),
+) -> Nil {
   case list.length(state.issued) < state.limit {
     True -> {
       process.send(reply, Ok(GpuTicket(gov_id, state.next)))
-      gpu_loop(gov_id, GpuState(..state, next: state.next + 1, issued: [state.next, ..state.issued]), selector)
+      gpu_loop(
+        gov_id,
+        GpuState(..state, next: state.next + 1, issued: [
+          state.next,
+          ..state.issued
+        ]),
+        selector,
+      )
     }
-    False -> gpu_loop(gov_id, GpuState(..state, waiters: [reply, ..state.waiters]), selector)
+    False ->
+      gpu_loop(
+        gov_id,
+        GpuState(..state, waiters: [reply, ..state.waiters]),
+        selector,
+      )
   }
 }
 
-fn handle_release(gov_id: Int, state: GpuState, ticket: GpuTicket, reply: Subject(Result(Nil, Nil)), selector: process.Selector(GpuMessage)) -> Nil {
+fn handle_release(
+  gov_id: Int,
+  state: GpuState,
+  ticket: GpuTicket,
+  reply: Subject(Result(Nil, Nil)),
+  selector: process.Selector(GpuMessage),
+) -> Nil {
   case ticket.gov_id == gov_id && list.contains(state.issued, ticket.id) {
     False -> {
       process.send(reply, Error(Nil))
@@ -291,14 +343,29 @@ fn handle_release(gov_id: Int, state: GpuState, ticket: GpuTicket, reply: Subjec
   }
 }
 
-fn release_valid_ticket(gov_id: Int, state: GpuState, ticket: GpuTicket, reply: Subject(Result(Nil, Nil)), selector: process.Selector(GpuMessage)) -> Nil {
+fn release_valid_ticket(
+  gov_id: Int,
+  state: GpuState,
+  ticket: GpuTicket,
+  reply: Subject(Result(Nil, Nil)),
+  selector: process.Selector(GpuMessage),
+) -> Nil {
   let new_issued = list.filter(state.issued, fn(id) { id != ticket.id })
   process.send(reply, Ok(Nil))
   case list.reverse(state.waiters) {
-    [] -> gpu_loop(gov_id, GpuState(..state, issued: new_issued, waiters: []), selector)
+    [] ->
+      gpu_loop(
+        gov_id,
+        GpuState(..state, issued: new_issued, waiters: []),
+        selector,
+      )
     [w, ..rest] -> {
       process.send(w, Ok(GpuTicket(gov_id, ticket.id)))
-      gpu_loop(gov_id, GpuState(..state, issued: new_issued, waiters: list.reverse(rest)), selector)
+      gpu_loop(
+        gov_id,
+        GpuState(..state, issued: new_issued, waiters: list.reverse(rest)),
+        selector,
+      )
     }
   }
 }
@@ -342,12 +409,14 @@ pub fn new_update_store() -> UpdateStore {
 
 pub fn store_update(store: UpdateStore, notif: AcpNotification) -> UpdateStore {
   let UpdateStore(d) = store
-  UpdateStore(dict.upsert(d, notif.session_id, fn(opt) {
-    case opt {
-      option.Some(ns) -> [notif, ..ns]
-      option.None -> [notif]
-    }
-  }))
+  UpdateStore(
+    dict.upsert(d, notif.session_id, fn(opt) {
+      case opt {
+        option.Some(ns) -> [notif, ..ns]
+        option.None -> [notif]
+      }
+    }),
+  )
 }
 
 pub fn query_updates(store: UpdateStore, sid: String) -> List(AcpNotification) {
@@ -369,10 +438,5 @@ pub fn query_all_updates(store: UpdateStore) -> List(AcpNotification) {
 
 /// HistoryEntry tracks the output of a role in the TDD-TCR loop.
 pub type HistoryEntry {
-  HistoryEntry(
-    iteration: Int,
-    role: String,
-    content: String,
-    timestamp: String,
-  )
+  HistoryEntry(iteration: Int, role: String, content: String, timestamp: String)
 }

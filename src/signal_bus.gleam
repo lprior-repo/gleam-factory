@@ -28,7 +28,9 @@ pub type SignalBusMessage {
   Subscribe(signal: Signal, subscriber: Subject(Signal))
   Unsubscribe(signal: Signal, subscriber: Subject(Signal))
   Publish(signal: Signal)
-  ListSubscriptions(reply_with: Subject(dict.Dict(Signal, List(Subject(Signal)))))
+  ListSubscriptions(
+    reply_with: Subject(dict.Dict(Signal, List(Subject(Signal)))),
+  )
 }
 
 /// Error type for signal bus initialization.
@@ -49,7 +51,8 @@ pub fn start_link() -> Result(Subject(SignalBusMessage), SignalBusError) {
   process.spawn(fn() {
     let child_subject = process.new_subject()
     process.send(parent_subject, child_subject)
-    let selector = process.new_selector()
+    let selector =
+      process.new_selector()
       |> process.select(child_subject)
     bus_loop(initial_state, selector)
   })

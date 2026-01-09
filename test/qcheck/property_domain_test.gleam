@@ -1,10 +1,10 @@
 // Property-based tests for domain module using qcheck
 // Tests that expose bugs and force code quality
 
+import domain
 import gleam/list
 import gleam/string
 import qcheck
-import domain
 
 fn codepoint_to_string(code: Int) -> String {
   case string.utf_codepoint(code) {
@@ -81,9 +81,15 @@ pub fn prop_slug_length_boundaries__test() {
 
 // LANGUAGE DETECTION - Property: Gleam manifest always wins
 pub fn prop_language_gleam_priority__test() {
-  use vals <- qcheck.given(qcheck.tuple3(qcheck.bool(), qcheck.bool(), qcheck.bool()))
+  use vals <- qcheck.given(qcheck.tuple3(
+    qcheck.bool(),
+    qcheck.bool(),
+    qcheck.bool(),
+  ))
   let #(has_go, has_rust, has_python) = vals
-  assert case domain.detect_language_from_files(True, has_go, has_rust, has_python) {
+  assert case
+    domain.detect_language_from_files(True, has_go, has_rust, has_python)
+  {
     Ok(domain.Gleam) -> True
     _ -> False
   }

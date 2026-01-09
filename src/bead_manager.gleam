@@ -5,17 +5,12 @@
 import gleam/erlang/process.{type Subject}
 import gleam/list
 import gleam/string
+import process as shell_process
 import signal_bus
 import signals
-import process as shell_process
 
 pub type Bead {
-  Bead(
-    id: String,
-    title: String,
-    description: String,
-    priority: String,
-  )
+  Bead(id: String, title: String, description: String, priority: String)
 }
 
 pub fn load_open_beads(db_path: String) -> Result(List(Bead), String) {
@@ -110,7 +105,14 @@ pub fn update_bead_state(
 ) -> Result(Nil, String) {
   let status_str = status_to_string(new_status)
   let args = case new_status {
-    Completed | Failed -> ["update", bead_id, "--status", status_str, "--close-reason", close_reason]
+    Completed | Failed -> [
+      "update",
+      bead_id,
+      "--status",
+      status_str,
+      "--close-reason",
+      close_reason,
+    ]
     _ -> ["update", bead_id, "--status", status_str]
   }
   case shell_process.run_command("bd", args, "") {
@@ -129,7 +131,10 @@ fn status_to_string(status: BeadStatus) -> String {
   }
 }
 
-pub fn mark_bead_completed(bead_id: String, reason: String) -> Result(Nil, String) {
+pub fn mark_bead_completed(
+  bead_id: String,
+  reason: String,
+) -> Result(Nil, String) {
   update_bead_state(bead_id, Completed, reason)
 }
 

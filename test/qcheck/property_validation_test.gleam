@@ -25,7 +25,10 @@ pub fn prop_email_requires_at_symbol__test() {
 
 // EMAIL VALIDATION - Property: strings with @ pass basic email validation
 pub fn prop_email_accepts_at_symbol__test() {
-  use vals <- qcheck.given(qcheck.tuple2(qcheck.bounded_int(1, 20), qcheck.bounded_int(1, 20)))
+  use vals <- qcheck.given(qcheck.tuple2(
+    qcheck.bounded_int(1, 20),
+    qcheck.bounded_int(1, 20),
+  ))
   let #(local_len, domain_len) = vals
   let local = string.repeat("a", local_len)
   let domain = string.repeat("b", domain_len)
@@ -38,7 +41,10 @@ pub fn prop_email_accepts_at_symbol__test() {
 
 // EMAIL VALIDATION - Property: format validation requires dot in domain
 pub fn prop_email_format_requires_dot_in_domain__test() {
-  use vals <- qcheck.given(qcheck.tuple2(qcheck.bounded_int(1, 20), qcheck.bounded_int(1, 20)))
+  use vals <- qcheck.given(qcheck.tuple2(
+    qcheck.bounded_int(1, 20),
+    qcheck.bounded_int(1, 20),
+  ))
   let #(local_len, domain_len) = vals
   let local = string.repeat("a", local_len)
   let domain_no_dot = string.repeat("b", domain_len)
@@ -51,7 +57,10 @@ pub fn prop_email_format_requires_dot_in_domain__test() {
 
 // EMAIL VALIDATION - Property: format validation accepts valid format
 pub fn prop_email_format_accepts_valid__test() {
-  use vals <- qcheck.given(qcheck.tuple2(qcheck.bounded_int(1, 20), qcheck.bounded_int(1, 20)))
+  use vals <- qcheck.given(qcheck.tuple2(
+    qcheck.bounded_int(1, 20),
+    qcheck.bounded_int(1, 20),
+  ))
   let #(local_len, domain_len) = vals
   let local = string.repeat("a", local_len)
   let domain = string.repeat("b", domain_len) <> ".com"

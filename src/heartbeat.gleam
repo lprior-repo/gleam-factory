@@ -44,12 +44,7 @@ pub fn start_link(
   bus: Subject(signal_bus.SignalBusMessage),
 ) -> Result(Subject(HeartbeatMessage), HeartbeatError) {
   let initial =
-    HeartbeatState(
-      config:,
-      last_status: Green,
-      last_hash: "",
-      signal_bus: bus,
-    )
+    HeartbeatState(config:, last_status: Green, last_hash: "", signal_bus: bus)
   let builder = actor.new(initial) |> actor.on_message(handle_message)
   case actor.start(builder) {
     Ok(started) -> Ok(started.data)
@@ -85,7 +80,8 @@ fn handle_message(
 }
 
 fn run_tests(config: HeartbeatConfig) -> TestStatus {
-  case shell_process.run_command(config.test_cmd, [], config.golden_master_path)
+  case
+    shell_process.run_command(config.test_cmd, [], config.golden_master_path)
   {
     Ok(shell_process.Success(_, _, _)) -> Green
     _ -> Red

@@ -1,12 +1,12 @@
 // Persistence module - Save/load task status as JSON
 // Tracks which stages passed/failed for each task
 
+import domain
+import gleam/dynamic/decode
+import gleam/json
 import gleam/list
 import gleam/result
-import gleam/json
-import gleam/dynamic/decode
 import simplifile
-import domain
 
 /// Stage status record
 pub type StageRecord {
@@ -155,15 +155,16 @@ pub fn update_stage_status(
 ) -> Result(Nil, String) {
   let record = task_to_record(task)
 
-  let new_stage = StageRecord(
-    stage_name: stage_name,
-    status: case passed {
-      True -> "passed"
-      False -> "failed"
-    },
-    attempts: attempts,
-    last_error: error,
-  )
+  let new_stage =
+    StageRecord(
+      stage_name: stage_name,
+      status: case passed {
+        True -> "passed"
+        False -> "failed"
+      },
+      attempts: attempts,
+      last_error: error,
+    )
 
   let updated_stages = case
     list.find(record.stages, fn(s) { s.stage_name == stage_name })
@@ -178,11 +179,7 @@ pub fn update_stage_status(
     Error(Nil) -> list.append(record.stages, [new_stage])
   }
 
-  let updated_record =
-    TaskRecord(
-      ..record,
-      stages: updated_stages,
-    )
+  let updated_record = TaskRecord(..record, stages: updated_stages)
 
   save_task_record_direct(updated_record, repo_root)
 }

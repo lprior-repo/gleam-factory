@@ -1,11 +1,11 @@
 //// Beads broadcaster - Broadcasts BeadAssigned signals for new beads.
 //// Monitors bead changes and publishes signals to the signal bus.
 
+import bead_detector
+import bead_manager
 import gleam/erlang/process.{type Subject}
 import gleam/list
 import gleam/string
-import bead_detector
-import bead_manager
 import signal_bus
 import signals
 
@@ -25,9 +25,7 @@ pub fn start(
   let initial_snapshot = bead_detector.empty_snapshot()
   let state = BroadcasterState(db_path:, bus:, snapshot: initial_snapshot)
 
-  process.spawn(fn() {
-    broadcast_loop(state)
-  })
+  process.spawn(fn() { broadcast_loop(state) })
 }
 
 /// Main broadcast loop - detects changes and publishes signals
@@ -37,10 +35,8 @@ fn broadcast_loop(state: BroadcasterState) -> Nil {
       // Broadcast signals for new beads
       broadcast_new_beads(detection.new_beads, state.bus)
 
-      let updated = BroadcasterState(
-        ..state,
-        snapshot: detection.current_snapshot,
-      )
+      let updated =
+        BroadcasterState(..state, snapshot: detection.current_snapshot)
 
       // Continue polling
       process.sleep(5000)

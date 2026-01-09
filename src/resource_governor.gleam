@@ -47,7 +47,10 @@ pub fn start_link(
   }
 }
 
-fn handle_message(state: State, msg: GovernorMessage) -> actor.Next(State, GovernorMessage) {
+fn handle_message(
+  state: State,
+  msg: GovernorMessage,
+) -> actor.Next(State, GovernorMessage) {
   case msg {
     AcquireMutator(reply) -> {
       case state.mutators < state.limits.max_mutators {
@@ -124,7 +127,9 @@ pub fn release_slot(gov: Subject(GovernorMessage), slot_type: SlotType) -> Nil {
   }
 }
 
-pub fn request_loop_slot(gov: Subject(GovernorMessage)) -> Result(Ticket, String) {
+pub fn request_loop_slot(
+  gov: Subject(GovernorMessage),
+) -> Result(Ticket, String) {
   let reply = process.new_subject()
   process.send(gov, AcquireLoop(reply_with: reply))
   case process.receive(reply, 5000) {
@@ -133,7 +138,9 @@ pub fn request_loop_slot(gov: Subject(GovernorMessage)) -> Result(Ticket, String
   }
 }
 
-pub fn request_mutator_slot(gov: Subject(GovernorMessage)) -> Result(Ticket, String) {
+pub fn request_mutator_slot(
+  gov: Subject(GovernorMessage),
+) -> Result(Ticket, String) {
   let reply = process.new_subject()
   process.send(gov, AcquireMutator(reply_with: reply))
   case process.receive(reply, 5000) {

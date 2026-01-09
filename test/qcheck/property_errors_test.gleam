@@ -1,10 +1,10 @@
 // Property-based tests for errors module using qcheck
 // Tests error classification and extraction invariants
 
-import gleam/string
-import gleam/option.{Some, None}
-import qcheck
 import errors
+import gleam/option.{None, Some}
+import gleam/string
+import qcheck
 
 // ERROR CLASSIFICATION - Property: timeout pattern always classifies as Timeout
 pub fn prop_classify_timeout_keyword__test() {
@@ -172,9 +172,11 @@ pub fn prop_summarize_respects_limit__test() {
   let lines = list_build_errors(20)
   let output = string.join(lines, "\n")
   let summary = errors.summarize_error(output, max)
-  let summary_line_count = string.split(summary, "\n")
+  let summary_line_count =
+    string.split(summary, "\n")
     |> list.length
-  assert summary_line_count <= max + 1  // +1 for edge case
+  assert summary_line_count <= max + 1
+  // +1 for edge case
 }
 
 // ERROR SUMMARIZATION - Property: empty output summarizes to empty
@@ -204,7 +206,10 @@ pub fn prop_extract_context_preserves_indentation__test() {
 fn list_build_errors(count: Int) -> List(String) {
   case count {
     0 -> []
-    n if n % 2 == 0 -> ["Error: " <> string.inspect(n), ..list_build_errors(n - 1)]
+    n if n % 2 == 0 -> [
+      "Error: " <> string.inspect(n),
+      ..list_build_errors(n - 1)
+    ]
     n -> ["output line " <> string.inspect(n), ..list_build_errors(n - 1)]
   }
 }

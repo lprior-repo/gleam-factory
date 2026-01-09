@@ -2,11 +2,11 @@
 // Uses: shellout, stdin
 // This is the ONLY place these tools are used
 
-import gleam/io
-import gleam/string
-import gleam/result
-import gleam/list
 import gleam/int
+import gleam/io
+import gleam/list
+import gleam/result
+import gleam/string
 import shellout
 
 /// Execute a command with status indicator
@@ -19,9 +19,7 @@ pub fn run_with_status(
   io.println("▶ " <> description)
 
   shellout.command(command, args, cwd, [])
-  |> result.map_error(fn(err) {
-    "Command failed: " <> string.inspect(err)
-  })
+  |> result.map_error(fn(err) { "Command failed: " <> string.inspect(err) })
 }
 
 /// Execute multiple commands in sequence with progress
@@ -100,9 +98,7 @@ pub fn print_list(title: String, items: List(String)) -> Nil {
   io.println("")
   io.println(title <> ":")
   items
-  |> list.each(fn(item) {
-    io.println("  • " <> item)
-  })
+  |> list.each(fn(item) { io.println("  • " <> item) })
 }
 
 /// Create a progress bar
@@ -135,7 +131,9 @@ pub fn print_stage_result(
     _ -> "?"
   }
 
-  io.println(icon <> " " <> stage <> " (" <> int.to_string(duration_ms) <> "ms)")
+  io.println(
+    icon <> " " <> stage <> " (" <> int.to_string(duration_ms) <> "ms)",
+  )
 }
 
 /// Print pipeline summary
@@ -176,39 +174,3 @@ pub fn print_error_context(
   })
 }
 
-/// Convert int to string (replaces duplicates across audit, validation, llm_router)
-pub fn int_to_string(n: Int) -> String {
-  case n < 0 {
-    True -> "-" <> int_to_string(-n)
-    False ->
-      case n {
-        0 -> "0"
-        1 -> "1"
-        2 -> "2"
-        3 -> "3"
-        4 -> "4"
-        5 -> "5"
-        6 -> "6"
-        7 -> "7"
-        8 -> "8"
-        9 -> "9"
-        _ -> {
-          let digit = n % 10
-          let char = case digit {
-            0 -> "0"
-            1 -> "1"
-            2 -> "2"
-            3 -> "3"
-            4 -> "4"
-            5 -> "5"
-            6 -> "6"
-            7 -> "7"
-            8 -> "8"
-            9 -> "9"
-            _ -> "?"
-          }
-          int_to_string(n / 10) <> char
-        }
-      }
-  }
-}

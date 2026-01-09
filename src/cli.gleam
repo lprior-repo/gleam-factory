@@ -1,19 +1,25 @@
+import argv
+import audit
+import domain
 import gleam/io
+import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
-import gleam/list
 import gleam/string
-import argv
-import domain
-import repo
 import persistence
+import repo
 import stages
 import worktree
-import audit
 
 pub type Command {
   NewTask(slug: String, contract_path: Option(String), interactive: Bool)
-  RunStage(slug: String, stage_name: String, dry_run: Bool, from: Option(String), to: Option(String))
+  RunStage(
+    slug: String,
+    stage_name: String,
+    dry_run: Bool,
+    from: Option(String),
+    to: Option(String),
+  )
   ApproveTask(slug: String, strategy: Option(String), force: Bool)
   ShowTask(slug: String, detailed: Bool)
   ListTasks(priority: Option(String), status: Option(String))
@@ -82,7 +88,9 @@ fn parse_approve(args: List(String)) -> Result(Command, String) {
       let force = has_flag(args, "--force", "-f")
       case get_flag(args, "--strategy", "--strategy") {
         None -> Ok(ApproveTask(slug, None, force))
-        Some(s) -> validate_strategy(s) |> result.map(fn(v) { ApproveTask(slug, Some(v), force) })
+        Some(s) ->
+          validate_strategy(s)
+          |> result.map(fn(v) { ApproveTask(slug, Some(v), force) })
       }
     }
   }
@@ -96,10 +104,15 @@ fn parse_show(args: List(String)) -> Result(Command, String) {
 }
 
 fn parse_list(args: List(String)) -> Result(Command, String) {
-  case get_flag(args, "--priority", "--priority"), get_flag(args, "--status", "--status") {
+  case
+    get_flag(args, "--priority", "--priority"),
+    get_flag(args, "--status", "--status")
+  {
     None, None -> Ok(ListTasks(None, None))
-    Some(p), None -> validate_priority(p) |> result.map(fn(v) { ListTasks(Some(v), None) })
-    None, Some(s) -> validate_status(s) |> result.map(fn(v) { ListTasks(None, Some(v)) })
+    Some(p), None ->
+      validate_priority(p) |> result.map(fn(v) { ListTasks(Some(v), None) })
+    None, Some(s) ->
+      validate_status(s) |> result.map(fn(v) { ListTasks(None, Some(v)) })
     Some(p), Some(s) -> {
       use vp <- result.try(validate_priority(p))
       use vs <- result.try(validate_status(s))
@@ -111,21 +124,32 @@ fn parse_list(args: List(String)) -> Result(Command, String) {
 fn validate_strategy(s: String) -> Result(String, String) {
   case s {
     "immediate" | "gradual" | "canary" -> Ok(s)
-    _ -> Error("Invalid strategy value: " <> s <> ". Valid values are: immediate, gradual, canary")
+    _ ->
+      Error(
+        "Invalid strategy value: "
+        <> s
+        <> ". Valid values are: immediate, gradual, canary",
+      )
   }
 }
 
 fn validate_priority(p: String) -> Result(String, String) {
   case p {
     "P1" | "P2" | "P3" -> Ok(p)
-    _ -> Error("Invalid priority value: " <> p <> ". Valid values are: P1, P2, P3")
+    _ ->
+      Error("Invalid priority value: " <> p <> ". Valid values are: P1, P2, P3")
   }
 }
 
 fn validate_status(s: String) -> Result(String, String) {
   case s {
     "open" | "in_progress" | "done" -> Ok(s)
-    _ -> Error("Invalid status value: " <> s <> ". Valid values are: open, in_progress, done")
+    _ ->
+      Error(
+        "Invalid status value: "
+        <> s
+        <> ". Valid values are: open, in_progress, done",
+      )
   }
 }
 
@@ -138,8 +162,7 @@ pub fn execute(cmd: Command) -> Result(Nil, String) {
     RunStage(slug, stage, dry_run, from, to) ->
       execute_stage(slug, stage, dry_run, from, to)
 
-    ApproveTask(slug, strategy, force) ->
-      execute_approve(slug, strategy, force)
+    ApproveTask(slug, strategy, force) -> execute_approve(slug, strategy, force)
 
     ShowTask(slug, detailed) -> execute_show(slug, detailed)
 
@@ -226,7 +249,10 @@ fn execute_show(slug: String, _detailed: Bool) -> Result(Nil, String) {
   Ok(Nil)
 }
 
-fn execute_list(_priority: Option(String), _status: Option(String)) -> Result(Nil, String) {
+fn execute_list(
+  _priority: Option(String),
+  _status: Option(String),
+) -> Result(Nil, String) {
   use repo_root <- result.try(repo.detect_repo_root())
   use tasks <- result.try(persistence.list_all_tasks(repo_root))
 
@@ -272,13 +298,17 @@ fn execute_new_impl(
   use _ <- result.try(persistence.save_task_record(task, repo_root))
 
   // Log task creation to audit trail
-  let _ =
-    audit.log_task_created(repo_root, slug, lang_str, wt.branch)
+  let _ = audit.log_task_created(repo_root, slug, lang_str, wt.branch)
 
   Ok(
-    "Created: " <> wt.path <> "\n"
-    <> "Branch:  " <> wt.branch <> "\n"
-    <> "Language: " <> lang_str,
+    "Created: "
+    <> wt.path
+    <> "\n"
+    <> "Branch:  "
+    <> wt.branch
+    <> "\n"
+    <> "Language: "
+    <> lang_str,
   )
 }
 

@@ -1,8 +1,8 @@
 // Factory - Main entry point
 // Wires all modules together for CLI execution
 
-import gleam/io
 import cli
+import gleam/io
 
 pub fn main() {
   // Parse CLI and execute

@@ -1,8 +1,8 @@
 // Property-based tests for utils module using qcheck
 // Tests formatting and message generation invariants
 
-import gleam/string
 import gleam/int
+import gleam/string
 import qcheck
 import utils
 
@@ -93,7 +93,9 @@ pub fn prop_progress_bar_full__test() {
 // PROGRESS BAR - Property: 50% is balanced
 pub fn prop_progress_bar_half__test() {
   let bar = utils.progress_bar(50, 100)
-  assert string.contains(bar, "█") && string.contains(bar, "░") && string.contains(bar, "50%")
+  assert string.contains(bar, "█")
+    && string.contains(bar, "░")
+    && string.contains(bar, "50%")
 }
 
 // PROGRESS BAR - Property: handles zero total
@@ -105,29 +107,32 @@ pub fn prop_progress_bar_zero_total__test() {
 
 // INT TO STRING - Property: converts positive numbers
 pub fn prop_int_to_string_positive__test() {
-  use n <- qcheck.given(qcheck.bounded_int(1, 10000))
-  let str = utils.int_to_string(n)
+  use n <- qcheck.given(qcheck.bounded_int(1, 10_000))
+  let str = int.to_string(n)
   assert string.length(str) > 0
 }
 
 // INT TO STRING - Property: zero converts to "0"
 pub fn prop_int_to_string_zero__test() {
-  assert utils.int_to_string(0) == "0"
+  assert int.to_string(0) == "0"
 }
 
 // INT TO STRING - Property: single digits convert correctly
 pub fn prop_int_to_string_single_digit__test() {
   use n <- qcheck.given(qcheck.bounded_int(1, 9))
-  let str = utils.int_to_string(n)
+  let str = int.to_string(n)
   assert string.length(str) == 1
 }
 
 // INT TO STRING - Property: preserves magnitude order
 pub fn prop_int_to_string_order__test() {
-  use vals <- qcheck.given(qcheck.tuple2(qcheck.bounded_int(1, 1000), qcheck.bounded_int(1, 1000)))
+  use vals <- qcheck.given(qcheck.tuple2(
+    qcheck.bounded_int(1, 1000),
+    qcheck.bounded_int(1, 1000),
+  ))
   let #(a, b) = vals
-  let str_a = utils.int_to_string(a)
-  let str_b = utils.int_to_string(b)
+  let str_a = int.to_string(a)
+  let str_b = int.to_string(b)
   assert case a < b {
     True -> string.length(str_a) <= string.length(str_b)
     False -> True
@@ -137,14 +142,14 @@ pub fn prop_int_to_string_order__test() {
 // INT TO STRING - Property: negative numbers get minus prefix
 pub fn prop_int_to_string_negative__test() {
   use n <- qcheck.given(qcheck.bounded_int(1, 1000))
-  let str = utils.int_to_string(-n)
+  let str = int.to_string(-n)
   assert string.starts_with(str, "-")
 }
 
 // INT TO STRING - Property: string representation matches int.to_string
 pub fn prop_int_to_string_matches_standard__test() {
   use n <- qcheck.given(qcheck.bounded_int(1, 1000))
-  let custom = utils.int_to_string(n)
+  let custom = int.to_string(n)
   let standard = int.to_string(n)
   assert custom == standard
 }
@@ -181,7 +186,7 @@ pub fn prop_format_consistency__test() {
 
   // All should have exactly 1 space after symbol
   assert string.starts_with(success, "✓ ")
-  && string.starts_with(error, "✗ ")
-  && string.starts_with(info, "ℹ ")
-  && string.starts_with(warning, "⚠ ")
+    && string.starts_with(error, "✗ ")
+    && string.starts_with(info, "ℹ ")
+    && string.starts_with(warning, "⚠ ")
 }

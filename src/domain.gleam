@@ -2,8 +2,8 @@
 // Pure data types that make illegal states unrepresentable
 
 import gleam/list
-import gleam/string
 import gleam/result
+import gleam/string
 
 /// Language type - only valid languages can be represented
 pub type Language {
@@ -61,32 +61,64 @@ pub fn validate_slug(slug: String) -> Result(Slug, String) {
     _ ->
       case is_valid_slug_chars(slug) {
         True -> Ok(slug)
-        False ->
-          Error(
-            "slug contains invalid characters (use a-z, 0-9, -, _)",
-          )
+        False -> Error("slug contains invalid characters (use a-z, 0-9, -, _)")
       }
   }
 }
 
 /// Check if string contains only valid slug characters
 /// Valid: lowercase a-z, digits 0-9, hyphen, underscore
+fn is_valid_slug_char(char: String) -> Bool {
+  case char {
+    "a"
+    | "b"
+    | "c"
+    | "d"
+    | "e"
+    | "f"
+    | "g"
+    | "h"
+    | "i"
+    | "j"
+    | "k"
+    | "l"
+    | "m"
+    | "n"
+    | "o"
+    | "p"
+    | "q"
+    | "r"
+    | "s"
+    | "t"
+    | "u"
+    | "v"
+    | "w"
+    | "x"
+    | "y"
+    | "z"
+    | "0"
+    | "1"
+    | "2"
+    | "3"
+    | "4"
+    | "5"
+    | "6"
+    | "7"
+    | "8"
+    | "9"
+    | "-"
+    | "_" -> True
+    _ -> False
+  }
+}
+
 fn is_valid_slug_chars(s: String) -> Bool {
   case string.length(s) {
     0 -> False
     _ ->
       s
       |> string.to_graphemes
-      |> list.all(fn(char) {
-        case char {
-          "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j"
-          | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t"
-          | "u" | "v" | "w" | "x" | "y" | "z"
-          | "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
-          | "-" | "_" -> True
-          _ -> False
-        }
-      })
+      |> list.all(is_valid_slug_char)
   }
 }
 
@@ -185,7 +217,12 @@ pub fn filter_stages(
           )
       }
     _, _ ->
-      Error("one or both stages not found in pipeline: " <> start_name <> " to " <> end_name)
+      Error(
+        "one or both stages not found in pipeline: "
+        <> start_name
+        <> " to "
+        <> end_name,
+      )
   }
 }
 

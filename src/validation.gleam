@@ -1,8 +1,8 @@
 // Validation module - Input validation utilities
 // Provides common validation functions for user input
 
+import gleam/int
 import gleam/string
-import utils
 
 /// Validate email format (simple check for @ symbol)
 pub fn validate_email(email: String) -> Result(String, String) {
@@ -16,7 +16,11 @@ pub fn validate_email(email: String) -> Result(String, String) {
 pub fn validate_email_format(email: String) -> Result(String, String) {
   case string.split(email, "@") {
     [local, domain] ->
-      case string.length(local) > 0 && string.length(domain) > 0 && string.contains(domain, ".") {
+      case
+        string.length(local) > 0
+        && string.length(domain) > 0
+        && string.contains(domain, ".")
+      {
         True -> Ok(email)
         False -> Error("Invalid email format")
       }
@@ -25,7 +29,10 @@ pub fn validate_email_format(email: String) -> Result(String, String) {
 }
 
 /// Validate non-empty string
-pub fn validate_non_empty(value: String, field_name: String) -> Result(String, String) {
+pub fn validate_non_empty(
+  value: String,
+  field_name: String,
+) -> Result(String, String) {
   case string.length(value) > 0 {
     True -> Ok(value)
     False -> Error(field_name <> " cannot be empty")
@@ -46,9 +53,9 @@ pub fn validate_length(
       Error(
         field_name
         <> " must be between "
-        <> utils.int_to_string(min)
+        <> int.to_string(min)
         <> " and "
-        <> utils.int_to_string(max)
+        <> int.to_string(max)
         <> " characters",
       )
   }

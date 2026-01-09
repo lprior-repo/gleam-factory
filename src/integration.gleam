@@ -1,9 +1,9 @@
 // Integration module - Test code after merge
 // Verifies that changes work when merged back to main branch
 
-import gleam/string
-import gleam/result
 import domain
+import gleam/result
+import gleam/string
 import process
 
 /// Result of integration test run
@@ -22,8 +22,9 @@ pub fn test_integration(
   // STEP 1: Create temporary merge branch
   let temp_branch = "temp-integration-test-" <> task.slug
 
-  use cmd_result <- result.try(
-    process.run_command("jj", [
+  use cmd_result <- result.try(process.run_command(
+    "jj",
+    [
       "-R",
       repo_root,
       "branch",
@@ -31,29 +32,32 @@ pub fn test_integration(
       temp_branch,
       "-r",
       base_branch,
-    ], repo_root)
-  )
+    ],
+    repo_root,
+  ))
   use _ <- result.try(
     process.check_success(cmd_result)
-    |> result.map_error(fn(_) { "Could not create temp branch" })
+    |> result.map_error(fn(_) { "Could not create temp branch" }),
   )
 
   // STEP 2: Merge task branch into temp branch
-  use cmd_result <- result.try(
-    process.run_command("jj", [
+  use cmd_result <- result.try(process.run_command(
+    "jj",
+    [
       "-R",
       repo_root,
       "merge",
       task.branch,
       "-r",
       temp_branch,
-    ], repo_root)
-  )
+    ],
+    repo_root,
+  ))
   use _ <- result.try(
     process.check_success(cmd_result)
     |> result.map_error(fn(_) {
       "Could not merge " <> task.branch <> " into temp branch"
-    })
+    }),
   )
 
   // STEP 3: Run full test suite in merged state
@@ -65,13 +69,18 @@ pub fn test_integration(
   }
 
   // STEP 4: Clean up temp branch (regardless of test result)
-  let _ = process.run_command("jj", [
-    "-R",
-    repo_root,
-    "branch",
-    "delete",
-    temp_branch,
-  ], repo_root)
+  let _ =
+    process.run_command(
+      "jj",
+      [
+        "-R",
+        repo_root,
+        "branch",
+        "delete",
+        temp_branch,
+      ],
+      repo_root,
+    )
 
   // STEP 5: Return test result
   test_result
@@ -81,7 +90,9 @@ fn test_go_integration(repo_root: String) -> Result(IntegrationResult, String) {
   run_test_cmd("go", ["test", "-v", "./..."], "Go", repo_root)
 }
 
-fn test_gleam_integration(repo_root: String) -> Result(IntegrationResult, String) {
+fn test_gleam_integration(
+  repo_root: String,
+) -> Result(IntegrationResult, String) {
   run_test_cmd("gleam", ["test"], "Gleam", repo_root)
 }
 
@@ -89,19 +100,32 @@ fn test_rust_integration(repo_root: String) -> Result(IntegrationResult, String)
   run_test_cmd("cargo", ["test", "--all"], "Rust", repo_root)
 }
 
-fn test_python_integration(repo_root: String) -> Result(IntegrationResult, String) {
+fn test_python_integration(
+  repo_root: String,
+) -> Result(IntegrationResult, String) {
   run_test_cmd("python", ["-m", "pytest", "-v"], "Python", repo_root)
 }
 
-fn run_test_cmd(cmd: String, args: List(String), lang: String, repo_root: String) -> Result(IntegrationResult, String) {
+fn run_test_cmd(
+  cmd: String,
+  args: List(String),
+  lang: String,
+  repo_root: String,
+) -> Result(IntegrationResult, String) {
   process.run_command(cmd, args, repo_root)
   |> result.map(fn(r) {
     case process.is_success(r) {
       True -> Passed
-      False -> Failed(lang <> " integration tests failed: " <> case r {
-        process.Success(_, _, _) -> "unknown error"
-        process.Failure(err, code) -> err <> " (exit " <> string.inspect(code) <> ")"
-      })
+      False ->
+        Failed(
+          lang
+          <> " integration tests failed: "
+          <> case r {
+            process.Success(_, _, _) -> "unknown error"
+            process.Failure(err, code) ->
+              err <> " (exit " <> string.inspect(code) <> ")"
+          },
+        )
     }
   })
   |> result.map_error(fn(err) { lang <> " integration test error: " <> err })
@@ -110,27 +134,35 @@ fn run_test_cmd(cmd: String, args: List(String), lang: String, repo_root: String
 /// Get the base branch (main or master)
 fn get_base_branch(repo_root: String) -> Result(String, String) {
   // Try main first, then master
-  process.run_command("jj", [
-    "-R",
+  process.run_command(
+    "jj",
+    [
+      "-R",
+      repo_root,
+      "log",
+      "-r",
+      "main",
+      "--no-graph",
+    ],
     repo_root,
-    "log",
-    "-r",
-    "main",
-    "--no-graph",
-  ], repo_root)
+  )
   |> result.map(fn(_) { "main" })
   |> result.try(fn(res) {
     case res {
       "main" -> Ok(res)
       _ ->
-        process.run_command("jj", [
-          "-R",
+        process.run_command(
+          "jj",
+          [
+            "-R",
+            repo_root,
+            "log",
+            "-r",
+            "master",
+            "--no-graph",
+          ],
           repo_root,
-          "log",
-          "-r",
-          "master",
-          "--no-graph",
-        ], repo_root)
+        )
         |> result.map(fn(_) { "master" })
     }
   })
@@ -147,10 +179,7 @@ pub fn result_to_string(result: IntegrationResult) -> String {
 
 /// Retry a function with exponential backoff
 /// Returns Ok if function succeeds, Error if all retries exhausted
-pub fn retry_with_backoff(
-  f: fn() -> Result(a, e),
-  retries: Int,
-) -> Result(a, e) {
+pub fn retry_with_backoff(f: fn() -> Result(a, e), retries: Int) -> Result(a, e) {
   do_retry(f, retries)
 }
 

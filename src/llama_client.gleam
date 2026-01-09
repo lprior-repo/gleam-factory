@@ -1,7 +1,7 @@
+import gleam/dynamic/decode
 import gleam/json
 import gleam/result
 import gleam/string
-import gleam/dynamic/decode
 import process
 
 pub fn send_completion(
@@ -12,7 +12,18 @@ pub fn send_completion(
   let json_body = build_request(prompt, max_tokens)
   use cmd_result <- result.try(process.run_command(
     "curl",
-    ["-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", json_body, "--max-time", "15", url],
+    [
+      "-s",
+      "-X",
+      "POST",
+      "-H",
+      "Content-Type: application/json",
+      "-d",
+      json_body,
+      "--max-time",
+      "15",
+      url,
+    ],
     "",
   ))
   use response_json <- result.try(case cmd_result {

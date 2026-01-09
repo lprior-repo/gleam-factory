@@ -1,11 +1,11 @@
 //// Factory dispatcher actor - Manages factory loop spawning.
 //// Subscribes to BeadAssigned signals and spawns factory loops for new beads.
 
-import gleam/erlang/process.{type Subject}
+import factory_loop
 import gleam/dict
+import gleam/erlang/process.{type Subject}
 import signal_bus
 import signals
-import factory_loop
 
 pub type DispatcherState {
   DispatcherState(
@@ -25,15 +25,10 @@ pub fn start(
   bus: Subject(signal_bus.SignalBusMessage),
   workspace_root: String,
 ) -> process.Pid {
-  let state = DispatcherState(
-    signal_bus: bus,
-    active_loops: dict.new(),
-    workspace_root:,
-  )
+  let state =
+    DispatcherState(signal_bus: bus, active_loops: dict.new(), workspace_root:)
 
-  process.spawn(fn() {
-    dispatcher_loop(state)
-  })
+  process.spawn(fn() { dispatcher_loop(state) })
 }
 
 /// Main dispatcher loop - handles bead assignment and loop spawning

@@ -85,7 +85,8 @@ fn handle_message(
 }
 
 fn get_hash_from_jj(path: String) -> Result(types.GitHash, String) {
-  case shell_process.run_command("jj", ["log", "-r", "@", "-T", "commit_id"], path)
+  case
+    shell_process.run_command("jj", ["log", "-r", "@", "-T", "commit_id"], path)
   {
     Ok(shell_process.Success(stdout, _, _)) -> {
       let hash = string.trim(stdout)
@@ -96,9 +97,7 @@ fn get_hash_from_jj(path: String) -> Result(types.GitHash, String) {
   }
 }
 
-fn do_refresh(
-  state: GoldenMasterState,
-) -> Result(GoldenMasterState, String) {
+fn do_refresh(state: GoldenMasterState) -> Result(GoldenMasterState, String) {
   let old_hash = state.hash
 
   use _ <- result.try(
@@ -126,7 +125,8 @@ fn do_refresh(
   use new_hash <- result.try(get_hash_from_jj(state.path))
 
   let hash_changed = case old_hash {
-    Some(old) -> types.git_hash_to_string(old) != types.git_hash_to_string(new_hash)
+    Some(old) ->
+      types.git_hash_to_string(old) != types.git_hash_to_string(new_hash)
     None -> True
   }
 

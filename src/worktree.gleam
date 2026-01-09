@@ -1,10 +1,10 @@
 // Worktree module - Git/jj workspace isolation
 // Manages creating, retrieving, and removing isolated work directories
 
-import gleam/string
+import domain
 import gleam/list
 import gleam/result
-import domain
+import gleam/string
 import process
 
 /// Worktree represents an isolated workspace
@@ -40,13 +40,17 @@ pub fn create_worktree(
 
   // STEP 2: Create jj workspace
   use _ <- result.try(
-    process.run_command("jj", [
-      "workspace",
-      "add",
-      "--name",
-      worktree_name,
-      worktree_path,
-    ], repo_root)
+    process.run_command(
+      "jj",
+      [
+        "workspace",
+        "add",
+        "--name",
+        worktree_name,
+        worktree_path,
+      ],
+      repo_root,
+    )
     |> result.try(fn(cmd_result) {
       process.check_success(cmd_result)
       |> result.map_error(fn(_) {
@@ -57,7 +61,11 @@ pub fn create_worktree(
 
   // STEP 3: Create bookmark for git compatibility
   use _ <- result.try(
-    process.run_command("jj", ["-R", worktree_path, "bookmark", "create", branch], repo_root)
+    process.run_command(
+      "jj",
+      ["-R", worktree_path, "bookmark", "create", branch],
+      repo_root,
+    )
     |> result.try(fn(cmd_result) {
       process.check_success(cmd_result)
       |> result.map_error(fn(_) { "Could not create branch bookmark" })
@@ -75,7 +83,11 @@ pub fn create_worktree(
   )
 
   use _ <- result.try(
-    process.run_command("ln", ["-sf", worktree_path, symlink_dir <> "/" <> slug], repo_root)
+    process.run_command(
+      "ln",
+      ["-sf", worktree_path, symlink_dir <> "/" <> slug],
+      repo_root,
+    )
     |> result.try(fn(cmd_result) {
       process.check_success(cmd_result)
       |> result.map_error(fn(_) { "Could not create symlink" })
@@ -105,7 +117,8 @@ pub fn get_worktree(slug: String, repo_root: String) -> Result(Worktree, String)
           slug: slug,
           path: string.trim(path),
           branch: "feat/" <> slug,
-          language: domain.Go, // Default - would be loaded from persistence
+          language: domain.Go,
+          // Default - would be loaded from persistence
         )
       }
       _ -> Worktree(slug, "", "feat/" <> slug, domain.Go)
@@ -125,13 +138,17 @@ pub fn remove_worktree(slug: String, repo_root: String) -> Result(Nil, String) {
 
   // STEP 1: Forget the workspace in jj
   let _ =
-    process.run_command("jj", [
-      "-R",
+    process.run_command(
+      "jj",
+      [
+        "-R",
+        repo_root,
+        "workspace",
+        "forget",
+        slug <> "-*",
+      ],
       repo_root,
-      "workspace",
-      "forget",
-      slug <> "-*",
-    ], repo_root)
+    )
 
   // STEP 2: Remove the worktree directory
   use _ <- result.try(
@@ -170,9 +187,7 @@ pub fn list_worktrees(repo_root: String) -> Result(List(Worktree), String) {
   |> result.try(fn(slugs) {
     // Load each worktree
     slugs
-    |> list.try_map(fn(slug) {
-      get_worktree(string.trim(slug), repo_root)
-    })
+    |> list.try_map(fn(slug) { get_worktree(string.trim(slug), repo_root) })
   })
 }
 

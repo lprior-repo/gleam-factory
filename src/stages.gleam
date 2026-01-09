@@ -1,8 +1,8 @@
 // Stages module - Real language-specific stage implementations
 // Each language gets proper linting, testing, static analysis
 
-import gleam/result
 import domain
+import gleam/result
 import process
 
 /// Validate that a stage transition is valid (forward-only in pipeline)
@@ -18,7 +18,13 @@ pub fn validate_stage_transition(
     Ok(fi), Ok(ti) ->
       case fi < ti {
         True -> Ok(Nil)
-        False -> Error("invalid stage transition: cannot move from " <> from_stage <> " to " <> to_stage)
+        False ->
+          Error(
+            "invalid stage transition: cannot move from "
+            <> from_stage
+            <> " to "
+            <> to_stage,
+          )
       }
     Error(_), _ -> Error("unknown stage: " <> from_stage)
     _, Error(_) -> Error("unknown stage: " <> to_stage)
@@ -43,10 +49,7 @@ pub fn execute_stage(
 // GLEAM STAGES - Real gleam tooling
 // ============================================================================
 
-fn execute_gleam_stage(
-  stage_name: String,
-  cwd: String,
-) -> Result(Nil, String) {
+fn execute_gleam_stage(stage_name: String, cwd: String) -> Result(Nil, String) {
   case stage_name {
     "implement" -> gleam_implement(cwd)
     "unit-test" -> gleam_unit_test(cwd)
@@ -79,16 +82,22 @@ fn gleam_unit_test(cwd: String) -> Result(Nil, String) {
 
 fn gleam_coverage(cwd: String) -> Result(Nil, String) {
   // Gleam doesn't have built-in coverage yet, so verify tests exist
-  process.run_command("find", [
-    ".", "-name", "*_test.gleam", "-o", "-name", "test_*.gleam",
-  ], cwd)
+  process.run_command(
+    "find",
+    [".", "-name", "*_test.gleam", "-o", "-name", "test_*.gleam"],
+    cwd,
+  )
   |> result.map_error(fn(_) { "Gleam: No test files for coverage check" })
   |> result.map(fn(_) { Nil })
 }
 
 fn gleam_lint(cwd: String) -> Result(Nil, String) {
   // gleam format --check
-  use cmd_result <- result.try(process.run_command("gleam", ["format", "--check", "."], cwd))
+  use cmd_result <- result.try(process.run_command(
+    "gleam",
+    ["format", "--check", "."],
+    cwd,
+  ))
   process.check_success(cmd_result)
   |> result.map_error(fn(_) {
     "Gleam: Code formatting issues. Run: gleam format ."
@@ -120,9 +129,13 @@ fn gleam_security(cwd: String) -> Result(Nil, String) {
 fn gleam_review(cwd: String) -> Result(Nil, String) {
   // Check for TODO/FIXME comments
   // grep returns non-zero if no matches (which is good for this check)
-  case process.run_command("grep", [
-    "-r", "TODO\\|FIXME\\|XXX\\|HACK", "--include=*.gleam", ".",
-  ], cwd) {
+  case
+    process.run_command(
+      "grep",
+      ["-r", "TODO\\|FIXME\\|XXX\\|HACK", "--include=*.gleam", "."],
+      cwd,
+    )
+  {
     Ok(_) | Error(_) -> Ok(Nil)
   }
 }
@@ -139,10 +152,7 @@ fn gleam_accept(cwd: String) -> Result(Nil, String) {
 // GO STAGES - Real Go tooling
 // ============================================================================
 
-fn execute_go_stage(
-  stage_name: String,
-  cwd: String,
-) -> Result(Nil, String) {
+fn execute_go_stage(stage_name: String, cwd: String) -> Result(Nil, String) {
   case stage_name {
     "implement" -> go_implement(cwd)
     "unit-test" -> go_unit_test(cwd)
@@ -160,7 +170,11 @@ fn execute_go_stage(
 fn go_implement(cwd: String) -> Result(Nil, String) {
   // go build ./...
   use _ <- result.try(process.command_exists("go"))
-  use cmd_result <- result.try(process.run_command("go", ["build", "./..."], cwd))
+  use cmd_result <- result.try(process.run_command(
+    "go",
+    ["build", "./..."],
+    cwd,
+  ))
   process.check_success(cmd_result)
   |> result.map_error(fn(_) { "Go: Code does not compile" })
 }
@@ -168,7 +182,11 @@ fn go_implement(cwd: String) -> Result(Nil, String) {
 fn go_unit_test(cwd: String) -> Result(Nil, String) {
   // go test -v -short ./...
   use _ <- result.try(process.command_exists("go"))
-  use cmd_result <- result.try(process.run_command("go", ["test", "-v", "-short", "./..."], cwd))
+  use cmd_result <- result.try(process.run_command(
+    "go",
+    ["test", "-v", "-short", "./..."],
+    cwd,
+  ))
   process.check_success(cmd_result)
   |> result.map_error(fn(_) { "Go: Tests failed" })
 }
@@ -200,7 +218,11 @@ fn go_static(cwd: String) -> Result(Nil, String) {
 
 fn go_integration(cwd: String) -> Result(Nil, String) {
   // go test -v ./...
-  use cmd_result <- result.try(process.run_command("go", ["test", "-v", "./..."], cwd))
+  use cmd_result <- result.try(process.run_command(
+    "go",
+    ["test", "-v", "./..."],
+    cwd,
+  ))
   process.check_success(cmd_result)
   |> result.map_error(fn(_) { "Go: Integration tests failed" })
 }
@@ -215,9 +237,13 @@ fn go_security(cwd: String) -> Result(Nil, String) {
 fn go_review(cwd: String) -> Result(Nil, String) {
   // Check for TODO/FIXME comments
   // grep returns non-zero if no matches (which is good for this check)
-  case process.run_command("grep", [
-    "-r", "TODO\\|FIXME\\|XXX\\|HACK", "--include=*.go", ".",
-  ], cwd) {
+  case
+    process.run_command(
+      "grep",
+      ["-r", "TODO\\|FIXME\\|XXX\\|HACK", "--include=*.go", "."],
+      cwd,
+    )
+  {
     Ok(_) | Error(_) -> Ok(Nil)
   }
 }
@@ -234,10 +260,7 @@ fn go_accept(cwd: String) -> Result(Nil, String) {
 // RUST STAGES
 // ============================================================================
 
-fn execute_rust_stage(
-  stage_name: String,
-  cwd: String,
-) -> Result(Nil, String) {
+fn execute_rust_stage(stage_name: String, cwd: String) -> Result(Nil, String) {
   case stage_name {
     "implement" -> rust_implement(cwd)
     "unit-test" -> rust_unit_test(cwd)
@@ -269,28 +292,44 @@ fn rust_unit_test(cwd: String) -> Result(Nil, String) {
 
 fn rust_coverage(cwd: String) -> Result(Nil, String) {
   // cargo tarpaulin for coverage
-  use cmd_result <- result.try(process.run_command("cargo", ["tarpaulin", "--out", "Xml"], cwd))
+  use cmd_result <- result.try(process.run_command(
+    "cargo",
+    ["tarpaulin", "--out", "Xml"],
+    cwd,
+  ))
   process.check_success(cmd_result)
   |> result.map_error(fn(_) { "Rust: Coverage generation failed" })
 }
 
 fn rust_lint(cwd: String) -> Result(Nil, String) {
   // cargo fmt --check
-  use cmd_result <- result.try(process.run_command("cargo", ["fmt", "--check"], cwd))
+  use cmd_result <- result.try(process.run_command(
+    "cargo",
+    ["fmt", "--check"],
+    cwd,
+  ))
   process.check_success(cmd_result)
   |> result.map_error(fn(_) { "Rust: Code formatting issues" })
 }
 
 fn rust_static(cwd: String) -> Result(Nil, String) {
   // cargo clippy
-  use cmd_result <- result.try(process.run_command("cargo", ["clippy", "--all-targets"], cwd))
+  use cmd_result <- result.try(process.run_command(
+    "cargo",
+    ["clippy", "--all-targets"],
+    cwd,
+  ))
   process.check_success(cmd_result)
   |> result.map_error(fn(_) { "Rust: Clippy failed" })
 }
 
 fn rust_integration(cwd: String) -> Result(Nil, String) {
   // cargo test --all
-  use cmd_result <- result.try(process.run_command("cargo", ["test", "--all"], cwd))
+  use cmd_result <- result.try(process.run_command(
+    "cargo",
+    ["test", "--all"],
+    cwd,
+  ))
   process.check_success(cmd_result)
   |> result.map_error(fn(_) { "Rust: Integration tests failed" })
 }
@@ -317,10 +356,7 @@ fn rust_accept(cwd: String) -> Result(Nil, String) {
 // PYTHON STAGES
 // ============================================================================
 
-fn execute_python_stage(
-  stage_name: String,
-  cwd: String,
-) -> Result(Nil, String) {
+fn execute_python_stage(stage_name: String, cwd: String) -> Result(Nil, String) {
   case stage_name {
     "implement" -> python_implement(cwd)
     "unit-test" -> python_unit_test(cwd)
@@ -338,28 +374,44 @@ fn execute_python_stage(
 fn python_implement(cwd: String) -> Result(Nil, String) {
   // python -m py_compile
   use _ <- result.try(process.command_exists("python"))
-  use cmd_result <- result.try(process.run_command("python", ["-m", "py_compile", "."], cwd))
+  use cmd_result <- result.try(process.run_command(
+    "python",
+    ["-m", "py_compile", "."],
+    cwd,
+  ))
   process.check_success(cmd_result)
   |> result.map_error(fn(_) { "Python: Code does not compile" })
 }
 
 fn python_unit_test(cwd: String) -> Result(Nil, String) {
   // python -m pytest
-  use cmd_result <- result.try(process.run_command("python", ["-m", "pytest", "-v"], cwd))
+  use cmd_result <- result.try(process.run_command(
+    "python",
+    ["-m", "pytest", "-v"],
+    cwd,
+  ))
   process.check_success(cmd_result)
   |> result.map_error(fn(_) { "Python: Tests failed" })
 }
 
 fn python_coverage(cwd: String) -> Result(Nil, String) {
   // python -m coverage
-  use cmd_result <- result.try(process.run_command("python", ["-m", "coverage", "run", "-m", "pytest"], cwd))
+  use cmd_result <- result.try(process.run_command(
+    "python",
+    ["-m", "coverage", "run", "-m", "pytest"],
+    cwd,
+  ))
   process.check_success(cmd_result)
   |> result.map_error(fn(_) { "Python: Coverage generation failed" })
 }
 
 fn python_lint(cwd: String) -> Result(Nil, String) {
   // black --check
-  use cmd_result <- result.try(process.run_command("black", ["--check", "."], cwd))
+  use cmd_result <- result.try(process.run_command(
+    "black",
+    ["--check", "."],
+    cwd,
+  ))
   process.check_success(cmd_result)
   |> result.map_error(fn(_) { "Python: Code formatting issues" })
 }
@@ -373,7 +425,11 @@ fn python_static(cwd: String) -> Result(Nil, String) {
 
 fn python_integration(cwd: String) -> Result(Nil, String) {
   // python -m pytest
-  use cmd_result <- result.try(process.run_command("python", ["-m", "pytest", "-v"], cwd))
+  use cmd_result <- result.try(process.run_command(
+    "python",
+    ["-m", "pytest", "-v"],
+    cwd,
+  ))
   process.check_success(cmd_result)
   |> result.map_error(fn(_) { "Python: Integration tests failed" })
 }

@@ -1627,12 +1627,14 @@ pub fn workspace_manager_query_workspace_returns_error_when_not_found_test() {
   let nonexistent_id = types.new_workspace_id("does-not-exist")
 
   // Act: Try to retrieve a non-existent workspace
-  let result = workspace_manager.query_workspace(manager_subject, nonexistent_id)
+  let result =
+    workspace_manager.query_workspace(manager_subject, nonexistent_id)
 
   // Assert: Should return Error, not crash
   case result {
     Ok(_) -> should.fail()
-    Error(_msg) -> Nil  // Graceful error handling
+    Error(_msg) -> Nil
+    // Graceful error handling
   }
 }
 
@@ -1806,19 +1808,22 @@ pub fn workspace_manager_destroy_workspace_removes_directory_and_state_test() {
   actor.send(manager_subject, workspace_manager.RegisterWorkspace(workspace))
 
   // Verify it was registered
-  let assert Ok(workspaces_before) = workspace_manager.query_workspaces(manager_subject)
+  let assert Ok(workspaces_before) =
+    workspace_manager.query_workspaces(manager_subject)
   workspaces_before
   |> list_length
   |> should.equal(1)
 
   // Act: Destroy the workspace (removes directory and state)
-  let result = workspace_manager.destroy_workspace(manager_subject, workspace_id)
+  let result =
+    workspace_manager.destroy_workspace(manager_subject, workspace_id)
 
   // Assert: destroy_workspace should succeed
   case result {
     Ok(_) -> {
       // Verify the workspace is no longer in state
-      let assert Ok(workspaces_after) = workspace_manager.query_workspaces(manager_subject)
+      let assert Ok(workspaces_after) =
+        workspace_manager.query_workspaces(manager_subject)
       workspaces_after
       |> list_length
       |> should.equal(0)
@@ -1841,12 +1846,14 @@ pub fn workspace_manager_destroy_workspace_nonexistent_id_returns_error_test() {
   let nonexistent_id = types.new_workspace_id("never-existed")
 
   // Act: Try to destroy a non-existent workspace
-  let result = workspace_manager.destroy_workspace(manager_subject, nonexistent_id)
+  let result =
+    workspace_manager.destroy_workspace(manager_subject, nonexistent_id)
 
   // Assert: Should return Error, not crash
   case result {
     Ok(_) -> should.fail()
-    Error(_msg) -> Nil  // Graceful error handling
+    Error(_msg) -> Nil
+    // Graceful error handling
   }
 }
 
@@ -1869,7 +1876,8 @@ pub fn workspace_manager_destroy_workspace_handles_reflink_type_test() {
     types.Workspace(
       id: workspace_id,
       path: temp_dir,
-      workspace_type: types.Reflink,  // Explicitly Reflink, not Jj
+      workspace_type: types.Reflink,
+      // Explicitly Reflink, not Jj
       owner_pid: types.from_pid(erl_process.self()),
       created_at: "2026-01-06T19:00:00Z",
     )
@@ -1878,13 +1886,15 @@ pub fn workspace_manager_destroy_workspace_handles_reflink_type_test() {
   actor.send(manager_subject, workspace_manager.RegisterWorkspace(workspace))
 
   // Act: Destroy the Reflink workspace
-  let result = workspace_manager.destroy_workspace(manager_subject, workspace_id)
+  let result =
+    workspace_manager.destroy_workspace(manager_subject, workspace_id)
 
   // Assert: Should handle Reflink the same as Jj
   case result {
     Ok(_) -> {
       // Verify it was removed from state
-      let assert Ok(remaining) = workspace_manager.query_workspaces(manager_subject)
+      let assert Ok(remaining) =
+        workspace_manager.query_workspaces(manager_subject)
       remaining
       |> list_length
       |> should.equal(0)
@@ -1948,12 +1958,14 @@ pub fn workspace_manager_destroy_workspace_removes_filesystem_directory_test() {
 
   // Verify the marker file exists before destruction
   case simplifile.read(marker_file) {
-    Ok(_) -> Nil  // File exists - good
+    Ok(_) -> Nil
+    // File exists - good
     Error(_) -> should.fail()
   }
 
   // Act: Destroy the workspace
-  let result = workspace_manager.destroy_workspace(manager_subject, workspace_id)
+  let result =
+    workspace_manager.destroy_workspace(manager_subject, workspace_id)
 
   // Assert: destroy_workspace should succeed
   case result {
@@ -1961,12 +1973,15 @@ pub fn workspace_manager_destroy_workspace_removes_filesystem_directory_test() {
       // Verify the marker file is actually removed from filesystem
       // If the directory was deleted, the file inside should also be gone
       case simplifile.read(marker_file) {
-        Ok(_) -> should.fail()  // File still exists - directory not deleted!
-        Error(_) -> Nil  // File is gone - directory was deleted correctly
+        Ok(_) -> should.fail()
+        // File still exists - directory not deleted!
+        Error(_) -> Nil
+        // File is gone - directory was deleted correctly
       }
 
       // Verify workspace is removed from state
-      let assert Ok(remaining) = workspace_manager.query_workspaces(manager_subject)
+      let assert Ok(remaining) =
+        workspace_manager.query_workspaces(manager_subject)
       remaining
       |> list_length
       |> should.equal(0)
@@ -1996,7 +2011,13 @@ pub fn create_workspace_reflink_uses_cp_reflink_command_test() {
 
   let assert Ok(manager_subject) = workspace_manager.start_link()
 
-  case workspace_manager.create_workspace_reflink(manager_subject, slug, temp_source) {
+  case
+    workspace_manager.create_workspace_reflink(
+      manager_subject,
+      slug,
+      temp_source,
+    )
+  {
     Ok(workspace) -> {
       workspace.path |> should.equal("/dev/shm/factory-" <> slug)
       workspace.workspace_type |> should.equal(types.Reflink)
@@ -2043,14 +2064,20 @@ pub fn create_workspace_jj_creates_isolated_bookmark_test() {
   // Cleanup: forget workspace if source exists, then remove directories
   let _ = case simplifile.verify_is_directory(temp_source) {
     Ok(True) -> {
-      let _ = process.run_command("jj", ["-R", temp_source, "workspace", "forget", slug], "/tmp")
+      let _ =
+        process.run_command(
+          "jj",
+          ["-R", temp_source, "workspace", "forget", slug],
+          "/tmp",
+        )
       Nil
     }
     _ -> Nil
   }
 
   let _ = process.run_command("rm", ["-rf", temp_source], "/tmp")
-  let _ = process.run_command("rm", ["-rf", temp_source <> "/../" <> slug], "/tmp")
+  let _ =
+    process.run_command("rm", ["-rf", temp_source <> "/../" <> slug], "/tmp")
 
   case simplifile.create_directory_all(temp_source) {
     Ok(Nil) -> Nil
@@ -2064,20 +2091,29 @@ pub fn create_workspace_jj_creates_isolated_bookmark_test() {
 
   let assert Ok(manager_subject) = workspace_manager.start_link()
 
-  case workspace_manager.create_workspace_jj(manager_subject, slug, temp_source) {
+  case
+    workspace_manager.create_workspace_jj(manager_subject, slug, temp_source)
+  {
     Ok(workspace) -> {
       workspace.workspace_type |> should.equal(types.Jj)
 
-      case process.run_command("jj", ["-R", workspace.path, "bookmark", "list"], "/tmp") {
-        Ok(result) -> case result {
-          process.Success(output, _, _) -> {
-            case contains_substring(output, "feat/" <> slug) {
-              True -> Nil
-              False -> should.fail()
+      case
+        process.run_command(
+          "jj",
+          ["-R", workspace.path, "bookmark", "list"],
+          "/tmp",
+        )
+      {
+        Ok(result) ->
+          case result {
+            process.Success(output, _, _) -> {
+              case contains_substring(output, "feat/" <> slug) {
+                True -> Nil
+                False -> should.fail()
+              }
             }
+            _ -> should.fail()
           }
-          _ -> should.fail()
-        }
         Error(_) -> should.fail()
       }
 
@@ -2193,7 +2229,9 @@ pub fn acp_send_cancel_composes_notification_with_transport_test() {
     }
     Error(msg) -> {
       should.be_true(
-        contains_substring(msg, "http") || contains_substring(msg, "connect") || contains_substring(msg, "network"),
+        contains_substring(msg, "http")
+        || contains_substring(msg, "connect")
+        || contains_substring(msg, "network"),
       )
     }
   }
@@ -2242,7 +2280,6 @@ pub fn acp_session_tracker_validates_cancel_only_for_active_sessions_test() {
   }
 }
 
-
 /// Test acp_initialize_result parses server response and extracts capabilities.
 ///
 /// CUPID pressure:
@@ -2271,7 +2308,8 @@ pub fn acp_session_tracker_validates_cancel_only_for_active_sessions_test() {
 /// - parse_initialize_result does: JSON decode + field extraction
 /// - This enables testing parse logic WITHOUT network calls
 pub fn acp_initialize_result_parses_capabilities_from_json_response_test() {
-  let json_response = "{\"result\":{\"protocolVersion\":\"1.0\",\"capabilities\":[\"sampling\",\"tools\"],\"serverInfo\":{\"name\":\"test-agent\"}}}"
+  let json_response =
+    "{\"result\":{\"protocolVersion\":\"1.0\",\"capabilities\":[\"sampling\",\"tools\"],\"serverInfo\":{\"name\":\"test-agent\"}}}"
 
   case types.parse_initialize_result(json_response) {
     Ok(caps) -> {
@@ -2319,7 +2357,10 @@ pub fn acp_store_received_capabilities_updates_client_with_parsed_list_test() {
   case types.get_capabilities(updated) {
     Some(stored_caps) -> {
       list_length(stored_caps) |> should.equal(3)
-      case list.contains(stored_caps, "sampling") && list.contains(stored_caps, "tools") {
+      case
+        list.contains(stored_caps, "sampling")
+        && list.contains(stored_caps, "tools")
+      {
         True -> Nil
         False -> should.fail()
       }
@@ -2500,9 +2541,7 @@ pub fn gpu_governor_rejects_invalid_ticket_release_test() {
 pub fn gpu_governor_ticket_composes_with_work_pipeline_test() {
   let assert Ok(gov) = types.new_gpu_governor(1)
 
-  let work_fn = fn(_ticket) {
-    Ok(42)
-  }
+  let work_fn = fn(_ticket) { Ok(42) }
 
   let result = types.with_gpu_ticket(gov, work_fn)
 
@@ -2634,8 +2673,10 @@ pub fn acp_parse_notification_composes_with_session_tracker_test() {
 }
 
 pub fn acp_notification_parsing_preserves_idempotency_test() {
-  let raw1 = "{\"method\":\"agent_message\",\"params\":{\"session_id\":\"abc\"}}"
-  let raw2 = "{\"method\":\"tool_call_update\",\"params\":{\"session_id\":\"xyz\",\"data\":\"chunk\"}}"
+  let raw1 =
+    "{\"method\":\"agent_message\",\"params\":{\"session_id\":\"abc\"}}"
+  let raw2 =
+    "{\"method\":\"tool_call_update\",\"params\":{\"session_id\":\"xyz\",\"data\":\"chunk\"}}"
 
   let parsed1_a = types.parse_acp_notification(raw1)
   let parsed1_b = types.parse_acp_notification(raw1)
@@ -2649,15 +2690,24 @@ pub fn acp_notification_parsing_preserves_idempotency_test() {
 }
 
 pub fn acp_notification_method_extraction_composes_with_routing_test() {
-  let thought = "{\"method\":\"thought\",\"params\":{\"session_id\":\"s1\",\"content\":\"analyzing\"}}"
-  let tool_start = "{\"method\":\"tool_call_start\",\"params\":{\"session_id\":\"s1\",\"tool\":\"read\"}}"
-  let tool_update = "{\"method\":\"tool_call_update\",\"params\":{\"session_id\":\"s1\",\"chunk\":\"data\"}}"
-  let message = "{\"method\":\"agent_message\",\"params\":{\"session_id\":\"s1\",\"text\":\"done\"}}"
+  let thought =
+    "{\"method\":\"thought\",\"params\":{\"session_id\":\"s1\",\"content\":\"analyzing\"}}"
+  let tool_start =
+    "{\"method\":\"tool_call_start\",\"params\":{\"session_id\":\"s1\",\"tool\":\"read\"}}"
+  let tool_update =
+    "{\"method\":\"tool_call_update\",\"params\":{\"session_id\":\"s1\",\"chunk\":\"data\"}}"
+  let message =
+    "{\"method\":\"agent_message\",\"params\":{\"session_id\":\"s1\",\"text\":\"done\"}}"
 
   [thought, tool_start, tool_update, message]
   |> list.filter_map(types.parse_acp_notification)
   |> list.map(fn(n) { n.method })
-  |> should.equal(["thought", "tool_call_start", "tool_call_update", "agent_message"])
+  |> should.equal([
+    "thought",
+    "tool_call_start",
+    "tool_call_update",
+    "agent_message",
+  ])
 }
 
 pub fn acp_session_update_store_queries_by_session_id_test() {

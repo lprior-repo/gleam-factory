@@ -9,7 +9,7 @@ import gleam/result
 import otp_actor as actor
 import process as shell_process
 import simplifile
-import types.{type WorkspaceId, type Workspace}
+import types.{type Workspace, type WorkspaceId}
 
 /// Message type for workspace manager actor.
 pub type WorkspaceManagerMessage {
@@ -33,7 +33,10 @@ type WorkspaceManagerState {
 ///
 /// Returns Ok(subject) on successful actor initialization,
 /// or Error(InitializationFailed) if startup fails.
-pub fn start_link() -> Result(Subject(WorkspaceManagerMessage), WorkspaceManagerError) {
+pub fn start_link() -> Result(
+  Subject(WorkspaceManagerMessage),
+  WorkspaceManagerError,
+) {
   let initial_state = WorkspaceManagerState(workspaces: dict.new())
 
   let builder =
@@ -53,7 +56,8 @@ fn handle_message(
 ) -> actor.Next(WorkspaceManagerState, WorkspaceManagerMessage) {
   case message {
     RegisterWorkspace(workspace) -> {
-      let new_workspaces = dict.insert(state.workspaces, workspace.id, workspace)
+      let new_workspaces =
+        dict.insert(state.workspaces, workspace.id, workspace)
       actor.continue(WorkspaceManagerState(workspaces: new_workspaces))
     }
     GetWorkspace(id, reply_with) -> {
@@ -80,7 +84,10 @@ fn handle_message(
               actor.continue(WorkspaceManagerState(workspaces: new_workspaces))
             }
             Error(_) -> {
-              process.send(reply_with, Error("Failed to delete workspace directory"))
+              process.send(
+                reply_with,
+                Error("Failed to delete workspace directory"),
+              )
               actor.continue(state)
             }
           }
@@ -116,7 +123,10 @@ pub fn query_workspace(
   workspace_id: WorkspaceId,
 ) -> Result(Workspace, String) {
   let reply_subject = process.new_subject()
-  process.send(manager_subject, GetWorkspace(id: workspace_id, reply_with: reply_subject))
+  process.send(
+    manager_subject,
+    GetWorkspace(id: workspace_id, reply_with: reply_subject),
+  )
   case process.receive(reply_subject, 5000) {
     Ok(response) -> response
     Error(Nil) -> Error("Query timeout")
@@ -132,7 +142,10 @@ pub fn destroy_workspace(
   workspace_id: WorkspaceId,
 ) -> Result(Nil, String) {
   let reply_subject = process.new_subject()
-  process.send(manager_subject, DestroyWorkspace(id: workspace_id, reply_with: reply_subject))
+  process.send(
+    manager_subject,
+    DestroyWorkspace(id: workspace_id, reply_with: reply_subject),
+  )
   case process.receive(reply_subject, 5000) {
     Ok(response) -> response
     Error(Nil) -> Error("Destroy timeout")
@@ -159,7 +172,9 @@ pub fn create_workspace_reflink(
   // Copy directory using simplifile
   use _ <- result.try(
     simplifile.copy_directory(source_path, workspace_path)
-    |> result.map_error(fn(e) { "copy failed: " <> simplifile.describe_error(e) })
+    |> result.map_error(fn(e) {
+      "copy failed: " <> simplifile.describe_error(e)
+    }),
   )
 
   let workspace =
@@ -185,7 +200,10 @@ pub fn resolve_auto_strategy() -> types.WorkspaceType {
   }
 }
 
-fn check_cmd_success(result: shell_process.CommandResult, error_msg: String) -> Result(Nil, String) {
+fn check_cmd_success(
+  result: shell_process.CommandResult,
+  error_msg: String,
+) -> Result(Nil, String) {
   case result {
     shell_process.Success(_, _, _) -> Ok(Nil)
     shell_process.Failure(stderr, _) -> Error(error_msg <> ": " <> stderr)
@@ -203,15 +221,22 @@ pub fn create_workspace_jj(
   let bookmark = "feat/" <> slug
   let workspace_path = source_path <> "/../" <> slug
 
-  use add_result <- result.try(
-    shell_process.run_command("jj", ["workspace", "add", "--name", slug, workspace_path], source_path)
-  )
+  use add_result <- result.try(shell_process.run_command(
+    "jj",
+    ["workspace", "add", "--name", slug, workspace_path],
+    source_path,
+  ))
   use _ <- result.try(check_cmd_success(add_result, "jj workspace add failed"))
 
-  use bookmark_result <- result.try(
-    shell_process.run_command("jj", ["-R", workspace_path, "bookmark", "create", bookmark], source_path)
-  )
-  use _ <- result.try(check_cmd_success(bookmark_result, "jj bookmark create failed"))
+  use bookmark_result <- result.try(shell_process.run_command(
+    "jj",
+    ["-R", workspace_path, "bookmark", "create", bookmark],
+    source_path,
+  ))
+  use _ <- result.try(check_cmd_success(
+    bookmark_result,
+    "jj bookmark create failed",
+  ))
 
   let workspace_id = types.new_workspace_id(slug)
   let workspace =
@@ -226,7 +251,3 @@ pub fn create_workspace_jj(
   actor.send(manager_subject, RegisterWorkspace(workspace))
   Ok(workspace)
 }
-
-
-
-

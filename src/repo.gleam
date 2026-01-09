@@ -1,10 +1,10 @@
 // Repo module - Repository detection and analysis
 // Detects repo root, language, base branch
 
-import gleam/string
+import domain
 import gleam/list
 import gleam/result
-import domain
+import gleam/string
 import process
 import simplifile
 
@@ -48,7 +48,12 @@ pub fn detect_language(repo_root: String) -> Result(domain.Language, String) {
   let has_cargo_toml = file_exists(repo_root <> "/Cargo.toml")
   let has_pyproject = file_exists(repo_root <> "/pyproject.toml")
 
-  domain.detect_language_from_files(has_gleam_toml, has_go_mod, has_cargo_toml, has_pyproject)
+  domain.detect_language_from_files(
+    has_gleam_toml,
+    has_go_mod,
+    has_cargo_toml,
+    has_pyproject,
+  )
 }
 
 /// Check if file exists
@@ -61,60 +66,75 @@ fn file_exists(path: String) -> Bool {
 pub fn get_base_branch(repo_root: String) -> Result(String, String) {
   // Try to detect which branch is default (main or master)
   // Check symbolic-ref first
-  let symbolic_ref = process.run_command("git", [
-    "-C",
-    repo_root,
-    "symbolic-ref",
-    "refs/remotes/origin/HEAD",
-  ], repo_root)
-  |> result.try(fn(cmd_result) {
-    case cmd_result {
-      process.Success(output, _, _) -> {
-        let trimmed = string.trim(output)
-        case string.split(trimmed, "/") {
-          [_, _, branch] -> {
-            case string.length(branch) > 0 {
-              True -> Ok(branch)
-              False -> Error("empty branch name")
+  let symbolic_ref =
+    process.run_command(
+      "git",
+      [
+        "-C",
+        repo_root,
+        "symbolic-ref",
+        "refs/remotes/origin/HEAD",
+      ],
+      repo_root,
+    )
+    |> result.try(fn(cmd_result) {
+      case cmd_result {
+        process.Success(output, _, _) -> {
+          let trimmed = string.trim(output)
+          case string.split(trimmed, "/") {
+            [_, _, branch] -> {
+              case string.length(branch) > 0 {
+                True -> Ok(branch)
+                False -> Error("empty branch name")
+              }
             }
+            _ -> Error("invalid symbolic-ref format")
           }
-          _ -> Error("invalid symbolic-ref format")
         }
+        _ -> Error("symbolic-ref failed")
       }
-      _ -> Error("symbolic-ref failed")
-    }
-  })
+    })
 
   // Fall back to checking if main or master exists
-  let check_main = process.run_command("git", [
-    "-C",
-    repo_root,
-    "show-ref",
-    "--verify",
-    "--quiet",
-    "refs/heads/main",
-  ], repo_root)
-  |> result.try(fn(result) {
-    case result {
-      process.Success(_, _, 0) -> Ok("main")
-      _ -> Error("main not found")
-    }
-  })
+  let check_main =
+    process.run_command(
+      "git",
+      [
+        "-C",
+        repo_root,
+        "show-ref",
+        "--verify",
+        "--quiet",
+        "refs/heads/main",
+      ],
+      repo_root,
+    )
+    |> result.try(fn(result) {
+      case result {
+        process.Success(_, _, 0) -> Ok("main")
+        _ -> Error("main not found")
+      }
+    })
 
-  let check_master = process.run_command("git", [
-    "-C",
-    repo_root,
-    "show-ref",
-    "--verify",
-    "--quiet",
-    "refs/heads/master",
-  ], repo_root)
-  |> result.try(fn(result) {
-    case result {
-      process.Success(_, _, 0) -> Ok("master")
-      _ -> Error("master not found")
-    }
-  })
+  let check_master =
+    process.run_command(
+      "git",
+      [
+        "-C",
+        repo_root,
+        "show-ref",
+        "--verify",
+        "--quiet",
+        "refs/heads/master",
+      ],
+      repo_root,
+    )
+    |> result.try(fn(result) {
+      case result {
+        process.Success(_, _, 0) -> Ok("master")
+        _ -> Error("master not found")
+      }
+    })
 
   symbolic_ref
   |> result.lazy_or(fn() { check_main })
@@ -124,7 +144,11 @@ pub fn get_base_branch(repo_root: String) -> Result(String, String) {
 
 /// Check if repository is clean (no uncommitted changes)
 pub fn is_clean(repo_root: String) -> Result(Bool, String) {
-  process.run_command("git", ["-C", repo_root, "status", "--porcelain"], repo_root)
+  process.run_command(
+    "git",
+    ["-C", repo_root, "status", "--porcelain"],
+    repo_root,
+  )
   |> result.map(fn(result) {
     case result {
       process.Success(output, _, _) -> string.length(string.trim(output)) == 0
@@ -136,13 +160,17 @@ pub fn is_clean(repo_root: String) -> Result(Bool, String) {
 
 /// Get current branch name
 pub fn current_branch(repo_root: String) -> Result(String, String) {
-  process.run_command("git", [
-    "-C",
+  process.run_command(
+    "git",
+    [
+      "-C",
+      repo_root,
+      "rev-parse",
+      "--abbrev-ref",
+      "HEAD",
+    ],
     repo_root,
-    "rev-parse",
-    "--abbrev-ref",
-    "HEAD",
-  ], repo_root)
+  )
   |> result.map(fn(result) {
     case result {
       process.Success(output, _, _) -> string.trim(output)
@@ -159,7 +187,11 @@ pub fn current_branch(repo_root: String) -> Result(String, String) {
 
 /// Get list of modified files
 pub fn modified_files(repo_root: String) -> Result(List(String), String) {
-  process.run_command("git", ["-C", repo_root, "status", "--porcelain"], repo_root)
+  process.run_command(
+    "git",
+    ["-C", repo_root, "status", "--porcelain"],
+    repo_root,
+  )
   |> result.map(fn(result) {
     case result {
       process.Success(output, _, _) ->

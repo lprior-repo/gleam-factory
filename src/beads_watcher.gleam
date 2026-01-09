@@ -2,17 +2,13 @@
 //// Polls file periodically and detects changes.
 
 import gleam/erlang/process
+import gleam/int
 import gleam/result
 import gleam/string
-import gleam/int
 import simplifile
 
 pub type WatcherState {
-  WatcherState(
-    path: String,
-    last_hash: String,
-    poll_interval_ms: Int,
-  )
+  WatcherState(path: String, last_hash: String, poll_interval_ms: Int)
 }
 
 /// Compute simple hash of file contents (for change detection)
@@ -30,9 +26,7 @@ pub fn new(path: String, poll_interval_ms: Int) -> WatcherState {
 /// Start watcher as async task with periodic polling
 pub fn start(path: String, poll_interval_ms: Int) -> process.Pid {
   let state = new(path, poll_interval_ms)
-  process.spawn(fn() {
-    poll_loop(state)
-  })
+  process.spawn(fn() { poll_loop(state) })
 }
 
 /// Main polling loop - checks file periodically

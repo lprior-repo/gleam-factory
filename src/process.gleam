@@ -1,11 +1,11 @@
 // Shell module - Execute external commands
 
+import gleam/dynamic/decode
 import gleam/erlang/process as erl_process
+import gleam/json
 import gleam/list
 import gleam/result
 import gleam/string
-import gleam/json
-import gleam/dynamic/decode
 import simplifile
 import types
 
@@ -45,7 +45,8 @@ pub fn run_command(
   let output = os_cmd(shell_cmd)
 
   // Extract exit code from last non-empty line
-  let lines = output
+  let lines =
+    output
     |> string.split("\n")
     |> list.filter(fn(line) { string.trim(line) != "" })
 
@@ -56,7 +57,9 @@ pub fn run_command(
       case reversed {
         [exit_str, ..rest_reversed] -> {
           let trimmed_exit = string.trim(exit_str)
-          case string.to_utf_codepoints(trimmed_exit) |> parse_int_from_codepoints {
+          case
+            string.to_utf_codepoints(trimmed_exit) |> parse_int_from_codepoints
+          {
             Ok(exit_code) -> {
               let stdout_lines = reverse_list(rest_reversed)
               let combined = string.join(stdout_lines, "\n")
@@ -143,7 +146,11 @@ pub fn command_exists(cmd: String) -> Result(Bool, String) {
 }
 
 /// Parse command output to get success/failure
-pub fn parse_result(stdout: String, stderr: String, exit_code: Int) -> CommandResult {
+pub fn parse_result(
+  stdout: String,
+  stderr: String,
+  exit_code: Int,
+) -> CommandResult {
   case exit_code {
     0 -> Success(stdout, stderr, 0)
     code -> Failure(stderr, code)
@@ -155,7 +162,9 @@ pub fn get_stdout(result: CommandResult) -> Result(String, String) {
   case result {
     Success(out, _, _) -> Ok(out)
     Failure(err, code) ->
-      Error("Command failed with exit code " <> string.inspect(code) <> ": " <> err)
+      Error(
+        "Command failed with exit code " <> string.inspect(code) <> ": " <> err,
+      )
   }
 }
 
@@ -181,7 +190,9 @@ pub fn check_success(result: CommandResult) -> Result(Nil, String) {
   case result {
     Success(_, _, _) -> Ok(Nil)
     Failure(err, code) ->
-      Error("Command failed with exit code " <> string.inspect(code) <> ": " <> err)
+      Error(
+        "Command failed with exit code " <> string.inspect(code) <> ": " <> err,
+      )
   }
 }
 
@@ -198,26 +209,58 @@ pub fn run_command_safe(
 }
 
 /// Send ACP cancel notification for session via HTTP transport
-pub fn acp_send_cancel(client: types.AcpClient, session_id: String) -> Result(Nil, String) {
+pub fn acp_send_cancel(
+  client: types.AcpClient,
+  session_id: String,
+) -> Result(Nil, String) {
   let json_body =
     "{\"jsonrpc\":\"2.0\",\"method\":\"session/cancel\",\"params\":{\"meta\":{\"sessionId\":\""
-    <> session_id <> "\"}}}"
-  run_command("curl", ["-X", "POST", "-H", "Content-Type: application/json", "-d", json_body, types.get_base_url(client)], "")
+    <> session_id
+    <> "\"}}}"
+  run_command(
+    "curl",
+    [
+      "-X",
+      "POST",
+      "-H",
+      "Content-Type: application/json",
+      "-d",
+      json_body,
+      types.get_base_url(client),
+    ],
+    "",
+  )
   |> result.try(fn(r) {
     case r {
       Success(_, _, 0) -> Ok(Nil)
-      Success(_, _, code) | Failure(_, code) -> Error("http request failed with code " <> string.inspect(code))
+      Success(_, _, code) | Failure(_, code) ->
+        Error("http request failed with code " <> string.inspect(code))
     }
   })
 }
 
 /// Create a new ACP session via HTTP transport, returns session_id
 pub fn acp_new_session(client: types.AcpClient) -> Result(String, String) {
-  let json_body = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"session/new\",\"params\":{}}"
-  use cmd_result <- result.try(run_command("curl", ["-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", json_body, types.get_base_url(client)], ""))
+  let json_body =
+    "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"session/new\",\"params\":{}}"
+  use cmd_result <- result.try(run_command(
+    "curl",
+    [
+      "-s",
+      "-X",
+      "POST",
+      "-H",
+      "Content-Type: application/json",
+      "-d",
+      json_body,
+      types.get_base_url(client),
+    ],
+    "",
+  ))
   use json <- result.try(case cmd_result {
     Success(stdout, _, 0) -> Ok(stdout)
-    Success(_, _, code) | Failure(_, code) -> Error("http failed code " <> string.inspect(code))
+    Success(_, _, code) | Failure(_, code) ->
+      Error("http failed code " <> string.inspect(code))
   })
   parse_session_id(json)
 }
@@ -234,15 +277,30 @@ pub fn acp_session_prompt(
   session_id: String,
   prompt: String,
 ) -> Result(String, String) {
-  let json_body = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"session/prompt\",\"params\":{\"meta\":{\"sessionId\":\""
+  let json_body =
+    "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"session/prompt\",\"params\":{\"meta\":{\"sessionId\":\""
     <> session_id
     <> "\"},\"text\":\""
     <> escape_json_string(prompt)
     <> "\"}}"
-  use cmd_result <- result.try(run_command("curl", ["-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", json_body, types.get_base_url(client)], ""))
+  use cmd_result <- result.try(run_command(
+    "curl",
+    [
+      "-s",
+      "-X",
+      "POST",
+      "-H",
+      "Content-Type: application/json",
+      "-d",
+      json_body,
+      types.get_base_url(client),
+    ],
+    "",
+  ))
   use json <- result.try(case cmd_result {
     Success(stdout, _, 0) -> Ok(stdout)
-    Success(_, _, code) | Failure(_, code) -> Error("http failed code " <> string.inspect(code))
+    Success(_, _, code) | Failure(_, code) ->
+      Error("http failed code " <> string.inspect(code))
   })
   extract_response_text(json)
 }
@@ -266,7 +324,9 @@ pub fn fs_read_text_file(path: String) -> Result(String, String) {
   |> map_simplifile_error
 }
 
-fn map_simplifile_error(result: Result(String, simplifile.FileError)) -> Result(String, String) {
+fn map_simplifile_error(
+  result: Result(String, simplifile.FileError),
+) -> Result(String, String) {
   case result {
     Ok(content) -> Ok(content)
     Error(_) -> Error("File read failed")
@@ -298,7 +358,8 @@ pub fn fs_write_text_file(
 
 fn is_path_allowed(path: String, role: FsRole) -> Bool {
   // Reject dangerous patterns: absolute paths, traversal, hidden files
-  let is_safe = !string.starts_with(path, "/")
+  let is_safe =
+    !string.starts_with(path, "/")
     && !string.contains(path, "..")
     && !string.starts_with(path, ".")
 
@@ -315,12 +376,31 @@ fn is_path_allowed(path: String, role: FsRole) -> Bool {
 }
 
 /// Initialize ACP connection and retrieve agent capabilities
-pub fn acp_initialize(client: types.AcpClient, version: String) -> Result(types.AcpClient, String) {
-  use req <- result.try(types.encode_initialize_request(version, "factory", "0.1.0") |> result.map_error(fn(_) { "encode failed" }))
-  use cmd_result <- result.try(run_command("curl", ["-X", "POST", "-H", "Content-Type: application/json", "-d", req, types.get_base_url(client)], ""))
+pub fn acp_initialize(
+  client: types.AcpClient,
+  version: String,
+) -> Result(types.AcpClient, String) {
+  use req <- result.try(
+    types.encode_initialize_request(version, "factory", "0.1.0")
+    |> result.map_error(fn(_) { "encode failed" }),
+  )
+  use cmd_result <- result.try(run_command(
+    "curl",
+    [
+      "-X",
+      "POST",
+      "-H",
+      "Content-Type: application/json",
+      "-d",
+      req,
+      types.get_base_url(client),
+    ],
+    "",
+  ))
   use json <- result.try(case cmd_result {
     Success(stdout, _, 0) -> Ok(stdout)
-    Success(_, _, code) | Failure(_, code) -> Error("http failed code " <> string.inspect(code))
+    Success(_, _, code) | Failure(_, code) ->
+      Error("http failed code " <> string.inspect(code))
   })
   use caps <- result.try(types.parse_initialize_result(json))
   Ok(types.store_capabilities(client, caps))

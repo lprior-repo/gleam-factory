@@ -1,24 +1,15 @@
 // TCR module - Test && Commit || Revert
 // Real jj-based commit/revert logic (not fake)
 
-import gleam/string
-import gleam/result
 import domain
+import gleam/result
+import gleam/string
 import process
 
 /// Outcome of a TCR run
 pub type TCROutcome {
-  Passed(
-    stage_name: String,
-    commits_made: Int,
-    changes_persisted: Bool,
-  )
-  Failed(
-    stage_name: String,
-    attempt: Int,
-    reason: String,
-    reverted: Bool,
-  )
+  Passed(stage_name: String, commits_made: Int, changes_persisted: Bool)
+  Failed(stage_name: String, attempt: Int, reason: String, reverted: Bool)
 }
 
 /// Run a stage with TCR protection
@@ -52,10 +43,7 @@ fn run_stage_with_revert(
   let initial_state_result = get_jj_state(worktree_path)
 
   case initial_state_result {
-    Error(reason) ->
-      Error(
-        "Failed to get initial jj state: " <> reason,
-      )
+    Error(reason) -> Error("Failed to get initial jj state: " <> reason)
     Ok(initial_hash) -> {
       // STEP 2: Run the stage
       case execute_stage() {
@@ -83,9 +71,7 @@ fn run_stage_with_revert(
                 reverted: True,
               ))
             Error(revert_err) ->
-              Error(
-                "Stage failed and revert also failed: " <> revert_err,
-              )
+              Error("Stage failed and revert also failed: " <> revert_err)
           }
         }
       }
@@ -96,15 +82,19 @@ fn run_stage_with_revert(
 /// Get current jj state hash
 fn get_jj_state(worktree_path: String) -> Result(String, String) {
   // Execute: jj -R <path> log -r @ -T 'commit_id'
-  use cmd_result <- result.try(process.run_command("jj", [
-    "-R",
-    worktree_path,
-    "log",
-    "-r",
-    "@",
-    "-T",
-    "commit_id",
-  ], ""))
+  use cmd_result <- result.try(process.run_command(
+    "jj",
+    [
+      "-R",
+      worktree_path,
+      "log",
+      "-r",
+      "@",
+      "-T",
+      "commit_id",
+    ],
+    "",
+  ))
 
   case cmd_result {
     process.Success(output, _, _) -> Ok(string.trim(output))
@@ -113,22 +103,29 @@ fn get_jj_state(worktree_path: String) -> Result(String, String) {
 }
 
 /// Commit changes to jj journal
-fn commit_changes(worktree_path: String, stage_name: String) -> Result(String, String) {
+fn commit_changes(
+  worktree_path: String,
+  stage_name: String,
+) -> Result(String, String) {
   let message = "factory: " <> stage_name <> " passed"
 
   // STEP 1: Describe current changes with message
-  use describe_result <- result.try(
-    process.run_command("jj", ["-R", worktree_path, "describe", "-m", message], "")
-  )
+  use describe_result <- result.try(process.run_command(
+    "jj",
+    ["-R", worktree_path, "describe", "-m", message],
+    "",
+  ))
   use _ <- result.try(
     process.check_success(describe_result)
-    |> result.map_error(fn(_) { "Failed to describe changes" })
+    |> result.map_error(fn(_) { "Failed to describe changes" }),
   )
 
   // STEP 2: Create new working copy for next changes
-  use result_new <- result.try(
-    process.run_command("jj", ["-R", worktree_path, "new"], "")
-  )
+  use result_new <- result.try(process.run_command(
+    "jj",
+    ["-R", worktree_path, "new"],
+    "",
+  ))
 
   // Extract commit ID from output
   case result_new {
@@ -144,13 +141,17 @@ fn revert_changes(
 ) -> Result(Nil, String) {
   // Execute: jj -R <path> restore --from <original_hash>
   // This reverts all working directory changes to the specified state
-  use cmd_result <- result.try(process.run_command("jj", [
-    "-R",
-    worktree_path,
-    "restore",
-    "--from",
-    original_hash,
-  ], ""))
+  use cmd_result <- result.try(process.run_command(
+    "jj",
+    [
+      "-R",
+      worktree_path,
+      "restore",
+      "--from",
+      original_hash,
+    ],
+    "",
+  ))
 
   process.check_success(cmd_result)
   |> result.map_error(fn(_) { "Failed to revert changes" })
