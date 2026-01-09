@@ -9,13 +9,31 @@ import process as shell_process
 import signal_bus
 import signals
 
+pub type BeadPriority {
+  P0
+  P1
+  P2
+  P3
+  P4
+}
+
+pub type BeadStatus {
+  Open
+  InProgress
+  Done
+  Blocked
+}
+
 pub type Bead {
-  Bead(id: String, title: String, description: String, priority: String)
+  Bead(id: String, title: String, description: String, priority: BeadPriority)
 }
 
 pub fn load_open_beads(db_path: String) -> Result(List(Bead), String) {
+  let status_str = status_to_string(Open)
   let query =
-    "SELECT id, title, description, priority FROM issues WHERE status = 'open' ORDER BY priority ASC, id ASC"
+    "SELECT id, title, description, priority FROM issues WHERE status = '"
+    <> status_str
+    <> "' ORDER BY priority ASC, id ASC"
   case
     shell_process.run_command(
       "sqlite3",
@@ -39,10 +57,41 @@ pub fn load_open_beads(db_path: String) -> Result(List(Bead), String) {
 fn parse_bead_line(line: String) -> Result(Bead, Nil) {
   case string.split(line, "|") {
     [id, title, description, priority, ..] ->
-      Ok(Bead(id:, title:, description:, priority:))
+      Ok(Bead(id:, title:, description:, priority: parse_priority(priority)))
     [id, title, description] ->
-      Ok(Bead(id:, title:, description:, priority: "2"))
+      Ok(Bead(id:, title:, description:, priority: P2))
     _ -> Error(Nil)
+  }
+}
+
+fn parse_priority(s: String) -> BeadPriority {
+  case s {
+    "0" -> P0
+    "1" -> P1
+    "2" -> P2
+    "3" -> P3
+    "4" -> P4
+    _ -> P2
+  }
+}
+
+pub fn priority_to_string(p: BeadPriority) -> String {
+  case p {
+    P0 -> "0"
+    P1 -> "1"
+    P2 -> "2"
+    P3 -> "3"
+    P4 -> "4"
+  }
+}
+
+pub fn priority_to_int(p: BeadPriority) -> Int {
+  case p {
+    P0 -> 0
+    P1 -> 1
+    P2 -> 2
+    P3 -> 3
+    P4 -> 4
   }
 }
 
@@ -61,12 +110,22 @@ pub fn broadcast_beads(
 
 fn bead_to_signal(bead: Bead) -> signals.BeadAssigned {
   signals.BeadAssigned(
-    task_id: bead.id,
+    task_id: signals.task_id(bead.id),
     spec: bead.description,
     requirements: parse_requirements(bead.description),
-    priority: bead.priority,
-    assigned_at: "",
+    priority: bead_priority_to_signal_priority(bead.priority),
+    assigned_at: signals.timestamp(0),
   )
+}
+
+fn bead_priority_to_signal_priority(p: BeadPriority) -> signals.Priority {
+  case p {
+    P0 -> signals.P0
+    P1 -> signals.P1
+    P2 -> signals.P2
+    P3 -> signals.P3
+    P4 -> signals.P4
+  }
 }
 
 fn parse_requirements(description: String) -> List(String) {
@@ -91,13 +150,6 @@ pub fn get_bead_count(db_path: String) -> Result(Int, String) {
   }
 }
 
-pub type BeadStatus {
-  Open
-  InProgress
-  Completed
-  Failed
-}
-
 pub fn update_bead_state(
   bead_id: String,
   new_status: BeadStatus,
@@ -105,7 +157,7 @@ pub fn update_bead_state(
 ) -> Result(Nil, String) {
   let status_str = status_to_string(new_status)
   let args = case new_status {
-    Completed | Failed -> [
+    Done | Blocked -> [
       "update",
       bead_id,
       "--status",
@@ -126,8 +178,8 @@ fn status_to_string(status: BeadStatus) -> String {
   case status {
     Open -> "open"
     InProgress -> "in_progress"
-    Completed -> "completed"
-    Failed -> "failed"
+    Done -> "completed"
+    Blocked -> "failed"
   }
 }
 
@@ -135,9 +187,9 @@ pub fn mark_bead_completed(
   bead_id: String,
   reason: String,
 ) -> Result(Nil, String) {
-  update_bead_state(bead_id, Completed, reason)
+  update_bead_state(bead_id, Done, reason)
 }
 
 pub fn mark_bead_failed(bead_id: String, reason: String) -> Result(Nil, String) {
-  update_bead_state(bead_id, Failed, reason)
+  update_bead_state(bead_id, Blocked, reason)
 }

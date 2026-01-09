@@ -3,10 +3,19 @@
 
 import domain
 import gleam/dynamic/decode
+import gleam/int
 import gleam/json
 import gleam/list
 import gleam/result
+import gleam/string
 import simplifile
+
+const branch_prefix = "feat/"
+
+pub type StageResult {
+  StagePassed
+  StageFailed
+}
 
 /// Stage status record
 pub type StageRecord {
@@ -35,6 +44,35 @@ pub fn status_file_path(repo_root: String) -> String {
   repo_root <> "/.factory/tasks.json"
 }
 
+@external(erlang, "calendar", "universal_time")
+fn universal_time() -> #(#(Int, Int, Int), #(Int, Int, Int))
+
+fn int_to_padded_string(num: Int, width: Int) -> String {
+  let str = int.to_string(num)
+  let len = string.length(str)
+  case len < width {
+    True -> string.repeat("0", width - len) <> str
+    False -> str
+  }
+}
+
+fn current_timestamp() -> String {
+  let #(#(year, month, day), #(hour, min, sec)) = universal_time()
+
+  int_to_padded_string(year, 4)
+  <> "-"
+  <> int_to_padded_string(month, 2)
+  <> "-"
+  <> int_to_padded_string(day, 2)
+  <> "T"
+  <> int_to_padded_string(hour, 2)
+  <> ":"
+  <> int_to_padded_string(min, 2)
+  <> ":"
+  <> int_to_padded_string(sec, 2)
+  <> "Z"
+}
+
 /// Create task record from domain task
 pub fn task_to_record(task: domain.Task) -> TaskRecord {
   let language_str = case task.language {
@@ -52,12 +90,14 @@ pub fn task_to_record(task: domain.Task) -> TaskRecord {
     domain.Integrated -> "integrated"
   }
 
+  let timestamp = current_timestamp()
+
   TaskRecord(
-    slug: task.slug,
+    slug: domain.slug_to_string(task.slug),
     language: language_str,
     status: status_str,
-    created_at: "2025-01-04T00:00:00Z",
-    updated_at: "2025-01-04T00:00:00Z",
+    created_at: timestamp,
+    updated_at: timestamp,
     stages: [],
   )
 }
@@ -81,12 +121,14 @@ pub fn record_to_task(record: TaskRecord) -> Result(domain.Task, String) {
     _ -> domain.Created
   }
 
+  use slug <- result.try(domain.validate_slug(record.slug))
+
   Ok(domain.Task(
-    slug: record.slug,
+    slug: slug,
     language: lang,
     status: status,
     worktree_path: "",
-    branch: "feat/" <> record.slug,
+    branch: branch_prefix <> record.slug,
   ))
 }
 
@@ -144,41 +186,55 @@ pub fn list_all_tasks(repo_root: String) -> Result(List(domain.Task), String) {
   list.try_map(records, record_to_task)
 }
 
+fn stage_result_to_string(result: StageResult) -> String {
+  case result {
+    StagePassed -> "passed"
+    StageFailed -> "failed"
+  }
+}
+
+fn build_stage_record(
+  stage_name: String,
+  result: StageResult,
+  attempts: Int,
+  error: String,
+) -> StageRecord {
+  StageRecord(
+    stage_name: stage_name,
+    status: stage_result_to_string(result),
+    attempts: attempts,
+    last_error: error,
+  )
+}
+
+fn update_or_append_stage(
+  stages: List(StageRecord),
+  new_stage: StageRecord,
+) -> List(StageRecord) {
+  case list.find(stages, fn(s) { s.stage_name == new_stage.stage_name }) {
+    Ok(_) ->
+      list.map(stages, fn(s) {
+        case s.stage_name == new_stage.stage_name {
+          True -> new_stage
+          False -> s
+        }
+      })
+    Error(Nil) -> list.append(stages, [new_stage])
+  }
+}
+
 /// Update stage status in task record
 pub fn update_stage_status(
   task: domain.Task,
   stage_name: String,
-  passed: Bool,
+  result: StageResult,
   attempts: Int,
   error: String,
   repo_root: String,
 ) -> Result(Nil, String) {
   let record = task_to_record(task)
-
-  let new_stage =
-    StageRecord(
-      stage_name: stage_name,
-      status: case passed {
-        True -> "passed"
-        False -> "failed"
-      },
-      attempts: attempts,
-      last_error: error,
-    )
-
-  let updated_stages = case
-    list.find(record.stages, fn(s) { s.stage_name == stage_name })
-  {
-    Ok(_) ->
-      list.map(record.stages, fn(s) {
-        case s.stage_name == stage_name {
-          True -> new_stage
-          False -> s
-        }
-      })
-    Error(Nil) -> list.append(record.stages, [new_stage])
-  }
-
+  let new_stage = build_stage_record(stage_name, result, attempts, error)
+  let updated_stages = update_or_append_stage(record.stages, new_stage)
   let updated_record = TaskRecord(..record, stages: updated_stages)
 
   save_task_record_direct(updated_record, repo_root)

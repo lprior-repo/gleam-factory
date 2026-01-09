@@ -260,7 +260,9 @@ fn execute_list(
     [] -> io.println("No active tasks")
     ts ->
       ts
-      |> list.map(fn(task) { task.slug <> " (" <> task.branch <> ")" })
+      |> list.map(fn(task) {
+        domain.slug_to_string(task.slug) <> " (" <> task.branch <> ")"
+      })
       |> string.join("\n")
       |> io.println
   }
@@ -284,11 +286,12 @@ fn execute_new_impl(
   repo_root: String,
 ) -> Result(String, String) {
   use lang <- result.try(domain.parse_language(lang_str))
+  use validated_slug <- result.try(domain.validate_slug(slug))
   use wt <- result.try(worktree.create_worktree(slug, lang, repo_root))
 
   let task =
     domain.Task(
-      slug: slug,
+      slug: validated_slug,
       language: lang,
       status: domain.Created,
       worktree_path: wt.path,

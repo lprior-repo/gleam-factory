@@ -80,11 +80,11 @@ pub fn factory_loop_starts_in_implementing_phase_test() {
   let assert Ok(bus) = signal_bus.start_link()
   let bead =
     signals.BeadAssigned(
-      task_id: "test-1",
+      task_id: signals.task_id("test-1"),
       spec: "implement feature",
       requirements: [],
-      priority: "high",
-      assigned_at: "2026-01-08",
+      priority: signals.P2,
+      assigned_at: signals.timestamp(0),
     )
 
   let assert Ok(loop) = factory_loop.start_link("loop-1", bead, "/tmp/ws", bus)
@@ -102,11 +102,11 @@ pub fn factory_loop_phase_transitions_test() {
   let assert Ok(bus) = signal_bus.start_link()
   let bead =
     signals.BeadAssigned(
-      task_id: "test-2",
+      task_id: signals.task_id("test-2"),
       spec: "test transitions",
       requirements: [],
-      priority: "medium",
-      assigned_at: "2026-01-08",
+      priority: signals.P2,
+      assigned_at: signals.timestamp(0),
     )
 
   let assert Ok(loop) = factory_loop.start_link("loop-2", bead, "/tmp/ws2", bus)
@@ -140,11 +140,11 @@ pub fn factory_loop_failure_transitions_test() {
   let assert Ok(bus) = signal_bus.start_link()
   let bead =
     signals.BeadAssigned(
-      task_id: "test-3",
+      task_id: signals.task_id("test-3"),
       spec: "test failures",
       requirements: [],
-      priority: "low",
-      assigned_at: "2026-01-08",
+      priority: signals.P2,
+      assigned_at: signals.timestamp(0),
     )
 
   let assert Ok(loop) = factory_loop.start_link("loop-3", bead, "/tmp/ws3", bus)
@@ -162,11 +162,11 @@ pub fn factory_loop_rebase_flow_test() {
   let assert Ok(bus) = signal_bus.start_link()
   let bead =
     signals.BeadAssigned(
-      task_id: "test-4",
+      task_id: signals.task_id("test-4"),
       spec: "test rebase",
       requirements: [],
-      priority: "high",
-      assigned_at: "2026-01-08",
+      priority: signals.P2,
+      assigned_at: signals.timestamp(0),
     )
 
   let assert Ok(loop) = factory_loop.start_link("loop-4", bead, "/tmp/ws4", bus)
@@ -195,11 +195,11 @@ pub fn factory_loop_broadcasts_spawned_signal_test() {
 
   let bead =
     signals.BeadAssigned(
-      task_id: "test-5",
+      task_id: signals.task_id("test-5"),
       spec: "test signals",
       requirements: [],
-      priority: "medium",
-      assigned_at: "2026-01-08",
+      priority: signals.P2,
+      assigned_at: signals.timestamp(0),
     )
 
   let assert Ok(_loop) =
@@ -219,11 +219,11 @@ pub fn factory_loop_broadcasts_completion_signals_test() {
 
   let bead =
     signals.BeadAssigned(
-      task_id: "test-6",
+      task_id: signals.task_id("test-6"),
       spec: "complete successfully",
       requirements: [],
-      priority: "high",
-      assigned_at: "2026-01-08",
+      priority: signals.P2,
+      assigned_at: signals.timestamp(0),
     )
 
   let assert Ok(loop) = factory_loop.start_link("loop-6", bead, "/tmp/ws6", bus)
@@ -247,11 +247,11 @@ pub fn factory_loop_broadcasts_failure_signals_test() {
 
   let bead =
     signals.BeadAssigned(
-      task_id: "test-7",
+      task_id: signals.task_id("test-7"),
       spec: "fail on review",
       requirements: [],
-      priority: "low",
-      assigned_at: "2026-01-08",
+      priority: signals.P2,
+      assigned_at: signals.timestamp(0),
     )
 
   let assert Ok(loop) = factory_loop.start_link("loop-7", bead, "/tmp/ws7", bus)
@@ -278,11 +278,11 @@ pub fn dispatcher_spawns_loop_on_bead_assigned_test() {
 
   let bead =
     signals.BeadAssigned(
-      task_id: "disp-1",
+      task_id: signals.task_id("disp-1"),
       spec: "dispatcher test",
       requirements: [],
-      priority: "high",
-      assigned_at: "2026-01-08-001",
+      priority: signals.P2,
+      assigned_at: signals.timestamp(0),
     )
 
   let assert Ok(loop) =
@@ -311,27 +311,27 @@ pub fn dispatcher_handles_multiple_beads_test() {
 
   let bead1 =
     signals.BeadAssigned(
-      task_id: "disp-2a",
+      task_id: signals.task_id("disp-2a"),
       spec: "first bead",
       requirements: [],
-      priority: "high",
-      assigned_at: "2026-01-08-002",
+      priority: signals.P2,
+      assigned_at: signals.timestamp(0),
     )
   let bead2 =
     signals.BeadAssigned(
-      task_id: "disp-2b",
+      task_id: signals.task_id("disp-2b"),
       spec: "second bead",
       requirements: [],
-      priority: "medium",
-      assigned_at: "2026-01-08-003",
+      priority: signals.P2,
+      assigned_at: signals.timestamp(0),
     )
   let bead3 =
     signals.BeadAssigned(
-      task_id: "disp-2c",
+      task_id: signals.task_id("disp-2c"),
       spec: "third bead",
       requirements: [],
-      priority: "low",
-      assigned_at: "2026-01-08-004",
+      priority: signals.P2,
+      assigned_at: signals.timestamp(0),
     )
 
   let assert Ok(_loop1) =
@@ -363,11 +363,11 @@ pub fn e2e_single_bead_full_lifecycle_test() {
 
   let bead =
     signals.BeadAssigned(
-      task_id: "e2e-1",
+      task_id: signals.task_id("e2e-1"),
       spec: "end to end test",
       requirements: ["gleam", "tests"],
-      priority: "critical",
-      assigned_at: "2026-01-08-e2e-001",
+      priority: signals.P2,
+      assigned_at: signals.timestamp(0),
     )
 
   let assert Ok(loop) =
@@ -392,19 +392,19 @@ pub fn e2e_concurrent_loops_test() {
 
   let bead1 =
     signals.BeadAssigned(
-      task_id: "e2e-2a",
+      task_id: signals.task_id("e2e-2a"),
       spec: "concurrent task 1",
       requirements: [],
-      priority: "high",
-      assigned_at: "2026-01-08-e2e-002a",
+      priority: signals.P2,
+      assigned_at: signals.timestamp(0),
     )
   let bead2 =
     signals.BeadAssigned(
-      task_id: "e2e-2b",
+      task_id: signals.task_id("e2e-2b"),
       spec: "concurrent task 2",
       requirements: [],
-      priority: "high",
-      assigned_at: "2026-01-08-e2e-002b",
+      priority: signals.P2,
+      assigned_at: signals.timestamp(0),
     )
 
   let assert Ok(loop1) =
@@ -438,11 +438,11 @@ pub fn e2e_error_recovery_test() {
 
   let bead =
     signals.BeadAssigned(
-      task_id: "e2e-3",
+      task_id: signals.task_id("e2e-3"),
       spec: "error recovery test",
       requirements: [],
-      priority: "medium",
-      assigned_at: "2026-01-08-e2e-003",
+      priority: signals.P2,
+      assigned_at: signals.timestamp(0),
     )
 
   let assert Ok(loop) =
@@ -464,11 +464,11 @@ pub fn e2e_rebase_recovery_test() {
 
   let bead =
     signals.BeadAssigned(
-      task_id: "e2e-4",
+      task_id: signals.task_id("e2e-4"),
       spec: "rebase recovery",
       requirements: [],
-      priority: "high",
-      assigned_at: "2026-01-08-e2e-004",
+      priority: signals.P2,
+      assigned_at: signals.timestamp(0),
     )
 
   let assert Ok(loop) =

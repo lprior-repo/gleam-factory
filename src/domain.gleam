@@ -49,18 +49,24 @@ pub fn detect_language_from_files(
 }
 
 /// Slug type - validated task identifier
-pub type Slug =
-  String
+pub opaque type Slug {
+  Slug(String)
+}
+
+const max_slug_length: Int = 50
 
 /// Validate slug: non-empty, 1-50 chars, only [a-zA-Z0-9_-]
 pub fn validate_slug(slug: String) -> Result(Slug, String) {
   let len = string.length(slug)
   case len {
     0 -> Error("slug cannot be empty")
-    n if n > 50 -> Error("slug must be 1-50 characters")
+    n if n > max_slug_length ->
+      Error(
+        "slug must be 1-" <> string.inspect(max_slug_length) <> " characters",
+      )
     _ ->
       case is_valid_slug_chars(slug) {
-        True -> Ok(slug)
+        True -> Ok(Slug(slug))
         False -> Error("slug contains invalid characters (use a-z, 0-9, -, _)")
       }
   }
@@ -69,45 +75,14 @@ pub fn validate_slug(slug: String) -> Result(Slug, String) {
 /// Check if string contains only valid slug characters
 /// Valid: lowercase a-z, digits 0-9, hyphen, underscore
 fn is_valid_slug_char(char: String) -> Bool {
-  case char {
-    "a"
-    | "b"
-    | "c"
-    | "d"
-    | "e"
-    | "f"
-    | "g"
-    | "h"
-    | "i"
-    | "j"
-    | "k"
-    | "l"
-    | "m"
-    | "n"
-    | "o"
-    | "p"
-    | "q"
-    | "r"
-    | "s"
-    | "t"
-    | "u"
-    | "v"
-    | "w"
-    | "x"
-    | "y"
-    | "z"
-    | "0"
-    | "1"
-    | "2"
-    | "3"
-    | "4"
-    | "5"
-    | "6"
-    | "7"
-    | "8"
-    | "9"
-    | "-"
-    | "_" -> True
+  case string.to_utf_codepoints(char) {
+    [cp] -> {
+      let code = string.utf_codepoint_to_int(cp)
+      { code >= 97 && code <= 122 }
+      || { code >= 48 && code <= 57 }
+      || code == 45
+      || code == 95
+    }
     _ -> False
   }
 }
@@ -326,7 +301,8 @@ pub fn language_display_name(lang: Language) -> String {
 
 // BEAD 14: Validate slug is lowercase
 pub fn is_slug_lowercase(slug: Slug) -> Bool {
-  slug == string.lowercase(slug)
+  let Slug(s) = slug
+  s == string.lowercase(s)
 }
 
 // BEAD 15: Get max stage retries in pipeline
@@ -343,7 +319,8 @@ pub fn max_pipeline_retries(pipeline: List(Stage)) -> Int {
 
 // BEAD 16: Check if slug contains only hyphens and underscores
 pub fn has_separators(slug: Slug) -> Bool {
-  string.contains(slug, "-") || string.contains(slug, "_")
+  let Slug(s) = slug
+  string.contains(s, "-") || string.contains(s, "_")
 }
 
 // BEAD 17: Count stages with specific gate name
@@ -375,7 +352,8 @@ pub fn is_ready_for_integration(status: TaskStatus, language: Language) -> Bool 
   }
 }
 
-// BEAD 20: Get task slug as string
+/// Get slug as string
 pub fn slug_to_string(slug: Slug) -> String {
-  slug
+  let Slug(s) = slug
+  s
 }

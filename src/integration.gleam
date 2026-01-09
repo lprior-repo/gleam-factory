@@ -20,7 +20,7 @@ pub fn test_integration(
   use base_branch <- result.try(get_base_branch(repo_root))
 
   // STEP 1: Create temporary merge branch
-  let temp_branch = "temp-integration-test-" <> task.slug
+  let temp_branch = "temp-integration-test-" <> domain.slug_to_string(task.slug)
 
   use cmd_result <- result.try(process.run_command(
     "jj",

@@ -4,12 +4,20 @@
 //// including actor initialization and message routing.
 
 import gleam/dict
-import gleam/erlang/process.{type Subject, self}
+import gleam/erlang/process.{type Subject}
 import gleam/result
 import otp_actor as actor
 import process as shell_process
 import simplifile
 import types.{type Workspace, type WorkspaceId}
+
+const timeout_ms = 5000
+
+const workspace_prefix = "/dev/shm/factory-"
+
+const jj_bookmark_prefix = "feat/"
+
+const jj_parent_dir = "../"
 
 /// Message type for workspace manager actor.
 pub type WorkspaceManagerMessage {
@@ -109,7 +117,7 @@ pub fn query_workspaces(
 ) -> Result(List(Workspace), String) {
   let reply_subject = process.new_subject()
   process.send(manager_subject, ListWorkspaces(reply_with: reply_subject))
-  case process.receive(reply_subject, 5000) {
+  case process.receive(reply_subject, timeout_ms) {
     Ok(response) -> response
     Error(Nil) -> Error("Query timeout")
   }
@@ -127,7 +135,7 @@ pub fn query_workspace(
     manager_subject,
     GetWorkspace(id: workspace_id, reply_with: reply_subject),
   )
-  case process.receive(reply_subject, 5000) {
+  case process.receive(reply_subject, timeout_ms) {
     Ok(response) -> response
     Error(Nil) -> Error("Query timeout")
   }
@@ -146,10 +154,41 @@ pub fn destroy_workspace(
     manager_subject,
     DestroyWorkspace(id: workspace_id, reply_with: reply_subject),
   )
-  case process.receive(reply_subject, 5000) {
+  case process.receive(reply_subject, timeout_ms) {
     Ok(response) -> response
     Error(Nil) -> Error("Destroy timeout")
   }
+}
+
+fn make_workspace_path(slug: String) -> String {
+  workspace_prefix <> slug
+}
+
+fn clean_workspace_path(workspace_path: String) -> Nil {
+  let _ = simplifile.delete_all([workspace_path])
+  Nil
+}
+
+fn copy_workspace_directory(
+  source_path: String,
+  workspace_path: String,
+) -> Result(Nil, String) {
+  simplifile.copy_directory(source_path, workspace_path)
+  |> result.map_error(fn(e) { "copy failed: " <> simplifile.describe_error(e) })
+}
+
+fn build_workspace(
+  workspace_id: WorkspaceId,
+  workspace_path: String,
+  workspace_type: types.WorkspaceType,
+) -> Workspace {
+  types.Workspace(
+    id: workspace_id,
+    path: workspace_path,
+    workspace_type: workspace_type,
+    owner_pid: types.from_pid(process.self()),
+    created_at: "0",
+  )
 }
 
 /// Creates a new reflink workspace with COW copy of source directory.
@@ -163,28 +202,14 @@ pub fn create_workspace_reflink(
   slug: String,
   source_path: String,
 ) -> Result(Workspace, String) {
-  let workspace_path = "/dev/shm/factory-" <> slug
+  let workspace_path = make_workspace_path(slug)
   let workspace_id = types.new_workspace_id(slug)
 
-  // Remove existing destination if present
-  let _ = simplifile.delete_all([workspace_path])
+  clean_workspace_path(workspace_path)
 
-  // Copy directory using simplifile
-  use _ <- result.try(
-    simplifile.copy_directory(source_path, workspace_path)
-    |> result.map_error(fn(e) {
-      "copy failed: " <> simplifile.describe_error(e)
-    }),
-  )
+  use _ <- result.try(copy_workspace_directory(source_path, workspace_path))
 
-  let workspace =
-    types.Workspace(
-      id: workspace_id,
-      path: workspace_path,
-      workspace_type: types.Reflink,
-      owner_pid: types.from_pid(process.self()),
-      created_at: "2026-01-06",
-    )
+  let workspace = build_workspace(workspace_id, workspace_path, types.Reflink)
 
   actor.send(manager_subject, RegisterWorkspace(workspace))
   Ok(workspace)
@@ -210,6 +235,40 @@ fn check_cmd_success(
   }
 }
 
+fn make_jj_bookmark(slug: String) -> String {
+  jj_bookmark_prefix <> slug
+}
+
+fn make_jj_workspace_path(source_path: String, slug: String) -> String {
+  source_path <> jj_parent_dir <> slug
+}
+
+fn run_jj_workspace_add(
+  slug: String,
+  workspace_path: String,
+  source_path: String,
+) -> Result(Nil, String) {
+  use add_result <- result.try(shell_process.run_command(
+    "jj",
+    ["workspace", "add", "--name", slug, workspace_path],
+    source_path,
+  ))
+  check_cmd_success(add_result, "jj workspace add failed")
+}
+
+fn run_jj_bookmark_create(
+  workspace_path: String,
+  bookmark: String,
+  source_path: String,
+) -> Result(Nil, String) {
+  use bookmark_result <- result.try(shell_process.run_command(
+    "jj",
+    ["-R", workspace_path, "bookmark", "create", bookmark],
+    source_path,
+  ))
+  check_cmd_success(bookmark_result, "jj bookmark create failed")
+}
+
 /// Creates a new jj workspace with isolated jj bookmark.
 ///
 /// Returns Ok(workspace) if successful, or Error(msg) if creation fails.
@@ -218,35 +277,18 @@ pub fn create_workspace_jj(
   slug: String,
   source_path: String,
 ) -> Result(types.Workspace, String) {
-  let bookmark = "feat/" <> slug
-  let workspace_path = source_path <> "/../" <> slug
+  let bookmark = make_jj_bookmark(slug)
+  let workspace_path = make_jj_workspace_path(source_path, slug)
 
-  use add_result <- result.try(shell_process.run_command(
-    "jj",
-    ["workspace", "add", "--name", slug, workspace_path],
+  use _ <- result.try(run_jj_workspace_add(slug, workspace_path, source_path))
+  use _ <- result.try(run_jj_bookmark_create(
+    workspace_path,
+    bookmark,
     source_path,
-  ))
-  use _ <- result.try(check_cmd_success(add_result, "jj workspace add failed"))
-
-  use bookmark_result <- result.try(shell_process.run_command(
-    "jj",
-    ["-R", workspace_path, "bookmark", "create", bookmark],
-    source_path,
-  ))
-  use _ <- result.try(check_cmd_success(
-    bookmark_result,
-    "jj bookmark create failed",
   ))
 
   let workspace_id = types.new_workspace_id(slug)
-  let workspace =
-    types.Workspace(
-      id: workspace_id,
-      path: workspace_path,
-      workspace_type: types.Jj,
-      owner_pid: types.from_pid(self()),
-      created_at: "2026-01-06",
-    )
+  let workspace = build_workspace(workspace_id, workspace_path, types.Jj)
 
   actor.send(manager_subject, RegisterWorkspace(workspace))
   Ok(workspace)

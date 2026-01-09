@@ -9,6 +9,8 @@ import gleam/string
 import simplifile
 import types
 
+const exit_success = 0
+
 /// Escape a string for safe shell execution using single quotes
 fn shell_escape(s: String) -> String {
   "'" <> string.replace(s, "'", "'\"'\"'") <> "'"
@@ -20,6 +22,67 @@ pub type CommandResult {
   Failure(stderr: String, exit_code: Int)
 }
 
+fn build_shell_command(cmd: String, args: List(String), cwd: String) -> String {
+  let escaped_cmd = shell_escape(cmd)
+  let escaped_args = list.map(args, shell_escape)
+  let full_cmd = case args {
+    [] -> escaped_cmd
+    _ -> escaped_cmd <> " " <> string.join(escaped_args, " ")
+  }
+  case cwd {
+    "" -> full_cmd <> " 2>&1; echo $?"
+    _ -> "cd " <> shell_escape(cwd) <> " && " <> full_cmd <> " 2>&1; echo $?"
+  }
+}
+
+fn extract_exit_code(output: String) -> Result(Int, Nil) {
+  let lines =
+    output
+    |> string.split("\n")
+    |> list.filter(fn(line) { string.trim(line) != "" })
+  case lines {
+    [] -> Error(Nil)
+    _ -> {
+      let reversed = reverse_list(lines)
+      case reversed {
+        [exit_str, ..] ->
+          string.to_utf_codepoints(string.trim(exit_str))
+          |> parse_int_from_codepoints
+        [] -> Error(Nil)
+      }
+    }
+  }
+}
+
+fn parse_command_output(output: String) -> CommandResult {
+  let lines =
+    output
+    |> string.split("\n")
+    |> list.filter(fn(line) { string.trim(line) != "" })
+  case lines {
+    [] -> Success("", "", exit_success)
+    _ -> {
+      let reversed = reverse_list(lines)
+      case reversed {
+        [_, ..rest_reversed] -> {
+          case extract_exit_code(output) {
+            Ok(exit_code) -> {
+              let stdout_lines = reverse_list(rest_reversed)
+              let combined = string.join(stdout_lines, "\n")
+              case exit_code {
+                c if c == exit_success -> Success(combined, "", exit_success)
+                code -> Failure(combined, code)
+              }
+            }
+            Error(_) -> Success(output, "", exit_success)
+          }
+        }
+        [] -> Success("", "", exit_success)
+      }
+    }
+  }
+}
+
 /// Execute a command with arguments in a working directory
 /// Returns Success if exit_code == 0, Failure otherwise
 pub fn run_command(
@@ -27,54 +90,9 @@ pub fn run_command(
   args: List(String),
   cwd: String,
 ) -> Result(CommandResult, String) {
-  // Build full command string with proper shell escaping
-  let escaped_cmd = shell_escape(cmd)
-  let escaped_args = list.map(args, shell_escape)
-  let full_cmd = case args {
-    [] -> escaped_cmd
-    _ -> escaped_cmd <> " " <> string.join(escaped_args, " ")
-  }
-
-  // Create shell command that changes to cwd first and captures exit code
-  let shell_cmd = case cwd {
-    "" -> full_cmd <> " 2>&1; echo $?"
-    _ -> "cd " <> shell_escape(cwd) <> " && " <> full_cmd <> " 2>&1; echo $?"
-  }
-
-  // Execute via os:cmd
+  let shell_cmd = build_shell_command(cmd, args, cwd)
   let output = os_cmd(shell_cmd)
-
-  // Extract exit code from last non-empty line
-  let lines =
-    output
-    |> string.split("\n")
-    |> list.filter(fn(line) { string.trim(line) != "" })
-
-  case lines {
-    [] -> Ok(Success("", "", 0))
-    _ -> {
-      let reversed = reverse_list(lines)
-      case reversed {
-        [exit_str, ..rest_reversed] -> {
-          let trimmed_exit = string.trim(exit_str)
-          case
-            string.to_utf_codepoints(trimmed_exit) |> parse_int_from_codepoints
-          {
-            Ok(exit_code) -> {
-              let stdout_lines = reverse_list(rest_reversed)
-              let combined = string.join(stdout_lines, "\n")
-              case exit_code {
-                0 -> Ok(Success(combined, "", 0))
-                code -> Ok(Failure(combined, code))
-              }
-            }
-            Error(_) -> Ok(Success(output, "", 0))
-          }
-        }
-        [] -> Ok(Success("", "", 0))
-      }
-    }
-  }
+  Ok(parse_command_output(output))
 }
 
 fn reverse_list(list: List(a)) -> List(a) {
@@ -152,7 +170,7 @@ pub fn parse_result(
   exit_code: Int,
 ) -> CommandResult {
   case exit_code {
-    0 -> Success(stdout, stderr, 0)
+    c if c == exit_success -> Success(stdout, stderr, exit_success)
     code -> Failure(stderr, code)
   }
 }
@@ -171,8 +189,8 @@ pub fn get_stdout(result: CommandResult) -> Result(String, String) {
 /// Helper to check if command succeeded
 pub fn is_success(result: CommandResult) -> Bool {
   case result {
-    Success(_, _, _) -> True
-    Failure(_, _) -> False
+    Success(_, _, c) if c == exit_success -> True
+    _ -> False
   }
 }
 
@@ -214,9 +232,17 @@ pub fn acp_send_cancel(
   session_id: String,
 ) -> Result(Nil, String) {
   let json_body =
-    "{\"jsonrpc\":\"2.0\",\"method\":\"session/cancel\",\"params\":{\"meta\":{\"sessionId\":\""
-    <> session_id
-    <> "\"}}}"
+    json.object([
+      #("jsonrpc", json.string("2.0")),
+      #("method", json.string("session/cancel")),
+      #(
+        "params",
+        json.object([
+          #("meta", json.object([#("sessionId", json.string(session_id))])),
+        ]),
+      ),
+    ])
+    |> json.to_string
   run_command(
     "curl",
     [
@@ -232,7 +258,7 @@ pub fn acp_send_cancel(
   )
   |> result.try(fn(r) {
     case r {
-      Success(_, _, 0) -> Ok(Nil)
+      Success(_, _, c) if c == exit_success -> Ok(Nil)
       Success(_, _, code) | Failure(_, code) ->
         Error("http request failed with code " <> string.inspect(code))
     }
@@ -242,7 +268,13 @@ pub fn acp_send_cancel(
 /// Create a new ACP session via HTTP transport, returns session_id
 pub fn acp_new_session(client: types.AcpClient) -> Result(String, String) {
   let json_body =
-    "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"session/new\",\"params\":{}}"
+    json.object([
+      #("jsonrpc", json.string("2.0")),
+      #("id", json.int(1)),
+      #("method", json.string("session/new")),
+      #("params", json.object([])),
+    ])
+    |> json.to_string
   use cmd_result <- result.try(run_command(
     "curl",
     [
@@ -258,7 +290,7 @@ pub fn acp_new_session(client: types.AcpClient) -> Result(String, String) {
     "",
   ))
   use json <- result.try(case cmd_result {
-    Success(stdout, _, 0) -> Ok(stdout)
+    Success(stdout, _, c) if c == exit_success -> Ok(stdout)
     Success(_, _, code) | Failure(_, code) ->
       Error("http failed code " <> string.inspect(code))
   })
@@ -278,11 +310,19 @@ pub fn acp_session_prompt(
   prompt: String,
 ) -> Result(String, String) {
   let json_body =
-    "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"session/prompt\",\"params\":{\"meta\":{\"sessionId\":\""
-    <> session_id
-    <> "\"},\"text\":\""
-    <> escape_json_string(prompt)
-    <> "\"}}"
+    json.object([
+      #("jsonrpc", json.string("2.0")),
+      #("id", json.int(1)),
+      #("method", json.string("session/prompt")),
+      #(
+        "params",
+        json.object([
+          #("meta", json.object([#("sessionId", json.string(session_id))])),
+          #("text", json.string(prompt)),
+        ]),
+      ),
+    ])
+    |> json.to_string
   use cmd_result <- result.try(run_command(
     "curl",
     [
@@ -298,7 +338,7 @@ pub fn acp_session_prompt(
     "",
   ))
   use json <- result.try(case cmd_result {
-    Success(stdout, _, 0) -> Ok(stdout)
+    Success(stdout, _, c) if c == exit_success -> Ok(stdout)
     Success(_, _, code) | Failure(_, code) ->
       Error("http failed code " <> string.inspect(code))
   })
@@ -309,13 +349,6 @@ fn extract_response_text(json: String) -> Result(String, String) {
   let decoder = decode.at(["result", "text"], decode.string)
   json.parse(json, decoder)
   |> result.map_error(fn(_) { "invalid response text JSON" })
-}
-
-fn escape_json_string(s: String) -> String {
-  s
-  |> string.replace("\\", "\\\\")
-  |> string.replace("\"", "\\\"")
-  |> string.replace("\n", "\\n")
 }
 
 /// Read text file content
@@ -398,7 +431,7 @@ pub fn acp_initialize(
     "",
   ))
   use json <- result.try(case cmd_result {
-    Success(stdout, _, 0) -> Ok(stdout)
+    Success(stdout, _, c) if c == exit_success -> Ok(stdout)
     Success(_, _, code) | Failure(_, code) ->
       Error("http failed code " <> string.inspect(code))
   })

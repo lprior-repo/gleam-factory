@@ -44,9 +44,10 @@ pub fn prop_status_file_path_contains_factory_dir__test() {
 pub fn prop_task_to_record_preserves_slug__test() {
   use len <- qcheck.given(qcheck.bounded_int(1, 50))
   let slug = string.repeat("a", len)
+  let assert Ok(validated_slug) = domain.validate_slug(slug)
   let task =
     domain.Task(
-      slug: slug,
+      slug: validated_slug,
       language: domain.Gleam,
       status: domain.Created,
       worktree_path: "/tmp",
@@ -58,9 +59,10 @@ pub fn prop_task_to_record_preserves_slug__test() {
 
 // RECORD CONVERSION - Property: task_to_record converts language correctly
 pub fn prop_task_to_record_language_go__test() {
+  let assert Ok(slug) = domain.validate_slug("test")
   let task =
     domain.Task(
-      slug: "test",
+      slug:,
       language: domain.Go,
       status: domain.Created,
       worktree_path: "/tmp",
@@ -71,9 +73,10 @@ pub fn prop_task_to_record_language_go__test() {
 }
 
 pub fn prop_task_to_record_language_gleam__test() {
+  let assert Ok(slug) = domain.validate_slug("test")
   let task =
     domain.Task(
-      slug: "test",
+      slug:,
       language: domain.Gleam,
       status: domain.Created,
       worktree_path: "/tmp",
@@ -84,9 +87,10 @@ pub fn prop_task_to_record_language_gleam__test() {
 }
 
 pub fn prop_task_to_record_language_rust__test() {
+  let assert Ok(slug) = domain.validate_slug("test")
   let task =
     domain.Task(
-      slug: "test",
+      slug:,
       language: domain.Rust,
       status: domain.Created,
       worktree_path: "/tmp",
@@ -97,9 +101,10 @@ pub fn prop_task_to_record_language_rust__test() {
 }
 
 pub fn prop_task_to_record_language_python__test() {
+  let assert Ok(slug) = domain.validate_slug("test")
   let task =
     domain.Task(
-      slug: "test",
+      slug:,
       language: domain.Python,
       status: domain.Created,
       worktree_path: "/tmp",
@@ -111,9 +116,10 @@ pub fn prop_task_to_record_language_python__test() {
 
 // RECORD CONVERSION - Property: task_to_record converts Created status
 pub fn prop_task_to_record_status_created__test() {
+  let assert Ok(slug) = domain.validate_slug("test")
   let task =
     domain.Task(
-      slug: "test",
+      slug:,
       language: domain.Gleam,
       status: domain.Created,
       worktree_path: "/tmp",
@@ -125,9 +131,10 @@ pub fn prop_task_to_record_status_created__test() {
 
 // RECORD CONVERSION - Property: task_to_record converts InProgress status
 pub fn prop_task_to_record_status_in_progress__test() {
+  let assert Ok(slug) = domain.validate_slug("test")
   let task =
     domain.Task(
-      slug: "test",
+      slug:,
       language: domain.Gleam,
       status: domain.InProgress("test-stage"),
       worktree_path: "/tmp",
@@ -139,9 +146,10 @@ pub fn prop_task_to_record_status_in_progress__test() {
 
 // RECORD CONVERSION - Property: task_to_record converts PassedPipeline status
 pub fn prop_task_to_record_status_passed__test() {
+  let assert Ok(slug) = domain.validate_slug("test")
   let task =
     domain.Task(
-      slug: "test",
+      slug:,
       language: domain.Gleam,
       status: domain.PassedPipeline,
       worktree_path: "/tmp",
@@ -153,9 +161,10 @@ pub fn prop_task_to_record_status_passed__test() {
 
 // RECORD CONVERSION - Property: task_to_record converts FailedPipeline status
 pub fn prop_task_to_record_status_failed__test() {
+  let assert Ok(slug) = domain.validate_slug("test")
   let task =
     domain.Task(
-      slug: "test",
+      slug:,
       language: domain.Gleam,
       status: domain.FailedPipeline("test-stage", "error"),
       worktree_path: "/tmp",
@@ -167,9 +176,10 @@ pub fn prop_task_to_record_status_failed__test() {
 
 // RECORD CONVERSION - Property: task_to_record converts Integrated status
 pub fn prop_task_to_record_status_integrated__test() {
+  let assert Ok(slug) = domain.validate_slug("test")
   let task =
     domain.Task(
-      slug: "test",
+      slug:,
       language: domain.Gleam,
       status: domain.Integrated,
       worktree_path: "/tmp",
@@ -181,9 +191,10 @@ pub fn prop_task_to_record_status_integrated__test() {
 
 // RECORD CONVERSION - Property: record_to_task round-trip for Created
 pub fn prop_record_to_task_created_roundtrip__test() {
+  let assert Ok(slug) = domain.validate_slug("test")
   let task =
     domain.Task(
-      slug: "test",
+      slug:,
       language: domain.Gleam,
       status: domain.Created,
       worktree_path: "/tmp",
@@ -191,7 +202,9 @@ pub fn prop_record_to_task_created_roundtrip__test() {
     )
   let record = persistence.task_to_record(task)
   assert case persistence.record_to_task(record) {
-    Ok(t) -> t.slug == task.slug && t.language == task.language
+    Ok(t) ->
+      domain.slug_to_string(t.slug) == domain.slug_to_string(task.slug)
+      && t.language == task.language
     Error(_) -> False
   }
 }

@@ -65,12 +65,24 @@ fn broadcast_new_beads(
 /// Convert Bead to BeadAssigned signal
 fn bead_to_assigned_signal(bead: bead_manager.Bead) -> signals.BeadAssigned {
   signals.BeadAssigned(
-    task_id: bead.id,
+    task_id: signals.task_id(bead.id),
     spec: bead.description,
     requirements: parse_requirements(bead.description),
-    priority: bead.priority,
-    assigned_at: "",
+    priority: bead_priority_to_signal_priority(bead.priority),
+    assigned_at: signals.timestamp(0),
   )
+}
+
+fn bead_priority_to_signal_priority(
+  p: bead_manager.BeadPriority,
+) -> signals.Priority {
+  case p {
+    bead_manager.P0 -> signals.P0
+    bead_manager.P1 -> signals.P1
+    bead_manager.P2 -> signals.P2
+    bead_manager.P3 -> signals.P3
+    bead_manager.P4 -> signals.P4
+  }
 }
 
 /// Parse requirements from description

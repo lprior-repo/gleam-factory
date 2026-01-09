@@ -66,7 +66,7 @@ pub fn start_link(
   let initial =
     FactoryLoopState(
       loop_id:,
-      task_id: bead.task_id,
+      task_id: signals.unwrap_task_id(bead.task_id),
       task_spec: bead.spec,
       workspace_path:,
       phase: Implementing,

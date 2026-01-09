@@ -60,7 +60,7 @@ pub fn prop_slug_valid_composition__test() {
   use len <- qcheck.given(qcheck.bounded_int(1, 50))
   let slug = string.repeat("a", len)
   assert case domain.validate_slug(slug) {
-    Ok(v) -> v == slug
+    Ok(v) -> domain.slug_to_string(v) == slug
     Error(_) -> False
   }
 }

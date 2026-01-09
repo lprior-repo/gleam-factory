@@ -77,32 +77,13 @@ pub fn git_hash_to_string(hash: GitHash) -> String {
   hash.hash
 }
 
-fn is_hex_char(c: String) -> Bool {
-  case c {
-    "0"
-    | "1"
-    | "2"
-    | "3"
-    | "4"
-    | "5"
-    | "6"
-    | "7"
-    | "8"
-    | "9"
-    | "a"
-    | "b"
-    | "c"
-    | "d"
-    | "e"
-    | "f" -> True
-    _ -> False
-  }
-}
-
 fn is_valid_hex(input: String) -> Bool {
   input
-  |> string.split("")
-  |> list.all(is_hex_char)
+  |> string.to_utf_codepoints
+  |> list.all(fn(cp) {
+    let val = string.utf_codepoint_to_int(cp)
+    { val >= 48 && val <= 57 } || { val >= 97 && val <= 102 }
+  })
 }
 
 /// AcpClient represents an Agent Communication Protocol HTTP client.
@@ -255,6 +236,8 @@ pub fn encode_initialize_request(
   |> Ok
 }
 
+const timeout_ms = 5000
+
 @external(erlang, "erlang", "phash2")
 fn hash_pid(pid: process.Pid) -> Int
 
@@ -287,14 +270,19 @@ pub fn new_gpu_governor(limit: Int) -> Result(GpuGovernor, Nil) {
       let parent_subject = process.new_subject()
       process.spawn(fn() {
         let child_subject = process.new_subject()
-        let assert Ok(pid) = process.subject_owner(child_subject)
-        let gov_id = hash_pid(pid)
-        let initial = GpuState(limit:, next: 0, issued: [], waiters: [])
-        process.send(parent_subject, #(gov_id, child_subject))
-        let selector = process.new_selector() |> process.select(child_subject)
-        gpu_loop(gov_id, initial, selector)
+        case process.subject_owner(child_subject) {
+          Ok(pid) -> {
+            let gov_id = hash_pid(pid)
+            let initial = GpuState(limit:, next: 0, issued: [], waiters: [])
+            process.send(parent_subject, #(gov_id, child_subject))
+            let selector =
+              process.new_selector() |> process.select(child_subject)
+            gpu_loop(gov_id, initial, selector)
+          }
+          Error(_) -> Nil
+        }
       })
-      case process.receive(parent_subject, 5000) {
+      case process.receive(parent_subject, timeout_ms) {
         Ok(#(gov_id, child_subject)) -> Ok(GpuGovernor(gov_id, child_subject))
         Error(_) -> Error(Nil)
       }
@@ -388,7 +376,7 @@ pub fn request_gpu_ticket(gov: GpuGovernor) -> Result(GpuTicket, Nil) {
   let GpuGovernor(_, subj) = gov
   let reply_subj = process.new_subject()
   process.send(subj, Request(reply_subj))
-  result.flatten(process.receive(reply_subj, 5000))
+  result.flatten(process.receive(reply_subj, timeout_ms))
 }
 
 pub fn release_gpu_ticket(
@@ -398,7 +386,7 @@ pub fn release_gpu_ticket(
   let GpuGovernor(_, subj) = gov
   let reply_subj = process.new_subject()
   process.send(subj, Release(ticket, reply_subj))
-  result.flatten(process.receive(reply_subj, 5000))
+  result.flatten(process.receive(reply_subj, timeout_ms))
 }
 
 pub fn with_gpu_ticket(

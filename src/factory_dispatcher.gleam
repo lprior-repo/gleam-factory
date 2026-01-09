@@ -4,6 +4,7 @@
 import factory_loop
 import gleam/dict
 import gleam/erlang/process.{type Subject}
+import gleam/int
 import gleam/string
 import signal_bus
 import signals
@@ -42,11 +43,11 @@ pub fn start(
       signal_bus.subscribe(
         bus,
         signal_bus.BeadAssigned(signals.BeadAssigned(
-          task_id: "",
+          task_id: signals.task_id(""),
           spec: "",
           requirements: [],
-          priority: "",
-          assigned_at: "",
+          priority: signals.P2,
+          assigned_at: signals.timestamp(0),
         )),
         signal_subject,
       )
@@ -73,8 +74,13 @@ fn handle_bead_assigned(
   state: DispatcherState,
   bead: signals.BeadAssigned,
 ) -> DispatcherState {
-  let loop_id = string.concat([bead.task_id, "-", bead.assigned_at])
-  let workspace_path = string.concat([state.workspace_root, "/", bead.task_id])
+  let task_id_str = signals.unwrap_task_id(bead.task_id)
+  let timestamp_str =
+    bead.assigned_at
+    |> signals.unwrap_timestamp
+    |> int.to_string
+  let loop_id = string.concat([task_id_str, "-", timestamp_str])
+  let workspace_path = string.concat([state.workspace_root, "/", task_id_str])
 
   case
     factory_loop.start_link(loop_id, bead, workspace_path, state.signal_bus)

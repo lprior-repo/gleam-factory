@@ -65,7 +65,8 @@ pub fn filter_by_priority(
 ) -> List(bead_manager.Bead) {
   beads
   |> list.filter(fn(bead) {
-    string_to_priority(bead.priority) <= string_to_priority(min_priority)
+    bead_manager.priority_to_int(bead.priority)
+    <= string_to_priority(min_priority)
   })
 }
 

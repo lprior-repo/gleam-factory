@@ -111,9 +111,10 @@ pub fn get_stage_invalid_test() {
 // ============================================================================
 
 pub fn task_to_record_preserves_slug_test() {
+  let assert Ok(slug) = domain.validate_slug("test-123")
   let task =
     domain.Task(
-      slug: "test-123",
+      slug:,
       language: domain.Go,
       status: domain.Created,
       worktree_path: "/tmp/test",
@@ -126,9 +127,10 @@ pub fn task_to_record_preserves_slug_test() {
 }
 
 pub fn task_to_record_preserves_language_test() {
+  let assert Ok(slug) = domain.validate_slug("test")
   let task =
     domain.Task(
-      slug: "test",
+      slug:,
       language: domain.Rust,
       status: domain.Created,
       worktree_path: "/tmp/test",
@@ -1036,8 +1038,8 @@ pub fn test_failure_signal_has_required_fields_test() {
     signals.TestFailure(
       file: "src/test_module.gleam",
       error: "assertion failed: expected 42, got 0",
-      context_hash: "abc123def456",
-      timestamp: "2026-01-06T12:34:56Z",
+      context_hash: signals.hash("abc123def456"),
+      timestamp: signals.timestamp(1_704_540_896),
     )
 
   // Assert: Pattern match to verify all fields are present and accessible
@@ -1045,8 +1047,8 @@ pub fn test_failure_signal_has_required_fields_test() {
     signals.TestFailure(file, error, context_hash, timestamp) -> {
       file |> should.equal("src/test_module.gleam")
       error |> should.equal("assertion failed: expected 42, got 0")
-      context_hash |> should.equal("abc123def456")
-      timestamp |> should.equal("2026-01-06T12:34:56Z")
+      signals.unwrap_hash(context_hash) |> should.equal("abc123def456")
+      signals.unwrap_timestamp(timestamp) |> should.equal(1_704_540_896)
     }
   }
 }
@@ -1055,15 +1057,15 @@ pub fn test_passing_signal_has_required_fields_test() {
   // Arrange: Create a TestPassing signal with all required fields
   let signal =
     signals.TestPassing(
-      hash: "pass123def456",
-      timestamp: "2026-01-06T12:45:00Z",
+      hash: signals.hash("pass123def456"),
+      timestamp: signals.timestamp(1_704_541_500),
     )
 
   // Assert: Pattern match to verify all fields are present and accessible
   case signal {
     signals.TestPassing(hash, timestamp) -> {
-      hash |> should.equal("pass123def456")
-      timestamp |> should.equal("2026-01-06T12:45:00Z")
+      signals.unwrap_hash(hash) |> should.equal("pass123def456")
+      signals.unwrap_timestamp(timestamp) |> should.equal(1_704_541_500)
     }
   }
 }
@@ -1072,21 +1074,21 @@ pub fn bead_assigned_signal_has_required_fields_test() {
   // Arrange: Create a BeadAssigned signal with all required fields
   let signal =
     signals.BeadAssigned(
-      task_id: "task-001",
+      task_id: signals.task_id("task-001"),
       spec: "Implement user authentication",
       requirements: ["RFC 2818 compliance", "JWT support"],
-      priority: "P1",
-      assigned_at: "2026-01-06T13:00:00Z",
+      priority: signals.P1,
+      assigned_at: signals.timestamp(1_704_542_400),
     )
 
   // Assert: Pattern match to verify all fields are present and accessible
   case signal {
     signals.BeadAssigned(task_id, spec, requirements, priority, assigned_at) -> {
-      task_id |> should.equal("task-001")
+      signals.unwrap_task_id(task_id) |> should.equal("task-001")
       spec |> should.equal("Implement user authentication")
       requirements |> should.equal(["RFC 2818 compliance", "JWT support"])
-      priority |> should.equal("P1")
-      assigned_at |> should.equal("2026-01-06T13:00:00Z")
+      priority |> should.equal(signals.P1)
+      signals.unwrap_timestamp(assigned_at) |> should.equal(1_704_542_400)
     }
   }
 }
@@ -1098,7 +1100,7 @@ pub fn patch_proposed_signal_has_required_fields_test() {
       diff: "--- a/src/main.gleam\n+++ b/src/main.gleam\n@@ -1,3 +1,3 @@",
       author_pid: "pid-12345",
       workspace: "/home/dev/workspace",
-      hash: "commit-abc123",
+      hash: signals.hash("commit-abc123"),
     )
 
   // Assert: Pattern match to verify all fields are present and accessible
@@ -1110,7 +1112,7 @@ pub fn patch_proposed_signal_has_required_fields_test() {
       )
       author_pid |> should.equal("pid-12345")
       workspace |> should.equal("/home/dev/workspace")
-      hash |> should.equal("commit-abc123")
+      signals.unwrap_hash(hash) |> should.equal("commit-abc123")
     }
   }
 }
@@ -1119,15 +1121,15 @@ pub fn patch_accepted_signal_has_required_fields_test() {
   // Arrange: Create a PatchAccepted signal with all required fields
   let signal =
     signals.PatchAccepted(
-      hash: "commit-def456",
-      merged_at: "2026-01-06T14:00:00Z",
+      hash: signals.hash("commit-def456"),
+      merged_at: signals.timestamp(1_704_546_000),
     )
 
   // Assert: Pattern match to verify all fields are present and accessible
   case signal {
     signals.PatchAccepted(hash, merged_at) -> {
-      hash |> should.equal("commit-def456")
-      merged_at |> should.equal("2026-01-06T14:00:00Z")
+      signals.unwrap_hash(hash) |> should.equal("commit-def456")
+      signals.unwrap_timestamp(merged_at) |> should.equal(1_704_546_000)
     }
   }
 }
@@ -1149,15 +1151,15 @@ pub fn golden_master_updated_signal_has_required_fields_test() {
   // Arrange: Create a GoldenMasterUpdated signal with all required fields
   let signal =
     signals.GoldenMasterUpdated(
-      old_hash: "golden-old-hash123",
-      new_hash: "golden-new-hash456",
+      old_hash: signals.hash("golden-old-hash123"),
+      new_hash: signals.hash("golden-new-hash456"),
     )
 
   // Assert: Pattern match to verify all fields are present and accessible
   case signal {
     signals.GoldenMasterUpdated(old_hash, new_hash) -> {
-      old_hash |> should.equal("golden-old-hash123")
-      new_hash |> should.equal("golden-new-hash456")
+      signals.unwrap_hash(old_hash) |> should.equal("golden-old-hash123")
+      signals.unwrap_hash(new_hash) |> should.equal("golden-new-hash456")
     }
   }
 }
@@ -1166,14 +1168,14 @@ pub fn evolution_signal_has_required_fields_test() {
   // Arrange: Create an Evolution signal with all required fields
   let signal =
     signals.Evolution(
-      new_hash: "evolved-hash789",
+      new_hash: signals.hash("evolved-hash789"),
       cause: "Test failure triggered evolution",
     )
 
   // Assert: Pattern match to verify all fields are present and accessible
   case signal {
     signals.Evolution(new_hash, cause) -> {
-      new_hash |> should.equal("evolved-hash789")
+      signals.unwrap_hash(new_hash) |> should.equal("evolved-hash789")
       cause |> should.equal("Test failure triggered evolution")
     }
   }
@@ -1183,16 +1185,16 @@ pub fn loop_spawned_signal_has_required_fields_test() {
   // Arrange: Create a LoopSpawned signal with all required fields
   let signal =
     signals.LoopSpawned(
-      loop_id: "loop-spawn-001",
-      task_id: "task-001",
+      loop_id: signals.loop_id("loop-spawn-001"),
+      task_id: signals.task_id("task-001"),
       phase: "implement",
     )
 
   // Assert: Pattern match to verify all fields are present and accessible
   case signal {
     signals.LoopSpawned(loop_id, task_id, phase) -> {
-      loop_id |> should.equal("loop-spawn-001")
-      task_id |> should.equal("task-001")
+      signals.unwrap_loop_id(loop_id) |> should.equal("loop-spawn-001")
+      signals.unwrap_task_id(task_id) |> should.equal("task-001")
       phase |> should.equal("implement")
     }
   }
@@ -1202,8 +1204,8 @@ pub fn loop_complete_signal_has_required_fields_test() {
   // Arrange: Create a LoopComplete signal with all required fields
   let signal =
     signals.LoopComplete(
-      loop_id: "loop-complete-001",
-      task_id: "task-001",
+      loop_id: signals.loop_id("loop-complete-001"),
+      task_id: signals.task_id("task-001"),
       commits: 5,
       reverts: 2,
       duration_ms: 45_000,
@@ -1212,8 +1214,8 @@ pub fn loop_complete_signal_has_required_fields_test() {
   // Assert: Pattern match to verify all fields are present and accessible
   case signal {
     signals.LoopComplete(loop_id, task_id, commits, reverts, duration_ms) -> {
-      loop_id |> should.equal("loop-complete-001")
-      task_id |> should.equal("task-001")
+      signals.unwrap_loop_id(loop_id) |> should.equal("loop-complete-001")
+      signals.unwrap_task_id(task_id) |> should.equal("task-001")
       commits |> should.equal(5)
       reverts |> should.equal(2)
       duration_ms |> should.equal(45_000)
@@ -1225,14 +1227,14 @@ pub fn loop_failed_signal_has_required_fields_test() {
   // Arrange: Create a LoopFailed signal with all required fields
   let signal =
     signals.LoopFailed(
-      loop_id: "loop-fail-001",
+      loop_id: signals.loop_id("loop-fail-001"),
       reason: "Maximum retries exceeded",
     )
 
   // Assert: Pattern match to verify all fields are present and accessible
   case signal {
     signals.LoopFailed(loop_id, reason) -> {
-      loop_id |> should.equal("loop-fail-001")
+      signals.unwrap_loop_id(loop_id) |> should.equal("loop-fail-001")
       reason |> should.equal("Maximum retries exceeded")
     }
   }
@@ -2818,7 +2820,8 @@ pub fn governor_release_correct_resource_type_test() {
   let assert Ok(gov) = resource_governor.start_link(config)
 
   let assert Ok(#(loop_ticket, _slot_id2)) = resource_governor.acquire_loop(gov)
-  let assert Ok(#(_mutator_ticket, _slot_id3)) = resource_governor.acquire_mutator(gov)
+  let assert Ok(#(_mutator_ticket, _slot_id3)) =
+    resource_governor.acquire_mutator(gov)
 
   resource_governor.release(gov, loop_ticket)
 
