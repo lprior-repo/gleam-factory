@@ -2863,3 +2863,14 @@ pub fn governor_double_release_slot_test() {
 
   resource_governor.acquire_mutator(gov) |> should.be_ok
 }
+
+pub fn check_free_ram_test() {
+  let result = resource_governor.check_free_ram()
+  result |> should.be_ok
+}
+
+pub fn is_sufficient_ram_test() {
+  resource_governor.is_sufficient_ram(1024, 512) |> should.be_true
+  resource_governor.is_sufficient_ram(256, 512) |> should.be_false
+  resource_governor.is_sufficient_ram(512, 512) |> should.be_true
+}

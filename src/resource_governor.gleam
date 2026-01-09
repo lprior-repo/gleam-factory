@@ -3,7 +3,11 @@
 import gleam/dict
 import gleam/erlang/process.{type Subject}
 import gleam/int
+import gleam/list
+import gleam/result
+import gleam/string
 import otp_actor as actor
+import simplifile
 
 pub type ResourceLimits {
   ResourceLimits(
@@ -229,4 +233,42 @@ pub fn release_slot(
     Ok(result) -> result
     Error(Nil) -> Error("timeout")
   }
+}
+
+pub fn check_free_ram() -> Result(Int, String) {
+  use meminfo_content <- result.try(
+    simplifile.read("/proc/meminfo")
+    |> result.map_error(fn(_) { "Failed to read /proc/meminfo" }),
+  )
+
+  case
+    meminfo_content
+    |> string.split("\n")
+    |> list.find_map(parse_meminfo_line)
+  {
+    Ok(mb) -> Ok(mb)
+    Error(Nil) -> Error("MemAvailable not found in /proc/meminfo")
+  }
+}
+
+fn parse_meminfo_line(line: String) -> Result(Int, Nil) {
+  case string.starts_with(line, "MemAvailable:") {
+    True -> {
+      line
+      |> string.replace("MemAvailable:", "")
+      |> string.trim
+      |> string.split(" ")
+      |> list.first
+      |> result.try(int.parse(_))
+      |> result.map(fn(kb) { kb / 1024 })
+    }
+    False -> Error(Nil)
+  }
+}
+
+pub fn is_sufficient_ram(
+  current_free_mb: Int,
+  min_required_mb: Int,
+) -> Bool {
+  current_free_mb >= min_required_mb
 }
