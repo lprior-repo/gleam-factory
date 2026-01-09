@@ -20,10 +20,10 @@ package jjz
 #EARSPattern: "ubiquitous" | "state" | "event" | "optional" | "unwanted"
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SYSTEM COMPONENTS
+// REQUIREMENT CATEGORIES
 // ═══════════════════════════════════════════════════════════════════════════
 
-#Component: "cli" | "jj" | "zellij" | "state" | "config" | "hooks" | "tui" | "watch"
+#RequirementCategory: "cli" | "jj" | "zellij" | "state" | "config" | "hooks" | "tui" | "watch" | "error"
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CLI REQUIREMENTS (REQ-CLI-*)
