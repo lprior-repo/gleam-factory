@@ -55,11 +55,10 @@ pub fn prompt(message: String) -> String {
 }
 
 /// Get yes/no confirmation
-pub fn confirm(message: String) -> Bool {
-  // Note: This is a placeholder since interactive stdin is not easily available
-  // in the current build environment.
-  let _ = prompt(message <> " (y/n)")
-  False
+pub fn confirm(_message: String) -> Result(Bool, String) {
+  // Note: stdin is not easily available in this build environment
+  // Return error indicating inability to get input
+  Error("stdin unavailable")
 }
 
 /// Format success message
@@ -193,7 +192,23 @@ pub fn int_to_string(n: Int) -> String {
         7 -> "7"
         8 -> "8"
         9 -> "9"
-        _ -> int_to_string(n / 10) <> int_to_string(n % 10)
+        _ -> {
+          let digit = n % 10
+          let char = case digit {
+            0 -> "0"
+            1 -> "1"
+            2 -> "2"
+            3 -> "3"
+            4 -> "4"
+            5 -> "5"
+            6 -> "6"
+            7 -> "7"
+            8 -> "8"
+            9 -> "9"
+            _ -> "?"
+          }
+          int_to_string(n / 10) <> char
+        }
       }
   }
 }

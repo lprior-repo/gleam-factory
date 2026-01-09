@@ -6,6 +6,7 @@ import gleam/result
 import llm
 import types
 import process as shell_process
+import utils
 
 pub type RouterConfig {
   RouterConfig(
@@ -86,11 +87,11 @@ fn call_anthropic(
 }
 
 fn build_local_request_json(request: llm.LLMRequest) -> String {
-  "{\"prompt\":\"" <> escape_json(request.prompt) <> "\",\"n_predict\":" <> int_to_string(request.max_tokens) <> ",\"temperature\":" <> float_to_string(request.temperature) <> "}"
+  "{\"prompt\":\"" <> escape_json(request.prompt) <> "\",\"n_predict\":" <> utils.int_to_string(request.max_tokens) <> ",\"temperature\":" <> float_to_string(request.temperature) <> "}"
 }
 
 fn build_anthropic_request_json(request: llm.LLMRequest) -> String {
-  "{\"model\":\"" <> request.model <> "\",\"max_tokens\":" <> int_to_string(request.max_tokens) <> ",\"messages\":[{\"role\":\"user\",\"content\":\"" <> escape_json(request.prompt) <> "\"}]}"
+  "{\"model\":\"" <> request.model <> "\",\"max_tokens\":" <> utils.int_to_string(request.max_tokens) <> ",\"messages\":[{\"role\":\"user\",\"content\":\"" <> escape_json(request.prompt) <> "\"}]}"
 }
 
 fn parse_local_response(json: String) -> Result(llm.LLMResponse, llm.LLMError) {
@@ -140,29 +141,10 @@ fn string_split(s: String, sep: String) -> List(String)
 @external(erlang, "string", "replace")
 fn string_replace(s: String, from: String, to: String) -> String
 
-fn int_to_string(n: Int) -> String {
-  case n < 0 {
-    True -> "-" <> int_to_string(-n)
-    False -> case n {
-      0 -> "0"
-      1 -> "1"
-      2 -> "2"
-      3 -> "3"
-      4 -> "4"
-      5 -> "5"
-      6 -> "6"
-      7 -> "7"
-      8 -> "8"
-      9 -> "9"
-      _ -> int_to_string(n / 10) <> int_to_string(n % 10)
-    }
-  }
-}
-
 fn float_to_string(f: Float) -> String {
   case f <. 1.0 && f >=. 0.0 {
-    True -> "0." <> int_to_string(truncate(f *. 10.0))
-    False -> int_to_string(truncate(f)) <> ".0"
+    True -> "0." <> utils.int_to_string(truncate(f *. 10.0))
+    False -> utils.int_to_string(truncate(f)) <> ".0"
   }
 }
 

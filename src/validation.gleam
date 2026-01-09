@@ -2,6 +2,7 @@
 // Provides common validation functions for user input
 
 import gleam/string
+import utils
 
 /// Validate email format (simple check for @ symbol)
 pub fn validate_email(email: String) -> Result(String, String) {
@@ -45,31 +46,10 @@ pub fn validate_length(
       Error(
         field_name
         <> " must be between "
-        <> int_to_string(min)
+        <> utils.int_to_string(min)
         <> " and "
-        <> int_to_string(max)
+        <> utils.int_to_string(max)
         <> " characters",
       )
-  }
-}
-
-/// Helper to convert int to string
-fn int_to_string(n: Int) -> String {
-  case n < 0 {
-    True -> "-" <> int_to_string(-n)
-    False ->
-      case n {
-        0 -> "0"
-        1 -> "1"
-        2 -> "2"
-        3 -> "3"
-        4 -> "4"
-        5 -> "5"
-        6 -> "6"
-        7 -> "7"
-        8 -> "8"
-        9 -> "9"
-        _ -> int_to_string(n / 10) <> int_to_string(n % 10)
-      }
   }
 }

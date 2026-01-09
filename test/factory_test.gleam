@@ -97,7 +97,7 @@ pub fn standard_pipeline_not_empty_test() {
 }
 
 pub fn get_stage_valid_test() {
-  domain.get_stage("tdd-setup")
+  domain.get_stage("implement")
   |> should.be_ok
 }
 
@@ -1185,7 +1185,7 @@ pub fn loop_spawned_signal_has_required_fields_test() {
     signals.LoopSpawned(
       loop_id: "loop-spawn-001",
       task_id: "task-001",
-      phase: "tdd-setup",
+      phase: "implement",
     )
 
   // Assert: Pattern match to verify all fields are present and accessible
@@ -1193,7 +1193,7 @@ pub fn loop_spawned_signal_has_required_fields_test() {
     signals.LoopSpawned(loop_id, task_id, phase) -> {
       loop_id |> should.equal("loop-spawn-001")
       task_id |> should.equal("task-001")
-      phase |> should.equal("tdd-setup")
+      phase |> should.equal("implement")
     }
   }
 }

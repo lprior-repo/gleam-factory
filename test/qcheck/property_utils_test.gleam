@@ -149,13 +149,13 @@ pub fn prop_int_to_string_matches_standard__test() {
   assert custom == standard
 }
 
-// CONFIRM - Property: always returns bool
-pub fn prop_confirm_returns_bool__test() {
+// CONFIRM - Property: returns Result(Bool, String)
+pub fn prop_confirm_returns_result__test() {
   let result = utils.confirm("test")
-  // Just verify it returns a bool (we can't test interactive input)
+  // Verify it returns a Result type
   assert case result {
-    True -> True
-    False -> True
+    Ok(_) -> True
+    Error(_) -> True
   }
 }
 

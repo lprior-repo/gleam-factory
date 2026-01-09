@@ -97,11 +97,11 @@ pub fn prop_language_requires_manifest__test() {
   }
 }
 
-// PIPELINE - Property: always 10 stages
+// PIPELINE - Property: always 9 stages (pure TCR pipeline)
 pub fn prop_pipeline_size__test() {
   use _n <- qcheck.given(qcheck.small_non_negative_int())
   let p = domain.standard_pipeline()
-  assert list.length(p) == 10
+  assert list.length(p) == 9
 }
 
 // PIPELINE - Property: all stage names unique
@@ -114,7 +114,7 @@ pub fn prop_pipeline_unique_names__test() {
 
 // PIPELINE - Property: find_stage works for all valid stages
 pub fn prop_find_stage_works__test() {
-  use idx <- qcheck.given(qcheck.bounded_int(0, 9))
+  use idx <- qcheck.given(qcheck.bounded_int(0, 8))
   let p = domain.standard_pipeline()
   assert case list.drop(p, idx) |> list.first {
     Ok(stage) ->
@@ -128,8 +128,8 @@ pub fn prop_find_stage_works__test() {
 
 // PIPELINE - Property: filter always returns contiguous slice
 pub fn prop_filter_stages_contiguous__test() {
-  use start <- qcheck.given(qcheck.bounded_int(0, 8))
-  use end <- qcheck.given(qcheck.bounded_int(start, 9))
+  use start <- qcheck.given(qcheck.bounded_int(0, 7))
+  use end <- qcheck.given(qcheck.bounded_int(start, 8))
   let p = domain.standard_pipeline()
   let expected_len = end - start + 1
   assert case list.drop(p, start) |> list.first {
@@ -157,7 +157,7 @@ pub fn prop_filter_stages_contiguous__test() {
 
 // PIPELINE - Property: reversed ranges always fail
 pub fn prop_filter_enforces_order__test() {
-  use start <- qcheck.given(qcheck.bounded_int(1, 9))
+  use start <- qcheck.given(qcheck.bounded_int(1, 8))
   use end <- qcheck.given(qcheck.bounded_int(0, start - 1))
   let p = domain.standard_pipeline()
   assert case list.drop(p, start) |> list.first {

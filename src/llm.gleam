@@ -5,7 +5,6 @@
 import gleam/option.{type Option, None, Some}
 
 pub type Role {
-  Auditor
   Implementer
   Architect
   Reviewer
@@ -65,7 +64,6 @@ pub fn with_temperature(req: LLMRequest, temp: Float) -> LLMRequest {
 
 pub fn route_request(role: Role) -> Endpoint {
   case role {
-    Auditor -> LocalEndpoint("http://localhost:8080/completion")
     Implementer -> LocalEndpoint("http://localhost:8080/completion")
     Architect -> LocalEndpoint("http://localhost:8080/completion")
     Reviewer -> AnthropicEndpoint("https://api.anthropic.com/v1/messages", "")
@@ -88,19 +86,14 @@ pub fn get_endpoint_url(endpoint: Endpoint) -> String {
 
 pub fn system_prompt(role: Role) -> String {
   case role {
-    Auditor -> auditor_system_prompt()
     Implementer -> implementer_system_prompt()
     Architect -> architect_system_prompt()
     Reviewer -> reviewer_system_prompt()
   }
 }
 
-fn auditor_system_prompt() -> String {
-  "You are an AUDITOR in an adversarial TDD loop. Your role is to write ONE failing test per iteration that drives good design. Rules: test file only (test/factory_test.gleam), test must fail initially, use descriptive names ending in _test, one assertion per test, test behavior not implementation. Output REQUIREMENTS_COMPLETE when all requirements are met."
-}
-
 fn implementer_system_prompt() -> String {
-  "You are an IMPLEMENTER in a TCR loop. Write MINIMAL code to pass the failing test. Rules: src/ files only, if tests fail ALL changes are REVERTED, follow existing patterns, no refactoring, no extra features. Types use PascalCase, functions use snake_case, use Result for errors, pattern matching over conditionals."
+  "You are an IMPLEMENTER in a TCR loop. Write MINIMAL code to pass tests. Rules: src/ files only, if tests fail ALL changes are REVERTED, follow existing patterns, no refactoring, no extra features. Types use PascalCase, functions use snake_case, use Result for errors, pattern matching over conditionals."
 }
 
 fn architect_system_prompt() -> String {

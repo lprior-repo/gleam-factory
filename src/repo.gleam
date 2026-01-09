@@ -61,45 +61,64 @@ fn file_exists(path: String) -> Bool {
 pub fn get_base_branch(repo_root: String) -> Result(String, String) {
   // Try to detect which branch is default (main or master)
   // Check symbolic-ref first
-  process.run_command("git", [
+  let symbolic_ref = process.run_command("git", [
     "-C",
     repo_root,
     "symbolic-ref",
     "refs/remotes/origin/HEAD",
   ], repo_root)
-  |> result.map(fn(result) {
-    case result {
+  |> result.try(fn(cmd_result) {
+    case cmd_result {
       process.Success(output, _, _) -> {
         let trimmed = string.trim(output)
         case string.split(trimmed, "/") {
-          [_, _, branch] -> branch
-          _ -> ""
+          [_, _, branch] -> {
+            case string.length(branch) > 0 {
+              True -> Ok(branch)
+              False -> Error("empty branch name")
+            }
+          }
+          _ -> Error("invalid symbolic-ref format")
         }
       }
-      _ -> ""
+      _ -> Error("symbolic-ref failed")
     }
   })
-  |> result.try(fn(branch) {
-    case branch {
-      "" ->
-        // Fall back to checking if main or master exists
-        process.run_command("git", [
-          "-C",
-          repo_root,
-          "show-ref",
-          "--verify",
-          "--quiet",
-          "refs/heads/main",
-        ], repo_root)
-        |> result.map(fn(result) {
-          case result {
-            process.Success(_, _, _) -> "main"
-            _ -> "master"
-          }
-        })
-      b -> Ok(b)
+
+  // Fall back to checking if main or master exists
+  let check_main = process.run_command("git", [
+    "-C",
+    repo_root,
+    "show-ref",
+    "--verify",
+    "--quiet",
+    "refs/heads/main",
+  ], repo_root)
+  |> result.try(fn(result) {
+    case result {
+      process.Success(_, _, 0) -> Ok("main")
+      _ -> Error("main not found")
     }
   })
+
+  let check_master = process.run_command("git", [
+    "-C",
+    repo_root,
+    "show-ref",
+    "--verify",
+    "--quiet",
+    "refs/heads/master",
+  ], repo_root)
+  |> result.try(fn(result) {
+    case result {
+      process.Success(_, _, 0) -> Ok("master")
+      _ -> Error("master not found")
+    }
+  })
+
+  symbolic_ref
+  |> result.lazy_or(fn() { check_main })
+  |> result.lazy_or(fn() { check_master })
   |> result.map_error(fn(_) { "Could not determine base branch" })
 }
 

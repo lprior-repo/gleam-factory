@@ -1,6 +1,6 @@
 //// Phase handlers for factory loop phases.
 ////
-//// Handles transitions through all phases: Auditing, VerifyingRed, Implementing, TcrChecking, Refactoring, Reviewing, Pushing, Rebasing.
+//// Handles TCR phases: Implementing, TcrChecking, Reviewing, Pushing, Rebasing.
 
 import gleam/option
 import gleam/result
@@ -9,32 +9,6 @@ import llm
 import llm_router
 import verification_gauntlet
 import process
-
-pub fn handle_refactoring_phase(
-  state: factory_loop.FactoryLoopState,
-  config: llm_router.RouterConfig,
-) -> factory_loop.Event {
-  case llm_router.call(
-    config,
-    llm.LLMRequest(
-      prompt: "Refactor: " <> state.task_spec,
-      system_prompt: option.Some(llm.system_prompt(llm.Architect)),
-      model: "claude-3-5-sonnet-20241022",
-      max_tokens: 2000,
-      temperature: 0.3,
-    ),
-    llm.Architect,
-  ) {
-    Ok(_response) -> {
-      case verification_gauntlet.run_gauntlet(state.workspace_path, "gleam") {
-        Ok(verification_gauntlet.Passed(_)) -> factory_loop.TestPassed
-        Ok(verification_gauntlet.Failed(_, _)) -> factory_loop.TestFailed
-        Error(_) -> factory_loop.TestFailed
-      }
-    }
-    Error(_) -> factory_loop.TestFailed
-  }
-}
 
 pub fn handle_reviewing_phase(
   state: factory_loop.FactoryLoopState,

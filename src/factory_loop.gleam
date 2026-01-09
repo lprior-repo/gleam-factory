@@ -1,7 +1,6 @@
-//// Factory loop actor for TDD-TCR-Refactor cycles.
+//// Factory loop actor for TCR cycles.
 ////
-//// Manages the complete lifecycle of implementing a bead through
-//// adversarial TDD with auditor, implementer, architect, and reviewer roles.
+//// Manages implementing a bead through pure TCR: test && commit || revert.
 
 import gleam/erlang/process.{type Subject}
 import otp_actor as actor
@@ -9,11 +8,8 @@ import signal_bus
 import signals
 
 pub type Phase {
-  Auditing
-  VerifyingRed
   Implementing
   TcrChecking
-  Refactoring
   Reviewing
   Pushing
   Rebasing
@@ -24,7 +20,6 @@ pub type Phase {
 pub type Event {
   TestPassed
   TestFailed
-  RequirementsComplete
   PushSuccess
   PushConflict
   RebaseSuccess
@@ -74,7 +69,7 @@ pub fn start_link(
       task_id: bead.task_id,
       task_spec: bead.spec,
       workspace_path:,
-      phase: Auditing,
+      phase: Implementing,
       iteration: 1,
       green_count: 0,
       commit_count: 0,
@@ -122,17 +117,11 @@ fn handle_message(
 
 pub fn transition(from: Phase, event: Event) -> Phase {
   case from, event {
-    Auditing, TestFailed -> VerifyingRed
-    Auditing, RequirementsComplete -> Reviewing
-    VerifyingRed, TestFailed -> Implementing
-    VerifyingRed, TestPassed -> Auditing
     Implementing, TestPassed -> TcrChecking
     Implementing, TestFailed -> Implementing
     Implementing, MaxIterationsReached -> Failed
-    TcrChecking, TestPassed -> Auditing
+    TcrChecking, TestPassed -> Reviewing
     TcrChecking, TestFailed -> Implementing
-    Refactoring, TestPassed -> Auditing
-    Refactoring, TestFailed -> Failed
     Reviewing, TestPassed -> Pushing
     Reviewing, TestFailed -> Failed
     Pushing, PushSuccess -> Completed

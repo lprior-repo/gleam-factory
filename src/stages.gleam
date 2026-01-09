@@ -48,7 +48,6 @@ fn execute_gleam_stage(
   cwd: String,
 ) -> Result(Nil, String) {
   case stage_name {
-    "tdd-setup" -> gleam_tdd_setup(cwd)
     "implement" -> gleam_implement(cwd)
     "unit-test" -> gleam_unit_test(cwd)
     "coverage" -> gleam_coverage(cwd)
@@ -60,17 +59,6 @@ fn execute_gleam_stage(
     "accept" -> gleam_accept(cwd)
     other -> Error("Unknown Gleam stage: " <> other)
   }
-}
-
-fn gleam_tdd_setup(cwd: String) -> Result(Nil, String) {
-  // Check that test files exist: *_test.gleam or test_*.gleam
-  process.run_command("find", [
-    ".", "-name", "*_test.gleam", "-o", "-name", "test_*.gleam",
-  ], cwd)
-  |> result.map_error(fn(_) {
-    "Gleam: Test files not found. Create test_*.gleam or *_test.gleam files"
-  })
-  |> result.map(fn(_) { Nil })
 }
 
 fn gleam_implement(cwd: String) -> Result(Nil, String) {
@@ -156,7 +144,6 @@ fn execute_go_stage(
   cwd: String,
 ) -> Result(Nil, String) {
   case stage_name {
-    "tdd-setup" -> go_tdd_setup(cwd)
     "implement" -> go_implement(cwd)
     "unit-test" -> go_unit_test(cwd)
     "coverage" -> go_coverage(cwd)
@@ -168,13 +155,6 @@ fn execute_go_stage(
     "accept" -> go_accept(cwd)
     other -> Error("Unknown Go stage: " <> other)
   }
-}
-
-fn go_tdd_setup(cwd: String) -> Result(Nil, String) {
-  // Check for *_test.go files
-  process.run_command("find", [".", "-name", "*_test.go"], cwd)
-  |> result.map_error(fn(_) { "Go: No *_test.go files found" })
-  |> result.map(fn(_) { Nil })
 }
 
 fn go_implement(cwd: String) -> Result(Nil, String) {
@@ -259,7 +239,6 @@ fn execute_rust_stage(
   cwd: String,
 ) -> Result(Nil, String) {
   case stage_name {
-    "tdd-setup" -> rust_tdd_setup(cwd)
     "implement" -> rust_implement(cwd)
     "unit-test" -> rust_unit_test(cwd)
     "coverage" -> rust_coverage(cwd)
@@ -271,13 +250,6 @@ fn execute_rust_stage(
     "accept" -> rust_accept(cwd)
     other -> Error("Unknown Rust stage: " <> other)
   }
-}
-
-fn rust_tdd_setup(cwd: String) -> Result(Nil, String) {
-  // Check for *_test.rs or tests/ directory
-  process.run_command("find", [".", "-name", "*_test.rs", "-o", "-type", "d", "-name", "tests"], cwd)
-  |> result.map_error(fn(_) { "Rust: No tests found" })
-  |> result.map(fn(_) { Nil })
 }
 
 fn rust_implement(cwd: String) -> Result(Nil, String) {
@@ -350,7 +322,6 @@ fn execute_python_stage(
   cwd: String,
 ) -> Result(Nil, String) {
   case stage_name {
-    "tdd-setup" -> python_tdd_setup(cwd)
     "implement" -> python_implement(cwd)
     "unit-test" -> python_unit_test(cwd)
     "coverage" -> python_coverage(cwd)
@@ -362,13 +333,6 @@ fn execute_python_stage(
     "accept" -> python_accept(cwd)
     other -> Error("Unknown Python stage: " <> other)
   }
-}
-
-fn python_tdd_setup(cwd: String) -> Result(Nil, String) {
-  // Check for test_*.py or *_test.py files
-  process.run_command("find", [".", "-name", "test_*.py", "-o", "-name", "*_test.py"], cwd)
-  |> result.map_error(fn(_) { "Python: No tests found" })
-  |> result.map(fn(_) { Nil })
 }
 
 fn python_implement(cwd: String) -> Result(Nil, String) {

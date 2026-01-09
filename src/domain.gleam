@@ -115,10 +115,9 @@ pub type Task {
   )
 }
 
-/// Pipeline configuration - 10 stages for all languages
+/// Pipeline configuration - TCR stages (all have commit/revert)
 pub fn standard_pipeline() -> List(Stage) {
   [
-    Stage("tdd-setup", "Tests exist and fail", 3, False),
     Stage("implement", "Code compiles", 5, True),
     Stage("unit-test", "All tests pass", 3, True),
     Stage("coverage", "80% coverage", 5, True),
@@ -127,7 +126,7 @@ pub fn standard_pipeline() -> List(Stage) {
     Stage("integration", "Integration tests pass", 3, True),
     Stage("security", "No vulnerabilities", 2, True),
     Stage("review", "Code review passes", 3, True),
-    Stage("accept", "Ready for merge", 1, False),
+    Stage("accept", "Ready for merge", 1, True),
   ]
 }
 
@@ -188,4 +187,158 @@ pub fn filter_stages(
     _, _ ->
       Error("one or both stages not found in pipeline: " <> start_name <> " to " <> end_name)
   }
+}
+
+// BEAD 1: Check if stage is tcr-enabled
+pub fn is_tcr_stage(stage: Stage) -> Bool {
+  case stage {
+    Stage(_, _, _, tcr) -> tcr
+  }
+}
+
+// BEAD 2: Get stage retry count
+pub fn get_stage_retries(stage: Stage) -> Int {
+  case stage {
+    Stage(_, _, retries, _) -> retries
+  }
+}
+
+// BEAD 3: Check if task is in a transient state
+pub fn is_transient_status(status: TaskStatus) -> Bool {
+  case status {
+    InProgress(_) -> True
+    _ -> False
+  }
+}
+
+// BEAD 4: Check if task has failed
+pub fn is_failed(status: TaskStatus) -> Bool {
+  case status {
+    FailedPipeline(_, _) -> True
+    _ -> False
+  }
+}
+
+// BEAD 5: Get failure reason from status
+pub fn get_failure_reason(status: TaskStatus) -> Result(String, String) {
+  case status {
+    FailedPipeline(_, reason) -> Ok(reason)
+    _ -> Error("task did not fail")
+  }
+}
+
+// BEAD 6: Check if task completed successfully
+pub fn is_completed(status: TaskStatus) -> Bool {
+  case status {
+    PassedPipeline | Integrated -> True
+    _ -> False
+  }
+}
+
+// BEAD 7: Get current stage from status
+pub fn get_current_stage(status: TaskStatus) -> Result(String, String) {
+  case status {
+    InProgress(stage) -> Ok(stage)
+    _ -> Error("task not in progress")
+  }
+}
+
+// BEAD 8: Count tcr stages in pipeline
+pub fn count_tcr_stages(pipeline: List(Stage)) -> Int {
+  pipeline
+  |> list.filter(is_tcr_stage)
+  |> list.length
+}
+
+// BEAD 9: Get non-tcr stages
+pub fn non_tcr_stages(pipeline: List(Stage)) -> List(Stage) {
+  list.filter(pipeline, fn(s) { !is_tcr_stage(s) })
+}
+
+// BEAD 10: Find first tcr stage
+pub fn first_tcr_stage(pipeline: List(Stage)) -> Result(Stage, String) {
+  list.find(pipeline, is_tcr_stage)
+  |> result.map_error(fn(_) { "no tcr stages found" })
+}
+
+// BEAD 11: Check if language is compiled
+pub fn is_compiled_language(lang: Language) -> Bool {
+  case lang {
+    Go | Rust | Gleam -> True
+    Python -> False
+  }
+}
+
+// BEAD 12: Check if language is dynamically typed
+pub fn is_dynamic_language(lang: Language) -> Bool {
+  case lang {
+    Python -> True
+    _ -> False
+  }
+}
+
+// BEAD 13: Get language display name
+pub fn language_display_name(lang: Language) -> String {
+  case lang {
+    Go -> "Go"
+    Gleam -> "Gleam"
+    Rust -> "Rust"
+    Python -> "Python"
+  }
+}
+
+// BEAD 14: Validate slug is lowercase
+pub fn is_slug_lowercase(slug: Slug) -> Bool {
+  slug == string.lowercase(slug)
+}
+
+// BEAD 15: Get max stage retries in pipeline
+pub fn max_pipeline_retries(pipeline: List(Stage)) -> Int {
+  pipeline
+  |> list.map(get_stage_retries)
+  |> list.fold(0, fn(max, retries) {
+    case retries > max {
+      True -> retries
+      False -> max
+    }
+  })
+}
+
+// BEAD 16: Check if slug contains only hyphens and underscores
+pub fn has_separators(slug: Slug) -> Bool {
+  string.contains(slug, "-") || string.contains(slug, "_")
+}
+
+// BEAD 17: Count stages with specific gate name
+pub fn count_stages_by_gate(pipeline: List(Stage), gate: String) -> Int {
+  pipeline
+  |> list.filter(fn(s) {
+    case s {
+      Stage(_, g, _, _) -> g == gate
+    }
+  })
+  |> list.length
+}
+
+// BEAD 18: Get all gate names from pipeline
+pub fn gate_names(pipeline: List(Stage)) -> List(String) {
+  pipeline
+  |> list.map(fn(s) {
+    case s {
+      Stage(_, gate, _, _) -> gate
+    }
+  })
+}
+
+// BEAD 19: Check if task is ready for integration
+pub fn is_ready_for_integration(status: TaskStatus, language: Language) -> Bool {
+  case status {
+    PassedPipeline -> is_compiled_language(language)
+    _ -> False
+  }
+}
+
+// BEAD 20: Get task slug as string
+pub fn slug_to_string(slug: Slug) -> String {
+  slug
 }
