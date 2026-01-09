@@ -91,6 +91,13 @@ pub fn supervisor_signal_bus_isolated() {
       test_cmd: "true",
       test_interval_ms: 100,
       golden_master_path: "/tmp",
+      max_mutators: 2,
+      max_loops: 2,
+      max_workspaces: 4,
+      min_free_ram_mb: 100,
+      gpu_tickets: 1,
+      beads_path: "/tmp/.beads/issues.jsonl",
+      beads_poll_interval_ms: 1000,
     )
 
   case factory_supervisor.start_link(config) {

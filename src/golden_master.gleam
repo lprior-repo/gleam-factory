@@ -19,6 +19,7 @@ pub type GoldenMasterMessage {
   Shutdown
   GetHash(reply_with: Subject(Result(types.GitHash, String)))
   Refresh(reply_with: Subject(Result(Nil, String)))
+  PrepareGoldenMaster(reply_with: Subject(Result(Nil, String)))
 }
 
 pub fn start_link(path: String) -> Result(Subject(GoldenMasterMessage), Nil) {
@@ -71,6 +72,18 @@ fn handle_message(
     }
     Refresh(reply) -> {
       case do_refresh(state) {
+        Ok(new_state) -> {
+          process.send(reply, Ok(Nil))
+          actor.continue(new_state)
+        }
+        Error(e) -> {
+          process.send(reply, Error(e))
+          actor.continue(state)
+        }
+      }
+    }
+    PrepareGoldenMaster(reply) -> {
+      case do_prepare(state) {
         Ok(new_state) -> {
           process.send(reply, Ok(Nil))
           actor.continue(new_state)
@@ -136,6 +149,48 @@ fn do_refresh(state: GoldenMasterState) -> Result(GoldenMasterState, String) {
       Ok(GoldenMasterState(..state, hash: Some(new_hash)))
     }
     _, _ -> Ok(GoldenMasterState(..state, hash: Some(new_hash)))
+  }
+}
+
+fn do_prepare(state: GoldenMasterState) -> Result(GoldenMasterState, String) {
+  use _ <- result.try(ensure_repo_exists(state.path))
+  use _ <- result.try(fetch_latest(state.path))
+  use _ <- result.try(build_dependencies(state.path))
+  use _ <- result.try(verify_tests_pass(state.path))
+  Ok(state)
+}
+
+fn ensure_repo_exists(path: String) -> Result(Nil, String) {
+  case
+    shell_process.run_command("test", ["-d", path <> "/.jj"], "")
+  {
+    Ok(shell_process.Success(_, _, _)) -> Ok(Nil)
+    Ok(shell_process.Failure(e, _)) -> Error("repo check failed: " <> e)
+    Error(e) -> Error("repo check error: " <> e)
+  }
+}
+
+fn fetch_latest(path: String) -> Result(Nil, String) {
+  case shell_process.run_command("jj", ["git", "fetch"], path) {
+    Ok(shell_process.Success(_, _, _)) -> Ok(Nil)
+    Ok(shell_process.Failure(e, _)) -> Error("fetch failed: " <> e)
+    Error(e) -> Error("fetch error: " <> e)
+  }
+}
+
+fn build_dependencies(path: String) -> Result(Nil, String) {
+  case shell_process.run_command("gleam", ["build"], path) {
+    Ok(shell_process.Success(_, _, _)) -> Ok(Nil)
+    Ok(shell_process.Failure(e, _)) -> Error("build failed: " <> e)
+    Error(e) -> Error("build error: " <> e)
+  }
+}
+
+fn verify_tests_pass(path: String) -> Result(Nil, String) {
+  case shell_process.run_command("gleam", ["test"], path) {
+    Ok(shell_process.Success(_, _, _)) -> Ok(Nil)
+    Ok(shell_process.Failure(e, _)) -> Error("tests failed: " <> e)
+    Error(e) -> Error("tests error: " <> e)
   }
 }
 
