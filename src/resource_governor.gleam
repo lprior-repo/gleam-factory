@@ -18,6 +18,13 @@ pub type Ticket {
   LoopTicket
 }
 
+pub type SlotType {
+  MutatorSlot
+  LoopSlot
+  WorkspaceSlot
+  GpuSlot
+}
+
 pub type GovernorMessage {
   AcquireMutator(reply_with: Subject(Result(Ticket, String)))
   AcquireLoop(reply_with: Subject(Result(Ticket, String)))
@@ -105,5 +112,32 @@ pub fn release(gov: Subject(GovernorMessage), ticket: Ticket) -> Nil {
   case ticket {
     MutatorTicket -> process.send(gov, ReleaseMutator)
     LoopTicket -> process.send(gov, ReleaseLoop)
+  }
+}
+
+pub fn release_slot(gov: Subject(GovernorMessage), slot_type: SlotType) -> Nil {
+  case slot_type {
+    MutatorSlot -> process.send(gov, ReleaseMutator)
+    LoopSlot -> process.send(gov, ReleaseLoop)
+    WorkspaceSlot -> Nil
+    GpuSlot -> Nil
+  }
+}
+
+pub fn request_loop_slot(gov: Subject(GovernorMessage)) -> Result(Ticket, String) {
+  let reply = process.new_subject()
+  process.send(gov, AcquireLoop(reply_with: reply))
+  case process.receive(reply, 5000) {
+    Ok(result) -> result
+    Error(Nil) -> Error("timeout")
+  }
+}
+
+pub fn request_mutator_slot(gov: Subject(GovernorMessage)) -> Result(Ticket, String) {
+  let reply = process.new_subject()
+  process.send(gov, AcquireMutator(reply_with: reply))
+  case process.receive(reply, 5000) {
+    Ok(result) -> result
+    Error(Nil) -> Error("timeout")
   }
 }

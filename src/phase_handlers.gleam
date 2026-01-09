@@ -4,11 +4,13 @@
 
 import gleam/option
 import gleam/result
+import gleam/string
 import factory_loop
 import llm
 import llm_router
 import verification_gauntlet
 import process
+import simplifile
 
 pub fn handle_reviewing_phase(
   state: factory_loop.FactoryLoopState,
@@ -108,4 +110,39 @@ fn tcr_revert(workspace_path: String) -> Result(Nil, String) {
       process.Failure(err, _) -> Error(err)
     }
   })
+}
+
+pub fn handle_write_file(
+  path: String,
+  content: String,
+  role: llm.Role,
+) -> Result(Nil, String) {
+  case is_path_safe(path) {
+    False -> Error("Path escapes workspace: " <> path)
+    True -> {
+      case role, is_src_path(path), is_test_path(path) {
+        llm.Implementer, True, False ->
+          simplifile.write(path, content)
+          |> result.map_error(fn(_) { "write failed" })
+        llm.Implementer, _, _ -> Error("Implementer: src/ only")
+        llm.Architect, _, _ -> Error("Architect: read-only")
+        llm.Reviewer, False, True ->
+          simplifile.write(path, content)
+          |> result.map_error(fn(_) { "write failed" })
+        llm.Reviewer, _, _ -> Error("Reviewer: test/ only")
+      }
+    }
+  }
+}
+
+fn is_path_safe(path: String) -> Bool {
+  !string.contains(path, "..") && !string.starts_with(path, "/")
+}
+
+fn is_src_path(path: String) -> Bool {
+  string.starts_with(path, "src/")
+}
+
+fn is_test_path(path: String) -> Bool {
+  string.starts_with(path, "test/")
 }
