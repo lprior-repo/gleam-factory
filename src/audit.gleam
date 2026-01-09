@@ -326,6 +326,56 @@ pub fn log_deployment_rolled_back(
   )
 }
 
+/// Log agent execution (for TCR loop tracking)
+pub fn log_agent_run(
+  task_slug: String,
+  iteration: Int,
+  role: String,
+  output: String,
+) -> Result(Nil, String) {
+  let audit_path = ".factory/audit/" <> task_slug <> ".jsonl"
+  let entry =
+    json.object([
+      #("timestamp", json.string(get_timestamp())),
+      #("iteration", json.int(iteration)),
+      #("role", json.string(role)),
+      #("output", json.string(output)),
+      #("mode", json.string("api")),
+    ])
+    |> json.to_string
+
+  case simplifile.append(audit_path, entry <> "\n") {
+    Ok(_) -> Ok(Nil)
+    Error(_) -> Error("Failed to append audit log")
+  }
+}
+
+/// Log CLI tool execution (Claude Code, etc.)
+pub fn log_cli_run(
+  task_slug: String,
+  iteration: Int,
+  role: String,
+  output: String,
+  turns_used: Int,
+) -> Result(Nil, String) {
+  let audit_path = ".factory/audit/" <> task_slug <> ".jsonl"
+  let entry =
+    json.object([
+      #("timestamp", json.string(get_timestamp())),
+      #("iteration", json.int(iteration)),
+      #("role", json.string(role)),
+      #("output", json.string(output)),
+      #("mode", json.string("cli")),
+      #("turns_used", json.int(turns_used)),
+    ])
+    |> json.to_string
+
+  case simplifile.append(audit_path, entry <> "\n") {
+    Ok(_) -> Ok(Nil)
+    Error(_) -> Error("Failed to append audit log")
+  }
+}
+
 // ============================================================================
 // JSON SERIALIZATION
 // ============================================================================

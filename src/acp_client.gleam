@@ -1,8 +1,10 @@
 import gleam/dict.{type Dict}
 import gleam/dynamic/decode
 import gleam/json
+import gleam/list
 import gleam/result
 import gleam/string
+import llm
 import process
 import types
 
@@ -108,5 +110,30 @@ fn store_notifications(
   case notifs {
     [] -> store
     [n, ..rest] -> store_notifications(types.store_update(store, n), rest)
+  }
+}
+
+pub type PermissionResult {
+  Granted
+  Denied
+}
+
+pub fn handle_permission_request(
+  role: llm.Role,
+  tool_name: String,
+) -> PermissionResult {
+  let allowed = get_allowed_tools(role)
+  case list.contains(allowed, tool_name) {
+    True -> Granted
+    False -> Denied
+  }
+}
+
+fn get_allowed_tools(role: llm.Role) -> List(String) {
+  case role {
+    llm.Auditor -> ["fs/read", "fs/write"]
+    llm.Implementer -> ["fs/read", "fs/write"]
+    llm.Architect -> ["fs/read"]
+    llm.Reviewer -> ["fs/read"]
   }
 }

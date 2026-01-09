@@ -4,9 +4,9 @@ import gleam/dict
 import gleam/erlang/process.{type Subject}
 import gleam/int
 import gleam/list
+import gleam/otp/actor
 import gleam/result
 import gleam/string
-import otp_actor as actor
 import simplifile
 
 const timeout_ms = 5000
@@ -39,12 +39,20 @@ pub type SlotId {
   SlotId(id: String)
 }
 
+pub type ResourceError {
+  ResourceExhausted
+  InsufficientRam
+  Timeout
+}
+
 pub type GovernorMessage {
   AcquireMutator(reply_with: Subject(Result(#(Ticket, SlotId), String)))
   AcquireLoop(reply_with: Subject(Result(#(Ticket, SlotId), String)))
   ReleaseMutator
   ReleaseLoop
   ReleaseSlot(slot_id: SlotId, reply_with: Subject(Result(Nil, String)))
+  RequestMutatorSlot(reply_with: Subject(Result(SlotId, ResourceError)))
+  RequestLoopSlot(reply_with: Subject(Result(SlotId, ResourceError)))
 }
 
 type State {
@@ -85,6 +93,8 @@ fn handle_message(
     ReleaseMutator -> handle_release_mutator(state)
     ReleaseLoop -> handle_release_loop(state)
     ReleaseSlot(slot_id, reply) -> handle_release_slot(state, slot_id, reply)
+    RequestMutatorSlot(reply) -> handle_request_mutator_slot(state, reply)
+    RequestLoopSlot(reply) -> handle_request_loop_slot(state, reply)
   }
 }
 
@@ -276,4 +286,112 @@ fn parse_meminfo_line(line: String) -> Result(Int, Nil) {
 
 pub fn is_sufficient_ram(current_free_mb: Int, min_required_mb: Int) -> Bool {
   current_free_mb >= min_required_mb
+}
+
+fn handle_request_mutator_slot(
+  state: State,
+  reply: Subject(Result(SlotId, ResourceError)),
+) -> actor.Next(State, GovernorMessage) {
+  case state.mutators < state.limits.max_mutators {
+    False -> {
+      process.send(reply, Error(ResourceExhausted))
+      actor.continue(state)
+    }
+    True -> {
+      case check_free_ram() {
+        Error(_) -> {
+          process.send(reply, Error(InsufficientRam))
+          actor.continue(state)
+        }
+        Ok(free_mb) -> {
+          case is_sufficient_ram(free_mb, state.limits.min_free_ram_mb) {
+            False -> {
+              process.send(reply, Error(InsufficientRam))
+              actor.continue(state)
+            }
+            True -> {
+              let new_counter = state.slot_counter + 1
+              let slot_id = SlotId("mutator:" <> int.to_string(new_counter))
+              let new_slots =
+                dict.insert(state.allocated_slots, slot_id.id, MutatorSlot)
+              process.send(reply, Ok(slot_id))
+              actor.continue(
+                State(
+                  ..state,
+                  mutators: state.mutators + 1,
+                  allocated_slots: new_slots,
+                  slot_counter: new_counter,
+                ),
+              )
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+fn handle_request_loop_slot(
+  state: State,
+  reply: Subject(Result(SlotId, ResourceError)),
+) -> actor.Next(State, GovernorMessage) {
+  case state.loops < state.limits.max_loops {
+    False -> {
+      process.send(reply, Error(ResourceExhausted))
+      actor.continue(state)
+    }
+    True -> {
+      case check_free_ram() {
+        Error(_) -> {
+          process.send(reply, Error(InsufficientRam))
+          actor.continue(state)
+        }
+        Ok(free_mb) -> {
+          case is_sufficient_ram(free_mb, state.limits.min_free_ram_mb) {
+            False -> {
+              process.send(reply, Error(InsufficientRam))
+              actor.continue(state)
+            }
+            True -> {
+              let new_counter = state.slot_counter + 1
+              let slot_id = SlotId("loop:" <> int.to_string(new_counter))
+              let new_slots =
+                dict.insert(state.allocated_slots, slot_id.id, LoopSlot)
+              process.send(reply, Ok(slot_id))
+              actor.continue(
+                State(
+                  ..state,
+                  loops: state.loops + 1,
+                  allocated_slots: new_slots,
+                  slot_counter: new_counter,
+                ),
+              )
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+pub fn request_mutator_slot(
+  gov: Subject(GovernorMessage),
+) -> Result(SlotId, ResourceError) {
+  let reply = process.new_subject()
+  process.send(gov, RequestMutatorSlot(reply_with: reply))
+  case process.receive(reply, timeout_ms) {
+    Ok(result) -> result
+    Error(Nil) -> Error(Timeout)
+  }
+}
+
+pub fn request_loop_slot(
+  gov: Subject(GovernorMessage),
+) -> Result(SlotId, ResourceError) {
+  let reply = process.new_subject()
+  process.send(gov, RequestLoopSlot(reply_with: reply))
+  case process.receive(reply, timeout_ms) {
+    Ok(result) -> result
+    Error(Nil) -> Error(Timeout)
+  }
 }

@@ -5,8 +5,8 @@
 
 import gleam/dict
 import gleam/erlang/process.{type Subject}
+import gleam/otp/actor
 import gleam/result
-import otp_actor as actor
 import process as shell_process
 import simplifile
 import types.{type Workspace, type WorkspaceId}
@@ -240,7 +240,7 @@ fn make_jj_bookmark(slug: String) -> String {
 }
 
 fn make_jj_workspace_path(source_path: String, slug: String) -> String {
-  source_path <> jj_parent_dir <> slug
+  source_path <> "/" <> jj_parent_dir <> slug
 }
 
 fn run_jj_workspace_add(
@@ -259,12 +259,11 @@ fn run_jj_workspace_add(
 fn run_jj_bookmark_create(
   workspace_path: String,
   bookmark: String,
-  source_path: String,
 ) -> Result(Nil, String) {
   use bookmark_result <- result.try(shell_process.run_command(
     "jj",
     ["-R", workspace_path, "bookmark", "create", bookmark],
-    source_path,
+    workspace_path,
   ))
   check_cmd_success(bookmark_result, "jj bookmark create failed")
 }
@@ -281,11 +280,7 @@ pub fn create_workspace_jj(
   let workspace_path = make_jj_workspace_path(source_path, slug)
 
   use _ <- result.try(run_jj_workspace_add(slug, workspace_path, source_path))
-  use _ <- result.try(run_jj_bookmark_create(
-    workspace_path,
-    bookmark,
-    source_path,
-  ))
+  use _ <- result.try(run_jj_bookmark_create(workspace_path, bookmark))
 
   let workspace_id = types.new_workspace_id(slug)
   let workspace = build_workspace(workspace_id, workspace_path, types.Jj)

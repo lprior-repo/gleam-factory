@@ -1,0 +1,26 @@
+# Gleam build artifacts
+*.beam
+*.ez
+/build
+erl_crash.dump
+
+# Beads Viewer (bv) local config and caches
+.bv/
+
+# Codanna indexes (large, regeneratable)
+.codanna/index/
+.fastembed_cache
+# Keep Codanna config
+!.codanna/settings.toml
+!.codannaignore
+
+# TDD-TCR-Refactor artifacts
+.tdd-history.md
+
+# Factory learnings (AI-generated, can be regenerated)
+.factory/learnings/
+.factory/bead-runner.log
+
+# Temp files
+*.tmp
+*.log

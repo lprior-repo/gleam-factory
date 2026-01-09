@@ -5,6 +5,7 @@
 import gleam/option.{type Option, None, Some}
 
 pub type Role {
+  Auditor
   Implementer
   Architect
   Reviewer
@@ -60,6 +61,7 @@ pub fn with_temperature(req: LLMRequest, temp: Float) -> LLMRequest {
 
 pub fn route_request(role: Role) -> Endpoint {
   case role {
+    Auditor -> LocalEndpoint("http://localhost:8080/completion")
     Implementer -> LocalEndpoint("http://localhost:8080/completion")
     Architect -> LocalEndpoint("http://localhost:8080/completion")
     Reviewer -> AnthropicEndpoint("https://api.anthropic.com/v1/messages", "")
@@ -82,10 +84,15 @@ pub fn get_endpoint_url(endpoint: Endpoint) -> String {
 
 pub fn system_prompt(role: Role) -> String {
   case role {
+    Auditor -> auditor_system_prompt()
     Implementer -> implementer_system_prompt()
     Architect -> architect_system_prompt()
     Reviewer -> reviewer_system_prompt()
   }
+}
+
+fn auditor_system_prompt() -> String {
+  "You are an AUDITOR in a TCR loop. Write ONE failing test that drives good design. Rules: test/ files only, src/ is read-only, test should fail initially (red phase). Focus on behavior, edge cases matter. Types use PascalCase, functions use snake_case, use Result for errors."
 }
 
 fn implementer_system_prompt() -> String {

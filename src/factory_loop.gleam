@@ -3,7 +3,7 @@
 //// Manages implementing a bead through pure TCR: test && commit || revert.
 
 import gleam/erlang/process.{type Subject}
-import otp_actor as actor
+import gleam/otp/actor
 import signal_bus
 import signals
 
