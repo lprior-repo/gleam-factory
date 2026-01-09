@@ -193,7 +193,7 @@ fn stage_result_to_string(result: StageResult) -> String {
   }
 }
 
-fn build_stage_record(
+pub fn build_stage_record(
   stage_name: String,
   result: StageResult,
   attempts: Int,
@@ -207,7 +207,7 @@ fn build_stage_record(
   )
 }
 
-fn update_or_append_stage(
+pub fn update_or_append_stage(
   stages: List(StageRecord),
   new_stage: StageRecord,
 ) -> List(StageRecord) {
@@ -269,7 +269,7 @@ fn stage_to_json(stage: StageRecord) -> json.Json {
 }
 
 /// Convert task record to JSON string
-fn record_to_json(record: TaskRecord) -> String {
+pub fn record_to_json(record: TaskRecord) -> String {
   let stages_json = json.array(record.stages, stage_to_json)
 
   json.object([
@@ -316,7 +316,7 @@ fn task_record_decoder() -> decode.Decoder(TaskRecord) {
 }
 
 /// Convert JSON string to task record
-fn json_to_record(
+pub fn json_to_record(
   json_string: String,
   _slug: String,
 ) -> Result(TaskRecord, String) {
