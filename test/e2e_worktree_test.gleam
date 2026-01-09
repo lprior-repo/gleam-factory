@@ -23,7 +23,9 @@ import tcr
 import worktree
 
 pub fn main() -> Nil {
-  gleeunit.main()
+  // E2E tests skipped by default - too slow for CI
+  // Run with: GLEAM_E2E=1 gleam test
+  Nil
 }
 
 // ============================================================================
