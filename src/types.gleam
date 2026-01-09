@@ -79,8 +79,22 @@ pub fn git_hash_to_string(hash: GitHash) -> String {
 
 fn is_hex_char(c: String) -> Bool {
   case c {
-    "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
-    | "a" | "b" | "c" | "d" | "e" | "f" -> True
+    "0"
+    | "1"
+    | "2"
+    | "3"
+    | "4"
+    | "5"
+    | "6"
+    | "7"
+    | "8"
+    | "9"
+    | "a"
+    | "b"
+    | "c"
+    | "d"
+    | "e"
+    | "f" -> True
     _ -> False
   }
 }
