@@ -140,6 +140,7 @@ pub fn handle_write_file(
           simplifile.write(path, content)
           |> result.map_error(fn(_) { "write failed" })
         llm.Reviewer, _, _ -> Error("Reviewer: test/ only")
+        llm.Auditor, _, _ -> Error("Auditor: read-only")
       }
     }
   }
