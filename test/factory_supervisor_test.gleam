@@ -101,7 +101,10 @@ pub fn multiple_supervisors_test() {
       beads_poll_interval_ms: 1000,
     )
 
-  case factory_supervisor.start_link(config1), factory_supervisor.start_link(config2) {
+  case
+    factory_supervisor.start_link(config1),
+    factory_supervisor.start_link(config2)
+  {
     Ok(s1), Ok(s2) -> {
       s1.signal_bus_subject
       |> should.not_equal(s2.signal_bus_subject)
@@ -225,7 +228,10 @@ pub fn supervisor_config_flexibility_test() {
       beads_poll_interval_ms: 1000,
     )
 
-  case factory_supervisor.start_link(config1), factory_supervisor.start_link(config2) {
+  case
+    factory_supervisor.start_link(config1),
+    factory_supervisor.start_link(config2)
+  {
     Ok(s1), Ok(s2) -> {
       s1.signal_bus_subject
       |> should.not_equal(s2.signal_bus_subject)

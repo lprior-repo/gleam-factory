@@ -40,7 +40,8 @@ pub fn get_available_ram() -> Result(Int, String) {
 pub fn is_gpu_available() -> Result(Bool, String) {
   case process.run_command("lspci", [], "") {
     Ok(process.Success(stdout, _, _)) -> {
-      let has_nvidia = string.contains(stdout, "NVIDIA") || string.contains(stdout, "nvidia")
+      let has_nvidia =
+        string.contains(stdout, "NVIDIA") || string.contains(stdout, "nvidia")
       Ok(has_nvidia)
     }
     Ok(process.Failure(_, _)) -> Ok(False)
@@ -120,14 +121,6 @@ fn parse_ram_from_free(output: String) -> Result(Int, String) {
       })
     })
   })
-}
-
-fn process_get_stdout(result: process.CommandResult) -> Result(String, String) {
-  case result {
-    process.Success(out, _, _) -> Ok(out)
-    process.Failure(err, code) ->
-      Error("Command failed with code " <> int.to_string(code) <> ": " <> err)
-  }
 }
 
 // ============================================================================

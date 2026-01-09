@@ -1,10 +1,10 @@
 import domain
+import gleam/list
+import gleam/string
 import gleeunit
 import gleeunit/should
 import persistence
-import gleam/list
 import simplifile
-import gleam/string
 
 pub fn main() {
   gleeunit.main()
@@ -245,7 +245,8 @@ pub fn json_all_fields_preserved_test() {
     )
 
   let json_str = persistence.record_to_json(record)
-  let assert Ok(restored) = persistence.json_to_record(json_str, "complete-task")
+  let assert Ok(restored) =
+    persistence.json_to_record(json_str, "complete-task")
 
   restored.slug |> should.equal("complete-task")
   restored.language |> should.equal("rust")
@@ -404,15 +405,13 @@ pub fn json_to_record_missing_fields_test() {
 
 pub fn stage_result_passed_test() {
   let result = persistence.StagePassed
-  let stage_record =
-    persistence.build_stage_record("test", result, 1, "")
+  let stage_record = persistence.build_stage_record("test", result, 1, "")
   stage_record.status |> should.equal("passed")
 }
 
 pub fn stage_result_failed_test() {
   let result = persistence.StageFailed
-  let stage_record =
-    persistence.build_stage_record("test", result, 1, "error")
+  let stage_record = persistence.build_stage_record("test", result, 1, "error")
   stage_record.status |> should.equal("failed")
 }
 
@@ -682,7 +681,8 @@ pub fn json_multiline_error_test() {
     )
 
   let json_str = persistence.record_to_json(record)
-  let assert Ok(restored) = persistence.json_to_record(json_str, "multiline-test")
+  let assert Ok(restored) =
+    persistence.json_to_record(json_str, "multiline-test")
 
   let assert Ok(restored_stage) = restored.stages |> list.first
   restored_stage.last_error |> should.equal(error_msg)
@@ -703,7 +703,8 @@ pub fn all_languages_roundtrip_test() {
       )
 
     let json_str = persistence.record_to_json(record)
-    let assert Ok(restored) = persistence.json_to_record(json_str, lang <> "-test")
+    let assert Ok(restored) =
+      persistence.json_to_record(json_str, lang <> "-test")
 
     restored.language |> should.equal(lang)
   })
@@ -724,7 +725,8 @@ pub fn all_status_roundtrip_test() {
       )
 
     let json_str = persistence.record_to_json(record)
-    let assert Ok(restored) = persistence.json_to_record(json_str, status <> "-test")
+    let assert Ok(restored) =
+      persistence.json_to_record(json_str, status <> "-test")
 
     restored.status |> should.equal(status)
   })
@@ -782,7 +784,8 @@ pub fn stage_zero_attempts_test() {
     )
 
   let json_str = persistence.record_to_json(record)
-  let assert Ok(restored) = persistence.json_to_record(json_str, "zero-attempts")
+  let assert Ok(restored) =
+    persistence.json_to_record(json_str, "zero-attempts")
 
   let assert Ok(s) = restored.stages |> list.first
   s.attempts |> should.equal(0)
@@ -808,7 +811,8 @@ pub fn stage_large_attempts_test() {
     )
 
   let json_str = persistence.record_to_json(record)
-  let assert Ok(restored) = persistence.json_to_record(json_str, "many-attempts")
+  let assert Ok(restored) =
+    persistence.json_to_record(json_str, "many-attempts")
 
   let assert Ok(s) = restored.stages |> list.first
   s.attempts |> should.equal(9999)

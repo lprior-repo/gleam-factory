@@ -158,7 +158,8 @@ fn os_cmd(cmd: String) -> String {
 pub fn command_exists(cmd: String) -> Result(Bool, String) {
   // Use 'which' command to check if command exists in PATH
   case run_command("which", [cmd], "") {
-    Ok(_) -> Ok(True)
+    Ok(Success(_, _, _)) -> Ok(True)
+    Ok(Failure(_, _)) -> Error("Command not found in PATH: " <> cmd)
     Error(_) -> Error("Command not found in PATH: " <> cmd)
   }
 }

@@ -277,7 +277,8 @@ pub fn validate_slug_with_underscores_test() {
 }
 
 pub fn validate_slug_max_length_test() {
-  let assert Ok(_) = domain.validate_slug("a1234567890123456789012345678901234567890123456789")
+  let assert Ok(_) =
+    domain.validate_slug("a1234567890123456789012345678901234567890123456789")
   Nil
 }
 
@@ -403,7 +404,10 @@ pub fn task_not_ready_if_not_passed_test() {
 }
 
 pub fn task_not_ready_if_in_progress_test() {
-  domain.is_ready_for_integration(domain.InProgress("integration"), domain.Gleam)
+  domain.is_ready_for_integration(
+    domain.InProgress("integration"),
+    domain.Gleam,
+  )
   |> should.be_false
 }
 

@@ -1,7 +1,9 @@
 import domain
+import gleam/int
+import gleam/result
+import gleam/string
 import gleeunit
 import gleeunit/should
-import gleam/result
 import repo
 import simplifile
 
@@ -11,24 +13,35 @@ pub fn main() {
 
 // Helper: Create temp directory with unique name
 fn create_temp_dir() -> Result(String, String) {
-  let temp_base = "/tmp/factory-gleam-test-repo-123"
-  simplifile.create_directory(temp_base)
+  let temp_base = "/tmp/factory-gleam-test-repo"
+  // Delete if exists from previous failed test, then recreate
+  let _ = simplifile.delete_all([temp_base])
+  simplifile.create_directory_all(temp_base)
   |> result.map(fn(_) { temp_base })
   |> result.map_error(fn(_) { "Failed to create temp dir" })
 }
 
 // Helper: Clean up temp directory
 fn cleanup_temp_dir(path: String) -> Result(Nil, String) {
-  simplifile.delete(path)
+  simplifile.delete_all([path])
   |> result.map_error(fn(_) { "Failed to cleanup temp dir" })
 }
 
 // Helper: Create file in directory
-fn create_file(dir: String, filename: String, content: String) -> Result(String, String) {
+fn create_file(
+  dir: String,
+  filename: String,
+  content: String,
+) -> Result(String, String) {
   let filepath = dir <> "/" <> filename
-  simplifile.write(filepath, content)
+  use _ <- result.try(
+    simplifile.write(filepath, content)
+    |> result.map_error(fn(_) { "Failed to write file: " <> filename }),
+  )
+  // Verify file was actually written
+  simplifile.verify_is_file(filepath)
   |> result.map(fn(_) { filepath })
-  |> result.map_error(fn(_) { "Failed to create file: " <> filename })
+  |> result.map_error(fn(_) { "File write verification failed: " <> filename })
 }
 
 // ===== Language Detection Tests (via domain module) =====
@@ -108,7 +121,10 @@ pub fn detect_language_gleam_project_test() {
     Ok(root) -> {
       case repo.detect_language(root) {
         Ok(domain.Gleam) -> Nil
-        Ok(lang) -> panic as { "Expected Gleam, got: " <> domain.language_display_name(lang) }
+        Ok(lang) ->
+          panic as {
+            "Expected Gleam, got: " <> domain.language_display_name(lang)
+          }
         Error(e) -> panic as { "Language detection failed: " <> e }
       }
     }
@@ -130,7 +146,9 @@ pub fn detect_language_with_gleam_toml_test() {
             }
             Ok(lang) -> {
               let _ = cleanup_temp_dir(tmpdir)
-              panic as { "Expected Gleam, got: " <> domain.language_display_name(lang) }
+              panic as {
+                "Expected Gleam, got: " <> domain.language_display_name(lang)
+              }
             }
             Error(e) -> {
               let _ = cleanup_temp_dir(tmpdir)
@@ -160,7 +178,9 @@ pub fn detect_language_with_go_mod_test() {
             }
             Ok(lang) -> {
               let _ = cleanup_temp_dir(tmpdir)
-              panic as { "Expected Go, got: " <> domain.language_display_name(lang) }
+              panic as {
+                "Expected Go, got: " <> domain.language_display_name(lang)
+              }
             }
             Error(e) -> {
               let _ = cleanup_temp_dir(tmpdir)
@@ -190,7 +210,9 @@ pub fn detect_language_with_cargo_toml_test() {
             }
             Ok(lang) -> {
               let _ = cleanup_temp_dir(tmpdir)
-              panic as { "Expected Rust, got: " <> domain.language_display_name(lang) }
+              panic as {
+                "Expected Rust, got: " <> domain.language_display_name(lang)
+              }
             }
             Error(e) -> {
               let _ = cleanup_temp_dir(tmpdir)
@@ -220,7 +242,9 @@ pub fn detect_language_with_pyproject_toml_test() {
             }
             Ok(lang) -> {
               let _ = cleanup_temp_dir(tmpdir)
-              panic as { "Expected Python, got: " <> domain.language_display_name(lang) }
+              panic as {
+                "Expected Python, got: " <> domain.language_display_name(lang)
+              }
             }
             Error(e) -> {
               let _ = cleanup_temp_dir(tmpdir)
@@ -270,7 +294,10 @@ pub fn detect_language_priority_gleam_over_go_test() {
                 }
                 Ok(lang) -> {
                   let _ = cleanup_temp_dir(tmpdir)
-                  panic as { "Expected Gleam priority, got: " <> domain.language_display_name(lang) }
+                  panic as {
+                    "Expected Gleam priority, got: "
+                    <> domain.language_display_name(lang)
+                  }
                 }
                 Error(e) -> {
                   let _ = cleanup_temp_dir(tmpdir)
@@ -308,7 +335,10 @@ pub fn detect_language_priority_go_over_rust_test() {
                 }
                 Ok(lang) -> {
                   let _ = cleanup_temp_dir(tmpdir)
-                  panic as { "Expected Go priority, got: " <> domain.language_display_name(lang) }
+                  panic as {
+                    "Expected Go priority, got: "
+                    <> domain.language_display_name(lang)
+                  }
                 }
                 Error(e) -> {
                   let _ = cleanup_temp_dir(tmpdir)
@@ -346,7 +376,10 @@ pub fn detect_language_priority_rust_over_python_test() {
                 }
                 Ok(lang) -> {
                   let _ = cleanup_temp_dir(tmpdir)
-                  panic as { "Expected Rust priority, got: " <> domain.language_display_name(lang) }
+                  panic as {
+                    "Expected Rust priority, got: "
+                    <> domain.language_display_name(lang)
+                  }
                 }
                 Error(e) -> {
                   let _ = cleanup_temp_dir(tmpdir)

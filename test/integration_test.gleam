@@ -625,7 +625,12 @@ pub fn full_pipeline_with_stage_transitions_test() {
     )
 
   let assert Ok(loop) =
-    factory_loop.start_link("pipeline-stages-loop", bead, "/tmp/pipeline-stages-ws", bus)
+    factory_loop.start_link(
+      "pipeline-stages-loop",
+      bead,
+      "/tmp/pipeline-stages-ws",
+      bus,
+    )
 
   let state0 = factory_loop.get_state(loop)
   state0.phase
@@ -686,7 +691,12 @@ pub fn full_pipeline_approval_gate_test() {
     )
 
   let assert Ok(loop) =
-    factory_loop.start_link("pipeline-approval-loop", bead, "/tmp/pipeline-approval-ws", bus)
+    factory_loop.start_link(
+      "pipeline-approval-loop",
+      bead,
+      "/tmp/pipeline-approval-ws",
+      bus,
+    )
 
   // Advance through stages to Reviewing (approval gate)
   factory_loop.advance(loop, factory_loop.TestPassed)
@@ -744,7 +754,12 @@ pub fn full_pipeline_signal_broadcast_test() {
     )
 
   let assert Ok(loop) =
-    factory_loop.start_link("pipeline-signals-loop", bead, "/tmp/pipeline-signals-ws", bus)
+    factory_loop.start_link(
+      "pipeline-signals-loop",
+      bead,
+      "/tmp/pipeline-signals-ws",
+      bus,
+    )
 
   // LoopSpawned broadcasts immediately on start_link
   case process.receive(spawned_sub, 2000) {
@@ -797,7 +812,12 @@ pub fn full_pipeline_deployment_tracking_test() {
     )
 
   let assert Ok(loop) =
-    factory_loop.start_link("pipeline-deploy-loop", bead, "/tmp/pipeline-deploy-ws", bus)
+    factory_loop.start_link(
+      "pipeline-deploy-loop",
+      bead,
+      "/tmp/pipeline-deploy-ws",
+      bus,
+    )
 
   // Execute full pipeline
   factory_loop.advance(loop, factory_loop.TestPassed)

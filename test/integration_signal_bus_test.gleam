@@ -44,12 +44,7 @@ pub fn signal_bus_broadcast_patch_accepted() {
     Error(_) -> should.fail()
     Ok(bus) -> {
       let subscriber = process.new_subject()
-      let _ =
-        signal_bus.subscribe(
-          bus,
-          signal_bus.PatchAccepted,
-          subscriber,
-        )
+      let _ = signal_bus.subscribe(bus, signal_bus.PatchAccepted, subscriber)
 
       signal_bus.broadcast(bus, signal_bus.PatchAccepted)
 
@@ -67,12 +62,7 @@ pub fn signal_bus_broadcast_patch_rejected() {
     Error(_) -> should.fail()
     Ok(bus) -> {
       let subscriber = process.new_subject()
-      let _ =
-        signal_bus.subscribe(
-          bus,
-          signal_bus.PatchRejected,
-          subscriber,
-        )
+      let _ = signal_bus.subscribe(bus, signal_bus.PatchRejected, subscriber)
 
       signal_bus.broadcast(bus, signal_bus.PatchRejected)
 
@@ -106,12 +96,7 @@ pub fn supervisor_signal_bus_isolated() {
       let bus = factory_supervisor.get_signal_bus(started)
       let subscriber = process.new_subject()
 
-      let _ =
-        signal_bus.subscribe(
-          bus,
-          signal_bus.TestFailure,
-          subscriber,
-        )
+      let _ = signal_bus.subscribe(bus, signal_bus.TestFailure, subscriber)
 
       signal_bus.broadcast(bus, signal_bus.TestFailure)
 

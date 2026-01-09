@@ -161,9 +161,7 @@ fn do_prepare(state: GoldenMasterState) -> Result(GoldenMasterState, String) {
 }
 
 fn ensure_repo_exists(path: String) -> Result(Nil, String) {
-  case
-    shell_process.run_command("test", ["-d", path <> "/.jj"], "")
-  {
+  case shell_process.run_command("test", ["-d", path <> "/.jj"], "") {
     Ok(shell_process.Success(_, _, _)) -> Ok(Nil)
     Ok(shell_process.Failure(e, _)) -> Error("repo check failed: " <> e)
     Error(e) -> Error("repo check error: " <> e)

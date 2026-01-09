@@ -225,7 +225,8 @@ fn setup_test_repo(test_name: String) -> Result(String, String) {
   )
 
   // Write gleam.toml
-  let gleam_toml = "name = \"test_project\"
+  let gleam_toml =
+    "name = \"test_project\"
 target = \"erlang\"
 
 [dependencies]
@@ -237,7 +238,8 @@ gleeunit = \">= 0.10.0 and < 2.0.0\"
   use _ <- result.try(write_file(repo_path <> "/gleam.toml", gleam_toml))
 
   // Write minimal src file
-  let src_content = "pub fn main() {
+  let src_content =
+    "pub fn main() {
   Nil
 }
 "
@@ -247,7 +249,8 @@ gleeunit = \">= 0.10.0 and < 2.0.0\"
   ))
 
   // Write minimal test file
-  let test_content = "import gleeunit
+  let test_content =
+    "import gleeunit
 import gleeunit/should
 
 pub fn main() {
@@ -318,9 +321,11 @@ fn verify_commit_exists(
   worktree_path: String,
   commit_message: String,
 ) -> Result(Nil, String) {
-  use cmd_result <- result.try(
-    process.run_command("jj", ["-R", worktree_path, "log"], ""),
-  )
+  use cmd_result <- result.try(process.run_command(
+    "jj",
+    ["-R", worktree_path, "log"],
+    "",
+  ))
 
   case cmd_result {
     process.Success(output, _, _) ->

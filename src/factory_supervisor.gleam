@@ -4,10 +4,12 @@
 //// If any child fails, system gracefully degrades rather than cascading.
 
 import beads_watcher
+import gleam/dict
 import gleam/erlang/process.{type Subject}
 import gleam/result
 import golden_master
 import heartbeat
+import logging
 import resource_governor
 import signal_bus
 import workspace_manager
@@ -32,7 +34,9 @@ pub type Started {
     signal_bus_subject: Subject(signal_bus.SignalBusMessage),
     heartbeat_subject: Subject(heartbeat.HeartbeatMessage),
     resource_governor_subject: Subject(resource_governor.GovernorMessage),
-    workspace_manager_subject: Subject(workspace_manager.WorkspaceManagerMessage),
+    workspace_manager_subject: Subject(
+      workspace_manager.WorkspaceManagerMessage,
+    ),
     golden_master_subject: Subject(golden_master.GoldenMasterMessage),
     factory_dispatcher_pid: process.Pid,
     beads_watcher_pid: process.Pid,
@@ -60,16 +64,12 @@ pub fn start_link(config: SupervisorConfig) -> Result(Started, InitFailed) {
       min_free_ram_mb: config.min_free_ram_mb,
       gpu_tickets: config.gpu_tickets,
     ))
-    |> result.map_error(fn(_) {
-      InitFailed(reason: "resource_governor failed")
-    }),
+    |> result.map_error(fn(_) { InitFailed(reason: "resource_governor failed") }),
   )
 
   use workspace_manager_subject <- result.try(
     workspace_manager.start_link()
-    |> result.map_error(fn(_) {
-      InitFailed(reason: "workspace_manager failed")
-    }),
+    |> result.map_error(fn(_) { InitFailed(reason: "workspace_manager failed") }),
   )
 
   use golden_master_subject <- result.try(
@@ -109,9 +109,7 @@ pub fn start_link(config: SupervisorConfig) -> Result(Started, InitFailed) {
 }
 
 /// Get signal bus from supervisor
-pub fn get_signal_bus(
-  started: Started,
-) -> Subject(signal_bus.SignalBusMessage) {
+pub fn get_signal_bus(started: Started) -> Subject(signal_bus.SignalBusMessage) {
   started.signal_bus_subject
 }
 
@@ -153,6 +151,5 @@ pub fn get_beads_watcher(started: Started) -> process.Pid {
 
 /// Log system ready message at Info level after all services initialized
 pub fn log_system_ready(_config: SupervisorConfig) -> Nil {
-  let _msg = "System ready for beads"
-  Nil
+  logging.log(logging.Info, "System ready for beads", dict.new())
 }

@@ -636,3 +636,31 @@ pub fn help_text_has_documentation_reference_test() {
   |> string.contains("ARCHITECTURE.md")
   |> should.equal(True)
 }
+
+// Dry-run mode tests
+pub fn parse_args_stage_with_dry_run_long_flag_test() {
+  cli.parse_args([
+    "stage",
+    "--slug",
+    "test-slug",
+    "--stage",
+    "implement",
+    "--dry-run",
+  ])
+  |> should.equal(Ok(cli.RunStage("test-slug", "implement", True, None, None)))
+}
+
+pub fn parse_args_stage_with_dry_run_short_flag_test() {
+  cli.parse_args(["stage", "--slug", "test-slug", "--stage", "implement", "-d"])
+  |> should.equal(Ok(cli.RunStage("test-slug", "implement", True, None, None)))
+}
+
+pub fn parse_args_stage_dry_run_with_from_to_test() {
+  cli.parse_args([
+    "stage", "--slug", "test-slug", "--stage", "implement", "--dry-run",
+    "--from", "start", "--to", "end",
+  ])
+  |> should.equal(
+    Ok(cli.RunStage("test-slug", "implement", True, Some("start"), Some("end"))),
+  )
+}

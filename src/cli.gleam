@@ -204,16 +204,38 @@ fn execute_new(
 fn execute_stage(
   slug: String,
   stage: String,
-  _dry_run: Bool,
+  dry_run: Bool,
   _from: Option(String),
   _to: Option(String),
 ) -> Result(Nil, String) {
   use _ <- result.try(domain.validate_slug(slug))
   use repo_root <- result.try(repo.detect_repo_root())
   use task <- result.try(persistence.load_task_record(slug, repo_root))
-  use message <- result.try(execute_stage_impl(slug, stage, task, repo_root))
-  io.println(message)
-  Ok(Nil)
+
+  case dry_run {
+    True -> {
+      use stage_def <- result.try(domain.get_stage(stage))
+      let previews = stages.execute_stages_dry_run([stage_def], task.language)
+      case previews {
+        [preview] -> {
+          io.println("DRY RUN: " <> preview.name)
+          io.println("Command: " <> preview.command)
+          io.println(
+            "Estimated duration: "
+            <> string.inspect(preview.estimated_duration)
+            <> "ms",
+          )
+          Ok(Nil)
+        }
+        _ -> Error("unexpected preview count")
+      }
+    }
+    False -> {
+      use message <- result.try(execute_stage_impl(slug, stage, task, repo_root))
+      io.println(message)
+      Ok(Nil)
+    }
+  }
 }
 
 fn execute_approve(

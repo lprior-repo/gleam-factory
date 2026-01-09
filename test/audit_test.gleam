@@ -8,6 +8,7 @@ pub fn main() {
 }
 
 const test_repo_root = "/tmp/factory-gleam-audit-test"
+
 const test_task_slug = "test-task-123"
 
 fn setup_test_dir() -> Nil {
@@ -79,12 +80,10 @@ pub fn string_to_event_type_unknown_test() {
 
 // Audit entry creation tests
 pub fn create_entry_test() {
-  let entry = audit.create_entry(
-    audit.TaskCreated,
-    test_task_slug,
-    "Test details",
-    [#("key", "value")],
-  )
+  let entry =
+    audit.create_entry(audit.TaskCreated, test_task_slug, "Test details", [
+      #("key", "value"),
+    ])
 
   entry.event_type
   |> should.equal(audit.TaskCreated)
@@ -103,12 +102,8 @@ pub fn create_entry_test() {
 pub fn log_task_created_test() {
   setup_test_dir()
 
-  let result = audit.log_task_created(
-    test_repo_root,
-    test_task_slug,
-    "gleam",
-    "main",
-  )
+  let result =
+    audit.log_task_created(test_repo_root, test_task_slug, "gleam", "main")
 
   result
   |> should.be_ok()
@@ -125,12 +120,13 @@ pub fn log_task_created_test() {
 pub fn log_task_created_contains_metadata_test() {
   setup_test_dir()
 
-  let assert Ok(_) = audit.log_task_created(
-    test_repo_root,
-    test_task_slug,
-    "rust",
-    "feature-branch",
-  )
+  let assert Ok(_) =
+    audit.log_task_created(
+      test_repo_root,
+      test_task_slug,
+      "rust",
+      "feature-branch",
+    )
 
   let assert Ok(log) = audit.read_audit_log(test_repo_root, test_task_slug)
   let assert Ok(entry) = list_first(log.entries)
@@ -150,12 +146,8 @@ pub fn log_task_created_contains_metadata_test() {
 pub fn log_stage_started_test() {
   setup_test_dir()
 
-  let result = audit.log_stage_started(
-    test_repo_root,
-    test_task_slug,
-    "implement",
-    1,
-  )
+  let result =
+    audit.log_stage_started(test_repo_root, test_task_slug, "implement", 1)
 
   result
   |> should.be_ok()
@@ -175,12 +167,8 @@ pub fn log_stage_started_test() {
 pub fn log_stage_started_metadata_test() {
   setup_test_dir()
 
-  let assert Ok(_) = audit.log_stage_started(
-    test_repo_root,
-    test_task_slug,
-    "test",
-    3,
-  )
+  let assert Ok(_) =
+    audit.log_stage_started(test_repo_root, test_task_slug, "test", 3)
 
   let assert Ok(log) = audit.read_audit_log(test_repo_root, test_task_slug)
   let assert Ok(entry) = list_first(log.entries)
@@ -200,12 +188,8 @@ pub fn log_stage_started_metadata_test() {
 pub fn log_stage_passed_test() {
   setup_test_dir()
 
-  let result = audit.log_stage_passed(
-    test_repo_root,
-    test_task_slug,
-    "implement",
-    1500,
-  )
+  let result =
+    audit.log_stage_passed(test_repo_root, test_task_slug, "implement", 1500)
 
   result
   |> should.be_ok()
@@ -225,12 +209,8 @@ pub fn log_stage_passed_test() {
 pub fn log_stage_passed_metadata_test() {
   setup_test_dir()
 
-  let assert Ok(_) = audit.log_stage_passed(
-    test_repo_root,
-    test_task_slug,
-    "test",
-    2500,
-  )
+  let assert Ok(_) =
+    audit.log_stage_passed(test_repo_root, test_task_slug, "test", 2500)
 
   let assert Ok(log) = audit.read_audit_log(test_repo_root, test_task_slug)
   let assert Ok(entry) = list_first(log.entries)
@@ -250,12 +230,13 @@ pub fn log_stage_passed_metadata_test() {
 pub fn log_stage_failed_test() {
   setup_test_dir()
 
-  let result = audit.log_stage_failed(
-    test_repo_root,
-    test_task_slug,
-    "implement",
-    "compilation error",
-  )
+  let result =
+    audit.log_stage_failed(
+      test_repo_root,
+      test_task_slug,
+      "implement",
+      "compilation error",
+    )
 
   result
   |> should.be_ok()
@@ -275,12 +256,13 @@ pub fn log_stage_failed_test() {
 pub fn log_stage_failed_metadata_test() {
   setup_test_dir()
 
-  let assert Ok(_) = audit.log_stage_failed(
-    test_repo_root,
-    test_task_slug,
-    "test",
-    "test timeout",
-  )
+  let assert Ok(_) =
+    audit.log_stage_failed(
+      test_repo_root,
+      test_task_slug,
+      "test",
+      "test timeout",
+    )
 
   let assert Ok(log) = audit.read_audit_log(test_repo_root, test_task_slug)
   let assert Ok(entry) = list_first(log.entries)
@@ -300,11 +282,7 @@ pub fn log_stage_failed_metadata_test() {
 pub fn log_task_approved_test() {
   setup_test_dir()
 
-  let result = audit.log_task_approved(
-    test_repo_root,
-    test_task_slug,
-    "canary",
-  )
+  let result = audit.log_task_approved(test_repo_root, test_task_slug, "canary")
 
   result
   |> should.be_ok()
@@ -324,11 +302,8 @@ pub fn log_task_approved_test() {
 pub fn log_task_approved_metadata_test() {
   setup_test_dir()
 
-  let assert Ok(_) = audit.log_task_approved(
-    test_repo_root,
-    test_task_slug,
-    "blue-green",
-  )
+  let assert Ok(_) =
+    audit.log_task_approved(test_repo_root, test_task_slug, "blue-green")
 
   let assert Ok(log) = audit.read_audit_log(test_repo_root, test_task_slug)
   let assert Ok(entry) = list_first(log.entries)
@@ -344,24 +319,12 @@ pub fn log_task_approved_metadata_test() {
 pub fn log_multiple_events_test() {
   setup_test_dir()
 
-  let assert Ok(_) = audit.log_task_created(
-    test_repo_root,
-    test_task_slug,
-    "gleam",
-    "main",
-  )
-  let assert Ok(_) = audit.log_stage_started(
-    test_repo_root,
-    test_task_slug,
-    "implement",
-    1,
-  )
-  let assert Ok(_) = audit.log_stage_passed(
-    test_repo_root,
-    test_task_slug,
-    "implement",
-    1000,
-  )
+  let assert Ok(_) =
+    audit.log_task_created(test_repo_root, test_task_slug, "gleam", "main")
+  let assert Ok(_) =
+    audit.log_stage_started(test_repo_root, test_task_slug, "implement", 1)
+  let assert Ok(_) =
+    audit.log_stage_passed(test_repo_root, test_task_slug, "implement", 1000)
 
   let assert Ok(log) = audit.read_audit_log(test_repo_root, test_task_slug)
 
@@ -375,24 +338,12 @@ pub fn log_multiple_events_test() {
 pub fn filter_by_type_test() {
   setup_test_dir()
 
-  let assert Ok(_) = audit.log_task_created(
-    test_repo_root,
-    test_task_slug,
-    "gleam",
-    "main",
-  )
-  let assert Ok(_) = audit.log_stage_started(
-    test_repo_root,
-    test_task_slug,
-    "implement",
-    1,
-  )
-  let assert Ok(_) = audit.log_stage_passed(
-    test_repo_root,
-    test_task_slug,
-    "implement",
-    1000,
-  )
+  let assert Ok(_) =
+    audit.log_task_created(test_repo_root, test_task_slug, "gleam", "main")
+  let assert Ok(_) =
+    audit.log_stage_started(test_repo_root, test_task_slug, "implement", 1)
+  let assert Ok(_) =
+    audit.log_stage_passed(test_repo_root, test_task_slug, "implement", 1000)
 
   let assert Ok(log) = audit.read_audit_log(test_repo_root, test_task_slug)
   let stage_events = audit.filter_by_type(log, audit.StageStarted)
@@ -411,29 +362,14 @@ pub fn filter_by_type_test() {
 pub fn get_stage_history_test() {
   setup_test_dir()
 
-  let assert Ok(_) = audit.log_task_created(
-    test_repo_root,
-    test_task_slug,
-    "gleam",
-    "main",
-  )
-  let assert Ok(_) = audit.log_stage_started(
-    test_repo_root,
-    test_task_slug,
-    "implement",
-    1,
-  )
-  let assert Ok(_) = audit.log_stage_passed(
-    test_repo_root,
-    test_task_slug,
-    "implement",
-    1000,
-  )
-  let assert Ok(_) = audit.log_task_approved(
-    test_repo_root,
-    test_task_slug,
-    "canary",
-  )
+  let assert Ok(_) =
+    audit.log_task_created(test_repo_root, test_task_slug, "gleam", "main")
+  let assert Ok(_) =
+    audit.log_stage_started(test_repo_root, test_task_slug, "implement", 1)
+  let assert Ok(_) =
+    audit.log_stage_passed(test_repo_root, test_task_slug, "implement", 1000)
+  let assert Ok(_) =
+    audit.log_task_approved(test_repo_root, test_task_slug, "canary")
 
   let assert Ok(log) = audit.read_audit_log(test_repo_root, test_task_slug)
   let stage_events = audit.get_stage_history(log)

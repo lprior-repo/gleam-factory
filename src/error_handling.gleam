@@ -2,11 +2,7 @@ import gleam/option.{type Option, None, Some}
 
 // Error context captures source location and root cause
 pub type ErrorContext {
-  ErrorContext(
-    module: String,
-    function: String,
-    cause: Option(String),
-  )
+  ErrorContext(module: String, function: String, cause: Option(String))
 }
 
 // Error wraps a reason with context for diagnosis
@@ -26,10 +22,7 @@ pub fn format_error_details(context: ErrorContext) -> String {
     None -> ""
   }
 
-  context.module
-  <> "::"
-  <> context.function
-  <> cause_str
+  context.module <> "::" <> context.function <> cause_str
 }
 
 // format_user_message produces friendly output safe for end users

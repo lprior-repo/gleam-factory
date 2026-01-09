@@ -558,7 +558,10 @@ pub fn task_status_failed_pipeline_not_completed_test() {
 }
 
 pub fn task_status_failed_pipeline_get_reason_test() {
-  domain.get_failure_reason(domain.FailedPipeline("implement", "compilation failed"))
+  domain.get_failure_reason(domain.FailedPipeline(
+    "implement",
+    "compilation failed",
+  ))
   |> should.equal(Ok("compilation failed"))
 }
 

@@ -26,7 +26,8 @@ pub fn publish_without_subscribers_test() {
 pub fn subscribe_and_publish_test() {
   let assert Ok(bus) = signal_bus.start_link()
   let subscriber = process.new_subject()
-  let assert Ok(Nil) = signal_bus.subscribe(bus, signal_bus.TestPassing, subscriber)
+  let assert Ok(Nil) =
+    signal_bus.subscribe(bus, signal_bus.TestPassing, subscriber)
 
   signal_bus.publish(bus, signal_bus.TestPassing)
 
@@ -69,8 +70,10 @@ pub fn different_signal_types_test() {
   let sub_passing = process.new_subject()
   let sub_failure = process.new_subject()
 
-  let assert Ok(Nil) = signal_bus.subscribe(bus, signal_bus.TestPassing, sub_passing)
-  let assert Ok(Nil) = signal_bus.subscribe(bus, signal_bus.TestFailure, sub_failure)
+  let assert Ok(Nil) =
+    signal_bus.subscribe(bus, signal_bus.TestPassing, sub_passing)
+  let assert Ok(Nil) =
+    signal_bus.subscribe(bus, signal_bus.TestFailure, sub_failure)
 
   signal_bus.publish(bus, signal_bus.TestPassing)
 
@@ -88,7 +91,8 @@ pub fn different_signal_types_test() {
 pub fn broadcast_alias_test() {
   let assert Ok(bus) = signal_bus.start_link()
   let subscriber = process.new_subject()
-  let assert Ok(Nil) = signal_bus.subscribe(bus, signal_bus.Evolution, subscriber)
+  let assert Ok(Nil) =
+    signal_bus.subscribe(bus, signal_bus.Evolution, subscriber)
 
   signal_bus.broadcast(bus, signal_bus.Evolution)
 
@@ -110,8 +114,10 @@ pub fn multiple_signals_single_subscriber_test() {
   let assert Ok(bus) = signal_bus.start_link()
   let subscriber = process.new_subject()
 
-  let assert Ok(Nil) = signal_bus.subscribe(bus, signal_bus.PatchProposed, subscriber)
-  let assert Ok(Nil) = signal_bus.subscribe(bus, signal_bus.PatchAccepted, subscriber)
+  let assert Ok(Nil) =
+    signal_bus.subscribe(bus, signal_bus.PatchProposed, subscriber)
+  let assert Ok(Nil) =
+    signal_bus.subscribe(bus, signal_bus.PatchAccepted, subscriber)
 
   signal_bus.publish(bus, signal_bus.PatchProposed)
   signal_bus.publish(bus, signal_bus.PatchAccepted)
@@ -139,7 +145,8 @@ pub fn subscriber_receives_in_order_test() {
   let assert Ok(bus) = signal_bus.start_link()
   let subscriber = process.new_subject()
 
-  let assert Ok(Nil) = signal_bus.subscribe(bus, signal_bus.LoopSpawned, subscriber)
+  let assert Ok(Nil) =
+    signal_bus.subscribe(bus, signal_bus.LoopSpawned, subscriber)
 
   signal_bus.publish(bus, signal_bus.LoopSpawned)
   signal_bus.publish(bus, signal_bus.LoopSpawned)

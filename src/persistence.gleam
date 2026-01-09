@@ -232,10 +232,32 @@ pub fn update_stage_status(
   error: String,
   repo_root: String,
 ) -> Result(Nil, String) {
-  let record = task_to_record(task)
+  let factory_dir = repo_root <> "/.factory"
+  use Nil <- result.try(case simplifile.create_directory_all(factory_dir) {
+    Ok(Nil) -> Ok(Nil)
+    Error(_) -> Error("Could not create .factory directory")
+  })
+
+  let slug_str = domain.slug_to_string(task.slug)
+  let task_record = task_to_record(task)
+
+  use existing_stages <- result.try(
+    case load_task_record(slug_str, repo_root) {
+      Ok(_loaded_task) -> {
+        use json_str <- result.try(
+          simplifile.read(status_file_path(repo_root))
+          |> result.map_error(fn(_) { "Could not read task file" })
+        )
+        use loaded_record <- result.try(json_to_record(json_str, slug_str))
+        Ok(loaded_record.stages)
+      }
+      Error(_) -> Ok([])
+    }
+  )
+
   let new_stage = build_stage_record(stage_name, result, attempts, error)
-  let updated_stages = update_or_append_stage(record.stages, new_stage)
-  let updated_record = TaskRecord(..record, stages: updated_stages)
+  let updated_stages = update_or_append_stage(existing_stages, new_stage)
+  let updated_record = TaskRecord(..task_record, stages: updated_stages)
 
   save_task_record_direct(updated_record, repo_root)
 }

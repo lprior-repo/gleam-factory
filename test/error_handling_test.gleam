@@ -1,11 +1,11 @@
+import error_handling.{
+  Error, ErrorContext, extract_cause, format_error_details, format_user_message,
+  wrap_error,
+}
 import gleam/option.{Some}
 import gleam/string
 import gleeunit
 import gleeunit/should
-import error_handling.{
-  Error, ErrorContext, wrap_error, format_error_details,
-  format_user_message, extract_cause,
-}
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -70,11 +70,7 @@ pub fn error_logged_with_details_test() {
 
 pub fn user_facing_error_is_friendly_test() {
   let context =
-    ErrorContext(
-      module: "api",
-      function: "fetch_data",
-      cause: Some("HTTP 500"),
-    )
+    ErrorContext(module: "api", function: "fetch_data", cause: Some("HTTP 500"))
 
   let error = wrap_error(Nil, context)
   let user_message = format_user_message(error)
@@ -124,4 +120,3 @@ pub fn error_chain_preserves_cause_test() {
     }
   }
 }
-

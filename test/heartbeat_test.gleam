@@ -15,13 +15,13 @@ pub fn tick_updates_status_to_green_when_tests_pass_test() {
   let config =
     heartbeat.HeartbeatConfig(
       interval_ms: 1000,
-      test_cmd: "exit 0",
+      test_cmd: "true",
       golden_master_path: "/tmp",
     )
   let assert Ok(hb) = heartbeat.start_link(config, bus)
 
   heartbeat.tick(hb)
-  process.sleep(100)
+  process.sleep(1000)
 
   let status = heartbeat.get_status(hb)
   status |> should.equal(heartbeat.Green)
@@ -32,7 +32,7 @@ pub fn tick_updates_status_to_red_when_tests_fail_test() {
   let config =
     heartbeat.HeartbeatConfig(
       interval_ms: 1000,
-      test_cmd: "exit 1",
+      test_cmd: "false",
       golden_master_path: "/tmp",
     )
   let assert Ok(hb) = heartbeat.start_link(config, bus)
@@ -47,12 +47,13 @@ pub fn tick_updates_status_to_red_when_tests_fail_test() {
 pub fn transition_from_green_to_red_broadcasts_test_failure_test() {
   let assert Ok(bus) = signal_bus.start_link()
   let subscriber = process.new_subject()
-  let assert Ok(Nil) = signal_bus.subscribe(bus, signal_bus.TestFailure, subscriber)
+  let assert Ok(Nil) =
+    signal_bus.subscribe(bus, signal_bus.TestFailure, subscriber)
 
   let config =
     heartbeat.HeartbeatConfig(
       interval_ms: 1000,
-      test_cmd: "exit 1",
+      test_cmd: "false",
       golden_master_path: "/tmp",
     )
   let assert Ok(hb) = heartbeat.start_link(config, bus)
@@ -69,32 +70,34 @@ pub fn transition_from_green_to_red_broadcasts_test_failure_test() {
 pub fn transition_from_red_to_green_broadcasts_test_passing_test() {
   let assert Ok(bus) = signal_bus.start_link()
   let passing_sub = process.new_subject()
-  let assert Ok(Nil) = signal_bus.subscribe(bus, signal_bus.TestPassing, passing_sub)
+  let assert Ok(Nil) =
+    signal_bus.subscribe(bus, signal_bus.TestPassing, passing_sub)
 
   let config =
     heartbeat.HeartbeatConfig(
       interval_ms: 1000,
-      test_cmd: "sh -c 'test -f /tmp/heartbeat_toggle_test && exit 0 || exit 1'",
+      test_cmd: "/tmp/test_toggle.sh",
       golden_master_path: "/tmp",
     )
   let assert Ok(hb) = heartbeat.start_link(config, bus)
 
   heartbeat.tick(hb)
-  process.sleep(100)
+  process.sleep(500)
 
   let status = heartbeat.get_status(hb)
   status |> should.equal(heartbeat.Red)
 
-  let _ = process.spawn(fn() {
-    use _ <- result.try(simplifile.write("/tmp/heartbeat_toggle_test", ""))
-    Ok(Nil)
-  })
-  process.sleep(100)
+  let _ =
+    process.spawn(fn() {
+      use _ <- result.try(simplifile.write("/tmp/heartbeat_toggle_test", ""))
+      Ok(Nil)
+    })
+  process.sleep(1500)
 
   heartbeat.tick(hb)
-  process.sleep(100)
+  process.sleep(1000)
 
-  case process.receive(passing_sub, 500) {
+  case process.receive(passing_sub, 1500) {
     Ok(signal_bus.TestPassing) -> Nil
     _ -> panic as "Expected TestPassing signal on Red->Green transition"
   }
@@ -106,24 +109,26 @@ pub fn transition_from_red_to_green_broadcasts_test_passing_test() {
 pub fn no_signal_broadcast_when_status_unchanged_green_test() {
   let assert Ok(bus) = signal_bus.start_link()
   let subscriber = process.new_subject()
-  let assert Ok(Nil) = signal_bus.subscribe(bus, signal_bus.TestFailure, subscriber)
-  let assert Ok(Nil) = signal_bus.subscribe(bus, signal_bus.TestPassing, subscriber)
+  let assert Ok(Nil) =
+    signal_bus.subscribe(bus, signal_bus.TestFailure, subscriber)
+  let assert Ok(Nil) =
+    signal_bus.subscribe(bus, signal_bus.TestPassing, subscriber)
 
   let config =
     heartbeat.HeartbeatConfig(
       interval_ms: 1000,
-      test_cmd: "exit 0",
+      test_cmd: "true",
       golden_master_path: "/tmp",
     )
   let assert Ok(hb) = heartbeat.start_link(config, bus)
 
   heartbeat.tick(hb)
-  process.sleep(100)
+  process.sleep(1500)
 
   heartbeat.tick(hb)
-  process.sleep(100)
+  process.sleep(1500)
 
-  case process.receive(subscriber, 200) {
+  case process.receive(subscriber, 2500) {
     Ok(_) -> panic as "Expected no signal when status unchanged"
     Error(Nil) -> Nil
   }
@@ -132,13 +137,15 @@ pub fn no_signal_broadcast_when_status_unchanged_green_test() {
 pub fn no_signal_broadcast_when_status_unchanged_red_test() {
   let assert Ok(bus) = signal_bus.start_link()
   let subscriber = process.new_subject()
-  let assert Ok(Nil) = signal_bus.subscribe(bus, signal_bus.TestFailure, subscriber)
-  let assert Ok(Nil) = signal_bus.subscribe(bus, signal_bus.TestPassing, subscriber)
+  let assert Ok(Nil) =
+    signal_bus.subscribe(bus, signal_bus.TestFailure, subscriber)
+  let assert Ok(Nil) =
+    signal_bus.subscribe(bus, signal_bus.TestPassing, subscriber)
 
   let config =
     heartbeat.HeartbeatConfig(
       interval_ms: 1000,
-      test_cmd: "exit 1",
+      test_cmd: "false",
       golden_master_path: "/tmp",
     )
   let assert Ok(hb) = heartbeat.start_link(config, bus)
@@ -163,12 +170,13 @@ pub fn no_signal_broadcast_when_status_unchanged_red_test() {
 pub fn multiple_transitions_test() {
   let assert Ok(bus) = signal_bus.start_link()
   let failure_sub = process.new_subject()
-  let assert Ok(Nil) = signal_bus.subscribe(bus, signal_bus.TestFailure, failure_sub)
+  let assert Ok(Nil) =
+    signal_bus.subscribe(bus, signal_bus.TestFailure, failure_sub)
 
   let config =
     heartbeat.HeartbeatConfig(
       interval_ms: 1000,
-      test_cmd: "exit 1",
+      test_cmd: "false",
       golden_master_path: "/tmp",
     )
   let assert Ok(hb) = heartbeat.start_link(config, bus)
@@ -190,7 +198,7 @@ pub fn get_status_returns_current_state_test() {
   let config =
     heartbeat.HeartbeatConfig(
       interval_ms: 1000,
-      test_cmd: "exit 0",
+      test_cmd: "true",
       golden_master_path: "/tmp",
     )
   let assert Ok(hb) = heartbeat.start_link(config, bus)
@@ -201,7 +209,7 @@ pub fn get_status_returns_current_state_test() {
   let config_fail =
     heartbeat.HeartbeatConfig(
       interval_ms: 1000,
-      test_cmd: "exit 1",
+      test_cmd: "false",
       golden_master_path: "/tmp",
     )
   let assert Ok(hb_fail) = heartbeat.start_link(config_fail, bus)

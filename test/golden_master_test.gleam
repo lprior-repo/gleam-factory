@@ -145,11 +145,17 @@ pub fn prepare_golden_master_does_not_block_other_messages_test() {
   let hash_reply = process.new_subject()
 
   // Send both message types
-  process.send(master, golden_master.PrepareGoldenMaster(reply_with: prepare_reply))
+  process.send(
+    master,
+    golden_master.PrepareGoldenMaster(reply_with: prepare_reply),
+  )
   process.send(master, golden_master.GetHash(reply_with: hash_reply))
 
   // Both should eventually get responses
-  case process.receive(prepare_reply, 10_000), process.receive(hash_reply, 10_000) {
+  case
+    process.receive(prepare_reply, 10_000),
+    process.receive(hash_reply, 10_000)
+  {
     Ok(_), Ok(_) -> True |> should.equal(True)
     _, _ -> True |> should.equal(True)
   }
