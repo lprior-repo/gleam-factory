@@ -1,6 +1,8 @@
 //// Resource governor OTP actor for limiting concurrent resource usage.
 
+import gleam/dict
 import gleam/erlang/process.{type Subject}
+import gleam/int
 import otp_actor as actor
 
 pub type ResourceLimits {
@@ -25,21 +27,39 @@ pub type SlotType {
   GpuSlot
 }
 
+pub type SlotId {
+  SlotId(id: String)
+}
+
 pub type GovernorMessage {
-  AcquireMutator(reply_with: Subject(Result(Ticket, String)))
-  AcquireLoop(reply_with: Subject(Result(Ticket, String)))
+  AcquireMutator(reply_with: Subject(Result(#(Ticket, SlotId), String)))
+  AcquireLoop(reply_with: Subject(Result(#(Ticket, SlotId), String)))
   ReleaseMutator
   ReleaseLoop
+  ReleaseSlot(slot_id: SlotId, reply_with: Subject(Result(Nil, String)))
 }
 
 type State {
-  State(limits: ResourceLimits, mutators: Int, loops: Int)
+  State(
+    limits: ResourceLimits,
+    mutators: Int,
+    loops: Int,
+    allocated_slots: dict.Dict(String, SlotType),
+    slot_counter: Int,
+  )
 }
 
 pub fn start_link(
   config: ResourceLimits,
 ) -> Result(Subject(GovernorMessage), Nil) {
-  let initial = State(limits: config, mutators: 0, loops: 0)
+  let initial =
+    State(
+      limits: config,
+      mutators: 0,
+      loops: 0,
+      allocated_slots: dict.new(),
+      slot_counter: 0,
+    )
   let builder = actor.new(initial) |> actor.on_message(handle_message)
   case actor.start(builder) {
     Ok(started) -> Ok(started.data)
@@ -55,8 +75,19 @@ fn handle_message(
     AcquireMutator(reply) -> {
       case state.mutators < state.limits.max_mutators {
         True -> {
-          process.send(reply, Ok(MutatorTicket))
-          actor.continue(State(..state, mutators: state.mutators + 1))
+          let new_counter = state.slot_counter + 1
+          let slot_id = SlotId("mutator:" <> int.to_string(new_counter))
+          let new_slots =
+            dict.insert(state.allocated_slots, slot_id.id, MutatorSlot)
+          process.send(reply, Ok(#(MutatorTicket, slot_id)))
+          actor.continue(
+            State(
+              ..state,
+              mutators: state.mutators + 1,
+              allocated_slots: new_slots,
+              slot_counter: new_counter,
+            ),
+          )
         }
         False -> {
           process.send(reply, Error("mutator limit"))
@@ -67,8 +98,18 @@ fn handle_message(
     AcquireLoop(reply) -> {
       case state.loops < state.limits.max_loops {
         True -> {
-          process.send(reply, Ok(LoopTicket))
-          actor.continue(State(..state, loops: state.loops + 1))
+          let new_counter = state.slot_counter + 1
+          let slot_id = SlotId("loop:" <> int.to_string(new_counter))
+          let new_slots = dict.insert(state.allocated_slots, slot_id.id, LoopSlot)
+          process.send(reply, Ok(#(LoopTicket, slot_id)))
+          actor.continue(
+            State(
+              ..state,
+              loops: state.loops + 1,
+              allocated_slots: new_slots,
+              slot_counter: new_counter,
+            ),
+          )
         }
         False -> {
           process.send(reply, Error("loop limit"))
@@ -90,10 +131,48 @@ fn handle_message(
       }
       actor.continue(State(..state, loops: new_count))
     }
+    ReleaseSlot(slot_id, reply) -> {
+      let SlotId(id) = slot_id
+      case dict.get(state.allocated_slots, id) {
+        Ok(slot_type) -> {
+          let new_state = case slot_type {
+            MutatorSlot -> {
+              let new_mutators = case state.mutators - 1 < 0 {
+                True -> 0
+                False -> state.mutators - 1
+              }
+              State(..state, mutators: new_mutators)
+            }
+            LoopSlot -> {
+              let new_loops = case state.loops - 1 < 0 {
+                True -> 0
+                False -> state.loops - 1
+              }
+              State(..state, loops: new_loops)
+            }
+            WorkspaceSlot -> state
+            GpuSlot -> state
+          }
+          let final_state =
+            State(
+              ..new_state,
+              allocated_slots: dict.delete(new_state.allocated_slots, id),
+            )
+          process.send(reply, Ok(Nil))
+          actor.continue(final_state)
+        }
+        Error(Nil) -> {
+          process.send(reply, Ok(Nil))
+          actor.continue(state)
+        }
+      }
+    }
   }
 }
 
-pub fn acquire_mutator(gov: Subject(GovernorMessage)) -> Result(Ticket, String) {
+pub fn acquire_mutator(
+  gov: Subject(GovernorMessage),
+) -> Result(#(Ticket, SlotId), String) {
   let reply = process.new_subject()
   process.send(gov, AcquireMutator(reply_with: reply))
   case process.receive(reply, 5000) {
@@ -102,7 +181,7 @@ pub fn acquire_mutator(gov: Subject(GovernorMessage)) -> Result(Ticket, String) 
   }
 }
 
-pub fn acquire_loop(gov: Subject(GovernorMessage)) -> Result(Ticket, String) {
+pub fn acquire_loop(gov: Subject(GovernorMessage)) -> Result(#(Ticket, SlotId), String) {
   let reply = process.new_subject()
   process.send(gov, AcquireLoop(reply_with: reply))
   case process.receive(reply, 5000) {
@@ -118,18 +197,9 @@ pub fn release(gov: Subject(GovernorMessage), ticket: Ticket) -> Nil {
   }
 }
 
-pub fn release_slot(gov: Subject(GovernorMessage), slot_type: SlotType) -> Nil {
-  case slot_type {
-    MutatorSlot -> process.send(gov, ReleaseMutator)
-    LoopSlot -> process.send(gov, ReleaseLoop)
-    WorkspaceSlot -> Nil
-    GpuSlot -> Nil
-  }
-}
-
 pub fn request_loop_slot(
   gov: Subject(GovernorMessage),
-) -> Result(Ticket, String) {
+) -> Result(#(Ticket, SlotId), String) {
   let reply = process.new_subject()
   process.send(gov, AcquireLoop(reply_with: reply))
   case process.receive(reply, 5000) {
@@ -140,9 +210,21 @@ pub fn request_loop_slot(
 
 pub fn request_mutator_slot(
   gov: Subject(GovernorMessage),
-) -> Result(Ticket, String) {
+) -> Result(#(Ticket, SlotId), String) {
   let reply = process.new_subject()
   process.send(gov, AcquireMutator(reply_with: reply))
+  case process.receive(reply, 5000) {
+    Ok(result) -> result
+    Error(Nil) -> Error("timeout")
+  }
+}
+
+pub fn release_slot(
+  gov: Subject(GovernorMessage),
+  slot_id: SlotId,
+) -> Result(Nil, String) {
+  let reply = process.new_subject()
+  process.send(gov, ReleaseSlot(slot_id: slot_id, reply_with: reply))
   case process.receive(reply, 5000) {
     Ok(result) -> result
     Error(Nil) -> Error("timeout")

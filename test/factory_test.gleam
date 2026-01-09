@@ -2797,7 +2797,7 @@ pub fn governor_release_enables_reacquisition_test() {
 
   let assert Ok(gov) = resource_governor.start_link(config)
 
-  let assert Ok(ticket1) = resource_governor.acquire_mutator(gov)
+  let assert Ok(#(ticket1, _slot_id1)) = resource_governor.acquire_mutator(gov)
   resource_governor.acquire_mutator(gov) |> should.be_error
 
   resource_governor.release(gov, ticket1)
@@ -2817,11 +2817,49 @@ pub fn governor_release_correct_resource_type_test() {
 
   let assert Ok(gov) = resource_governor.start_link(config)
 
-  let assert Ok(loop_ticket) = resource_governor.acquire_loop(gov)
-  let assert Ok(_mutator_ticket) = resource_governor.acquire_mutator(gov)
+  let assert Ok(#(loop_ticket, _slot_id2)) = resource_governor.acquire_loop(gov)
+  let assert Ok(#(_mutator_ticket, _slot_id3)) = resource_governor.acquire_mutator(gov)
 
   resource_governor.release(gov, loop_ticket)
 
   resource_governor.acquire_loop(gov) |> should.be_ok
   resource_governor.acquire_mutator(gov) |> should.be_error
+}
+
+pub fn governor_release_slot_test() {
+  let config =
+    resource_governor.ResourceLimits(
+      max_mutators: 1,
+      max_loops: 0,
+      max_workspaces: 0,
+      min_free_ram_mb: 0,
+      gpu_tickets: 0,
+    )
+
+  let assert Ok(gov) = resource_governor.start_link(config)
+  let assert Ok(#(_ticket1, slot_id1)) = resource_governor.acquire_mutator(gov)
+
+  resource_governor.acquire_mutator(gov) |> should.be_error
+
+  let assert Ok(Nil) = resource_governor.release_slot(gov, slot_id1)
+  resource_governor.acquire_mutator(gov) |> should.be_ok
+}
+
+pub fn governor_double_release_slot_test() {
+  let config =
+    resource_governor.ResourceLimits(
+      max_mutators: 1,
+      max_loops: 0,
+      max_workspaces: 0,
+      min_free_ram_mb: 0,
+      gpu_tickets: 0,
+    )
+
+  let assert Ok(gov) = resource_governor.start_link(config)
+  let assert Ok(#(_ticket1, slot_id1)) = resource_governor.acquire_mutator(gov)
+
+  let assert Ok(Nil) = resource_governor.release_slot(gov, slot_id1)
+  let assert Ok(Nil) = resource_governor.release_slot(gov, slot_id1)
+
+  resource_governor.acquire_mutator(gov) |> should.be_ok
 }
