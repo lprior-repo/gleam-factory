@@ -55,10 +55,9 @@ pub fn roundtrip_in_progress_test() {
   let assert Ok(restored) = persistence.record_to_task(record)
 
   case restored.status {
-    domain.InProgress(_) -> True
-    _ -> False
+    domain.InProgress(stage) -> stage |> should.equal("implement")
+    _ -> should.fail()
   }
-  |> should.equal(True)
 }
 
 pub fn roundtrip_passed_pipeline_test() {
@@ -97,10 +96,12 @@ pub fn roundtrip_failed_pipeline_test() {
   let assert Ok(restored) = persistence.record_to_task(record)
 
   case restored.status {
-    domain.FailedPipeline(_, _) -> True
-    _ -> False
+    domain.FailedPipeline(stage, reason) -> {
+      stage |> should.equal("lint")
+      reason |> should.equal("formatting error")
+    }
+    _ -> should.fail()
   }
-  |> should.equal(True)
 }
 
 pub fn roundtrip_integrated_test() {

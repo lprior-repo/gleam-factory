@@ -36,7 +36,10 @@ fn broadcast_loop(state: BroadcasterState) -> Nil {
       broadcast_new_beads(detection.new_beads, state.bus)
 
       // Broadcast signals for removed beads
-      broadcast_removed_beads(detection.removed_beads, state.bus)
+      let removed_ids =
+        detection.removed_beads
+        |> list.map(fn(b) { b.id })
+      broadcast_removed_beads(removed_ids, state.bus)
 
       let updated =
         BroadcasterState(..state, snapshot: detection.current_snapshot)

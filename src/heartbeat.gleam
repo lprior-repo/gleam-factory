@@ -3,7 +3,7 @@
 //// Polls tests at configurable intervals, broadcasts TestFailure/TestPassing
 //// signals on red-to-green or green-to-red transitions.
 
-import dict
+import gleam/dict
 import gleam/erlang/process.{type Subject}
 import gleam/int
 import gleam/otp/actor
@@ -39,6 +39,7 @@ type HeartbeatState {
     last_hash: String,
     signal_bus: Subject(signal_bus.SignalBusMessage),
     progress_buffer: List(#(String, String)),
+    self_subject: Subject(HeartbeatMessage),
   )
 }
 
@@ -77,7 +78,8 @@ pub fn start_link(
 }
 
 fn schedule_tick(subject: Subject(HeartbeatMessage), interval_ms: Int) -> Nil {
-  process.send_after(subject, interval_ms, Tick)
+  let _ = process.send_after(subject, interval_ms, Tick)
+  Nil
 }
 
 fn handle_message(

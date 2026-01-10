@@ -65,6 +65,9 @@ fn signal_adapter_loop(
       let new_state = handle_bead_assigned(state, bead)
       signal_adapter_loop(new_state, signal_subject)
     }
+    Ok(signal_bus.ShutdownRequested) -> {
+      Nil
+    }
     Ok(_) -> signal_adapter_loop(state, signal_subject)
     Error(Nil) -> signal_adapter_loop(state, signal_subject)
   }

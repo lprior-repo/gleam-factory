@@ -12,6 +12,32 @@ import simplifile
 
 const branch_prefix = "feat/"
 
+const colon_escape = "\\c"
+
+fn encode_reason(reason: String) -> String {
+  string.replace(reason, ":", colon_escape)
+}
+
+fn decode_reason(encoded: String) -> String {
+  string.replace(encoded, colon_escape, ":")
+}
+
+fn parse_status(status_str: String) -> domain.TaskStatus {
+  case string.split(status_str, ":") {
+    ["created"] -> domain.Created
+    ["passed"] -> domain.PassedPipeline
+    ["integrated"] -> domain.Integrated
+    ["in_progress", stage] -> domain.InProgress(stage)
+    ["in_progress"] -> domain.InProgress("")
+    ["failed", stage, ..rest] -> {
+      let reason = rest |> string.join(":") |> decode_reason
+      domain.FailedPipeline(stage, reason)
+    }
+    ["failed"] -> domain.FailedPipeline("", "")
+    _ -> domain.Created
+  }
+}
+
 pub type StageResult {
   StagePassed
   StageFailed
@@ -85,9 +111,10 @@ pub fn task_to_record(task: domain.Task) -> TaskRecord {
 
   let status_str = case task.status {
     domain.Created -> "created"
-    domain.InProgress(_) -> "in_progress"
+    domain.InProgress(stage) -> "in_progress:" <> stage
     domain.PassedPipeline -> "passed"
-    domain.FailedPipeline(_, _) -> "failed"
+    domain.FailedPipeline(stage, reason) ->
+      "failed:" <> stage <> ":" <> encode_reason(reason)
     domain.Integrated -> "integrated"
   }
 
@@ -116,13 +143,11 @@ pub fn record_to_task(record: TaskRecord) -> Result(domain.Task, String) {
     other -> Error("Unknown language: " <> other)
   })
 
-  let status = case record.status {
-    "created" -> domain.Created
-    "in_progress" -> domain.InProgress("")
-    "passed" -> domain.PassedPipeline
-    "failed" -> domain.FailedPipeline("", "")
-    "integrated" -> domain.Integrated
-    _ -> domain.Created
+  let status = parse_status(record.status)
+
+  let priority = case domain.parse_priority(record.priority) {
+    Ok(p) -> p
+    Error(_) -> domain.P2
   }
 
   use slug <- result.try(domain.validate_slug(record.slug))
@@ -131,6 +156,7 @@ pub fn record_to_task(record: TaskRecord) -> Result(domain.Task, String) {
     slug: slug,
     language: lang,
     status: status,
+    priority: priority,
     worktree_path: "",
     branch: branch_prefix <> record.slug,
   ))
@@ -302,6 +328,7 @@ pub fn record_to_json(record: TaskRecord) -> String {
     #("slug", json.string(record.slug)),
     #("language", json.string(record.language)),
     #("status", json.string(record.status)),
+    #("priority", json.string(record.priority)),
     #("created_at", json.string(record.created_at)),
     #("updated_at", json.string(record.updated_at)),
     #("stages", stages_json),
@@ -328,7 +355,7 @@ fn task_record_decoder() -> decode.Decoder(TaskRecord) {
   use slug <- decode.field("slug", decode.string)
   use language <- decode.field("language", decode.string)
   use status <- decode.field("status", decode.string)
-  use priority <- decode.field("priority", decode.string)
+  use priority <- decode.optional_field("priority", "P2", decode.string)
   use created_at <- decode.field("created_at", decode.string)
   use updated_at <- decode.field("updated_at", decode.string)
   use stages <- decode.field("stages", decode.list(stage_decoder()))

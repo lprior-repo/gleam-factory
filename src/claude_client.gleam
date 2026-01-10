@@ -1,5 +1,6 @@
 //// Claude API client with streaming support.
 
+import gleam/dynamic/decode
 import gleam/http
 import gleam/http/request
 import gleam/httpc
@@ -96,35 +97,25 @@ pub fn call_claude_sync(
   }
 }
 
-fn parse_response(body: String) -> Result(ClaudeResponse, String) {
-  case extract_content(body), extract_stop_reason(body) {
-    Ok(content), Ok(stop_reason) -> Ok(ClaudeResponse(content:, stop_reason:))
-    Error(e), _ | _, Error(e) -> Error(e)
+pub fn parse_response(body: String) -> Result(ClaudeResponse, String) {
+  let text_decoder = {
+    use text <- decode.field("text", decode.string)
+    decode.success(text)
   }
+  let response_decoder = {
+    use texts <- decode.field("content", decode.list(text_decoder))
+    use stop_reason <- decode.field("stop_reason", decode.string)
+    let content = texts |> list.first |> result.unwrap("")
+    decode.success(ClaudeResponse(content:, stop_reason:))
+  }
+  json.parse(body, response_decoder)
+  |> result.replace_error("Failed to parse Claude response")
 }
 
-fn extract_content(json_str: String) -> Result(String, String) {
-  json_str
-  |> string.split("\"text\":\"")
-  |> list.last
-  |> result.replace_error("No content text field")
-  |> result.try(fn(s) {
-    string.split(s, "\"")
-    |> list.first
-    |> result.replace_error("Malformed content")
-  })
-}
-
-fn extract_stop_reason(json_str: String) -> Result(String, String) {
-  json_str
-  |> string.split("\"stop_reason\":\"")
-  |> list.last
-  |> result.replace_error("No stop_reason field")
-  |> result.try(fn(s) {
-    string.split(s, "\"")
-    |> list.first
-    |> result.replace_error("Malformed stop_reason")
-  })
+fn extract_stream_text(json_str: String) -> Result(String, String) {
+  let text_decoder = decode.at(["delta", "text"], decode.string)
+  json.parse(json_str, text_decoder)
+  |> result.replace_error("No delta text")
 }
 
 pub fn call_claude_stream(
@@ -169,7 +160,7 @@ fn parse_stream(body: String, on_chunk: fn(StreamChunk) -> Nil) -> Nil {
   |> list.each(fn(chunk) {
     case string.contains(chunk, "content_block_delta") {
       True ->
-        case extract_content(chunk) {
+        case extract_stream_text(chunk) {
           Ok(text) -> on_chunk(ContentDelta(text))
           Error(_) -> Nil
         }

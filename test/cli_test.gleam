@@ -33,28 +33,12 @@ pub fn parse_args_version_test() {
 // parse_args: new command tests
 pub fn parse_args_new_with_slug_test() {
   cli.parse_args(["new", "--slug", "test-slug"])
-  |> should.equal(Ok(cli.NewTask("test-slug", None, False)))
+  |> should.equal(Ok(cli.NewTask("test-slug")))
 }
 
 pub fn parse_args_new_with_short_slug_test() {
   cli.parse_args(["new", "-s", "test-slug"])
-  |> should.equal(Ok(cli.NewTask("test-slug", None, False)))
-}
-
-pub fn parse_args_new_with_contract_test() {
-  cli.parse_args([
-    "new",
-    "--slug",
-    "test-slug",
-    "--contract",
-    "path/to/contract",
-  ])
-  |> should.equal(Ok(cli.NewTask("test-slug", Some("path/to/contract"), False)))
-}
-
-pub fn parse_args_new_with_interactive_test() {
-  cli.parse_args(["new", "--slug", "test-slug", "--interactive"])
-  |> should.equal(Ok(cli.NewTask("test-slug", None, True)))
+  |> should.equal(Ok(cli.NewTask("test-slug")))
 }
 
 pub fn parse_args_new_missing_slug_test() {
@@ -281,27 +265,6 @@ pub fn parse_args_stage_flag_missing_value_test() {
   |> should.equal(Error("--stage is required for stage command"))
 }
 
-pub fn parse_args_new_all_flags_test() {
-  cli.parse_args([
-    "new", "--slug", "test-slug", "--contract", "path/to/contract",
-    "--interactive",
-  ])
-  |> should.equal(Ok(cli.NewTask("test-slug", Some("path/to/contract"), True)))
-}
-
-pub fn parse_args_new_short_contract_flag_test() {
-  cli.parse_args(["new", "-s", "test-slug", "-c", "path/contract"])
-  |> should.equal(Ok(cli.NewTask("test-slug", Some("path/contract"), False)))
-}
-
-pub fn parse_args_new_mixed_flag_order_test() {
-  cli.parse_args([
-    "new", "--interactive", "--slug", "test-slug", "--contract",
-    "path/to/contract",
-  ])
-  |> should.equal(Ok(cli.NewTask("test-slug", Some("path/to/contract"), True)))
-}
-
 pub fn parse_args_stage_short_dry_run_test() {
   cli.parse_args(["stage", "-s", "test-slug", "--stage", "test", "-d"])
   |> should.equal(Ok(cli.RunStage("test-slug", "test", True, None, None)))
@@ -479,20 +442,7 @@ pub fn parse_args_unknown_command_run_test() {
 
 pub fn parse_args_multiple_slugs_uses_first_test() {
   cli.parse_args(["new", "--slug", "slug1", "--slug", "slug2"])
-  |> should.equal(Ok(cli.NewTask("slug1", None, False)))
-}
-
-pub fn parse_args_multiple_contracts_uses_first_test() {
-  cli.parse_args([
-    "new",
-    "--slug",
-    "test",
-    "--contract",
-    "contract1",
-    "--contract",
-    "contract2",
-  ])
-  |> should.equal(Ok(cli.NewTask("test", Some("contract1"), False)))
+  |> should.equal(Ok(cli.NewTask("slug1")))
 }
 
 pub fn parse_args_multiple_stages_uses_first_test() {
@@ -506,21 +456,6 @@ pub fn parse_args_multiple_stages_uses_first_test() {
     "review",
   ])
   |> should.equal(Ok(cli.RunStage("test", "implement", False, None, None)))
-}
-
-pub fn parse_args_new_contract_without_value_test() {
-  cli.parse_args(["new", "--slug", "test", "--contract"])
-  |> should.equal(Ok(cli.NewTask("test", None, False)))
-}
-
-pub fn parse_args_new_interactive_flag_position_test() {
-  cli.parse_args(["new", "--interactive", "--slug", "test"])
-  |> should.equal(Ok(cli.NewTask("test", None, True)))
-}
-
-pub fn parse_args_new_interactive_at_end_test() {
-  cli.parse_args(["new", "--slug", "test", "--interactive"])
-  |> should.equal(Ok(cli.NewTask("test", None, True)))
 }
 
 // Help text comprehensive checks
@@ -563,9 +498,6 @@ pub fn help_text_contains_short_flags_test() {
   let text = cli.help_text()
   text
   |> string.contains("-s")
-  |> should.equal(True)
-  text
-  |> string.contains("-c")
   |> should.equal(True)
   text
   |> string.contains("-d")

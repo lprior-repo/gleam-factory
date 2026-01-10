@@ -7,15 +7,19 @@ import beads_watcher
 import factory_dispatcher
 import gleam/dict
 import gleam/erlang/process.{type Subject}
+import gleam/int
 import gleam/result
 import golden_master
-import heartbeat
 import hardware_verification
+import heartbeat
 import logging
 import merge_queue
 import resource_governor
 import signal_bus
+import signal_handler
 import workspace_manager
+
+const shutdown_timeout_ms = 30_000
 
 pub type SupervisorConfig {
   SupervisorConfig(
@@ -45,6 +49,7 @@ pub type Started {
     merge_queue_subject: Subject(merge_queue.MergeQueueMessage),
     factory_dispatcher_pid: process.Pid,
     beads_watcher_pid: process.Pid,
+    signal_handler_subject: Subject(signal_handler.SignalHandlerMessage),
   )
 }
 
@@ -121,6 +126,9 @@ pub fn start_link(config: SupervisorConfig) -> Result(Started, InitFailed) {
   let beads_watcher_pid =
     beads_watcher.start(config.beads_path, config.beads_poll_interval_ms)
 
+  let signal_handler_subject = process.new_subject()
+  let _ = signal_handler.setup(signal_handler_subject)
+
   log_system_ready(config)
 
   Ok(Started(
@@ -132,7 +140,36 @@ pub fn start_link(config: SupervisorConfig) -> Result(Started, InitFailed) {
     merge_queue_subject:,
     factory_dispatcher_pid:,
     beads_watcher_pid:,
+    signal_handler_subject:,
   ))
+}
+
+/// Start supervisor and wait for shutdown signal
+pub fn start_and_wait(config: SupervisorConfig) -> Result(Nil, InitFailed) {
+  use started <- result.try(start_link(config))
+  wait_for_shutdown(started)
+  Ok(Nil)
+}
+
+/// Wait for shutdown signal and perform graceful shutdown
+fn wait_for_shutdown(started: Started) -> Nil {
+  logging.log(logging.Info, "Waiting for shutdown signal", dict.new())
+  case process.receive(started.signal_handler_subject, shutdown_timeout_ms) {
+    Ok(signal_handler.SignalReceived(signal)) -> {
+      let signal_name = case signal {
+        signal_handler.Sigterm -> "SIGTERM"
+        signal_handler.Sigint -> "SIGINT"
+      }
+      logging.log(
+        logging.Info,
+        "Received " <> signal_name <> ", initiating shutdown",
+        dict.new(),
+      )
+      signal_bus.broadcast(started.signal_bus_subject, signal_bus.ShutdownRequested)
+      graceful_shutdown(started)
+    }
+    Error(Nil) -> wait_for_shutdown(started)
+  }
 }
 
 /// Get signal bus from supervisor
@@ -190,15 +227,43 @@ pub fn log_system_ready(_config: SupervisorConfig) -> Nil {
 
 /// Gracefully shutdown all supervised actors
 pub fn shutdown(started: Started) -> Nil {
+  graceful_shutdown(started)
+}
+
+/// Internal graceful shutdown with timeout
+fn graceful_shutdown(started: Started) -> Nil {
+  let start_time = erlang_monotonic_time_ms()
   logging.log(logging.Info, "Initiating graceful shutdown", dict.new())
 
-  // Shutdown actors in reverse order of startup
+  logging.log(logging.Info, "Stopping beads watcher", dict.new())
+  process.send_exit(started.beads_watcher_pid)
+  process.sleep(100)
+
+  logging.log(logging.Info, "Stopping factory dispatcher", dict.new())
+  process.send_exit(started.factory_dispatcher_pid)
+  process.sleep(100)
+
+  logging.log(logging.Info, "Stopping merge queue", dict.new())
   merge_queue.shutdown(started.merge_queue_subject)
   process.sleep(100)
 
+  logging.log(logging.Info, "Stopping golden master", dict.new())
+  process.send(started.golden_master_subject, golden_master.Shutdown)
+  process.sleep(100)
+
+  signal_handler.teardown()
+
+  let elapsed = erlang_monotonic_time_ms() - start_time
   logging.log(
     logging.Info,
-    "All actors shutdown gracefully",
+    "All actors shutdown gracefully in " <> int.to_string(elapsed) <> "ms",
     dict.new(),
   )
+}
+
+@external(erlang, "erlang", "monotonic_time")
+fn erlang_monotonic_time() -> Int
+
+fn erlang_monotonic_time_ms() -> Int {
+  erlang_monotonic_time() / 1_000_000
 }

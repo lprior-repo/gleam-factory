@@ -24,6 +24,7 @@ pub type Signal {
   LoopComplete
   LoopFailed
   ResourceExhausted
+  ShutdownRequested
 }
 
 /// Signal type identifier for subscription purposes.
@@ -47,6 +48,7 @@ fn signal_type(sig: Signal) -> SignalType {
     LoopComplete -> SignalType("LoopComplete")
     LoopFailed -> SignalType("LoopFailed")
     ResourceExhausted -> SignalType("ResourceExhausted")
+    ShutdownRequested -> SignalType("ShutdownRequested")
   }
 }
 

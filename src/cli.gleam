@@ -12,7 +12,7 @@ import stages
 import worktree
 
 pub type Command {
-  NewTask(slug: String, contract_path: Option(String), interactive: Bool)
+  NewTask(slug: String)
   RunStage(
     slug: String,
     stage_name: String,
@@ -60,11 +60,7 @@ fn has_flag(args: List(String), long: String, short: String) -> Bool {
 fn parse_new(args: List(String)) -> Result(Command, String) {
   case get_flag(args, "--slug", "-s") {
     None -> Error("--slug is required for new command")
-    Some(slug) -> {
-      let contract = get_flag(args, "--contract", "-c")
-      let interactive = has_flag(args, "--interactive", "--interactive")
-      Ok(NewTask(slug, contract, interactive))
-    }
+    Some(slug) -> Ok(NewTask(slug))
   }
 }
 
@@ -156,8 +152,7 @@ fn validate_status(s: String) -> Result(String, String) {
 /// Execute parsed command
 pub fn execute(cmd: Command) -> Result(Nil, String) {
   case cmd {
-    NewTask(slug, contract, interactive) ->
-      execute_new(slug, contract, interactive)
+    NewTask(slug) -> execute_new(slug)
 
     RunStage(slug, stage, dry_run, from, to) ->
       execute_stage(slug, stage, dry_run, from, to)
@@ -180,11 +175,7 @@ pub fn execute(cmd: Command) -> Result(Nil, String) {
   }
 }
 
-fn execute_new(
-  slug: String,
-  _contract: Option(String),
-  _interactive: Bool,
-) -> Result(Nil, String) {
+fn execute_new(slug: String) -> Result(Nil, String) {
   use _ <- result.try(domain.validate_slug(slug))
   use repo_root <- result.try(repo.detect_repo_root())
   use lang <- result.try(repo.detect_language(repo_root))
@@ -318,16 +309,14 @@ fn execute_list(
   let filtered =
     tasks
     |> filter_by_status(status)
+    |> filter_by_priority(priority)
 
   case filtered {
     [] -> io.println("No matching tasks")
     ts ->
       ts
-      |> list.map(fn(task) {
-        let priority_str = case priority {
-          Some(_) -> " [P2]"
-          None -> ""
-        }
+      |> list.map(fn(task: domain.Task) {
+        let priority_str = " [" <> domain.priority_to_string(task.priority) <> "]"
         let status_str = " " <> status_to_string(task.status)
         domain.slug_to_string(task.slug)
         <> " ("
@@ -352,6 +341,19 @@ fn filter_by_status(
       list.filter(tasks, fn(task) {
         let task_status = status_to_string(task.status)
         task_status == s
+      })
+  }
+}
+
+fn filter_by_priority(
+  tasks: List(domain.Task),
+  priority: Option(String),
+) -> List(domain.Task) {
+  case priority {
+    None -> tasks
+    Some(p) ->
+      list.filter(tasks, fn(task) {
+        domain.priority_to_string(task.priority) == p
       })
   }
 }
@@ -391,6 +393,7 @@ fn execute_new_impl(
       slug: validated_slug,
       language: lang,
       status: domain.Created,
+      priority: domain.P2,
       worktree_path: wt.path,
       branch: wt.branch,
     )
@@ -469,7 +472,7 @@ USAGE:
 
 COMMANDS:
   new      Create new task
-           factory new -s bd-52.1 [-c path] [--interactive]
+           factory new -s bd-52.1
 
   stage    Run pipeline stage
            factory stage -s bd-52.1 --stage implement [-d] [--from X] [--to Y]
@@ -488,7 +491,6 @@ COMMANDS:
 
 SHORT FLAGS:
   -s       --slug
-  -c       --contract
   -d       --dry-run
   -f       --force
 
