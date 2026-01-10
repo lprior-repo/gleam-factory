@@ -3,6 +3,7 @@ import gleeunit
 import gleeunit/should
 import merge_queue
 import signal_bus
+import signals
 
 pub fn main() {
   gleeunit.main()
@@ -36,8 +37,13 @@ pub fn propose_patch_changes_absorbing_to_true_test() {
 pub fn report_test_result_success_broadcasts_patch_accepted_test() {
   let assert Ok(bus) = signal_bus.start_link()
   let accepted_sub = process.new_subject()
+  let test_patch =
+    signals.PatchAccepted(
+      hash: signals.hash("test"),
+      merged_at: signals.timestamp(0),
+    )
   let assert Ok(Nil) =
-    signal_bus.subscribe(bus, signal_bus.PatchAccepted, accepted_sub)
+    signal_bus.subscribe(bus, signal_bus.PatchAccepted(test_patch), accepted_sub)
 
   let assert Ok(queue) = merge_queue.start_link(bus)
 
@@ -48,7 +54,7 @@ pub fn report_test_result_success_broadcasts_patch_accepted_test() {
   process.sleep(100)
 
   case process.receive(accepted_sub, 500) {
-    Ok(signal_bus.PatchAccepted) -> Nil
+    Ok(signal_bus.PatchAccepted(_)) -> Nil
     _ -> panic as "Expected PatchAccepted signal"
   }
 }
@@ -102,8 +108,13 @@ pub fn patch_accepted_changes_absorbing_to_false_test() {
 pub fn only_matching_patch_hash_accepts_test() {
   let assert Ok(bus) = signal_bus.start_link()
   let accepted_sub = process.new_subject()
+  let test_patch =
+    signals.PatchAccepted(
+      hash: signals.hash("test"),
+      merged_at: signals.timestamp(0),
+    )
   let assert Ok(Nil) =
-    signal_bus.subscribe(bus, signal_bus.PatchAccepted, accepted_sub)
+    signal_bus.subscribe(bus, signal_bus.PatchAccepted(test_patch), accepted_sub)
 
   let assert Ok(queue) = merge_queue.start_link(bus)
 

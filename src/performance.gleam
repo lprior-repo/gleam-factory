@@ -3,7 +3,7 @@
 //// Utilities for measuring and optimizing system performance
 //// Tracks timing, throughput, and resource usage
 
-import dict
+import gleam/dict
 import gleam/int
 import gleam/list
 import gleam/string
@@ -59,6 +59,18 @@ pub type Summary {
   )
 }
 
+fn list_at(lst: List(Int), idx: Int) -> Int {
+  lst
+  |> list.drop(idx)
+  |> list.first
+  |> fn(r) {
+    case r {
+      Ok(v) -> v
+      Error(Nil) -> 0
+    }
+  }
+}
+
 fn calculate_summary(operation: String, durations: List(Int)) -> Summary {
   let count = list.length(durations)
   let sorted = list.sort(durations, int.compare)
@@ -79,16 +91,10 @@ fn calculate_summary(operation: String, durations: List(Int)) -> Summary {
   }
 
   let p95_idx = count * 95 / 100
-  let p95 = case list.at(sorted, p95_idx) {
-    Ok(v) -> v
-    Error(Nil) -> 0
-  }
+  let p95 = list_at(sorted, p95_idx)
 
   let p99_idx = count * 99 / 100
-  let p99 = case list.at(sorted, p99_idx) {
-    Ok(v) -> v
-    Error(Nil) -> 0
-  }
+  let p99 = list_at(sorted, p99_idx)
 
   Summary(
     operation: operation,

@@ -193,6 +193,7 @@ pub fn json_roundtrip_basic_test() {
       created_at: "2026-01-09T10:00:00Z",
       updated_at: "2026-01-09T10:00:00Z",
       stages: [],
+      worktree_path: "",
     )
 
   let json_str = persistence.record_to_json(record)
@@ -382,6 +383,7 @@ pub fn record_to_task_invalid_language_test() {
       created_at: "2026-01-09T10:00:00Z",
       updated_at: "2026-01-09T10:00:00Z",
       stages: [],
+      worktree_path: "",
     )
 
   persistence.record_to_task(record)
@@ -398,6 +400,7 @@ pub fn record_to_task_invalid_slug_test() {
       created_at: "2026-01-09T10:00:00Z",
       updated_at: "2026-01-09T10:00:00Z",
       stages: [],
+      worktree_path: "",
     )
 
   persistence.record_to_task(record)
@@ -720,6 +723,7 @@ pub fn all_languages_roundtrip_test() {
         created_at: "2026-01-09T10:00:00Z",
         updated_at: "2026-01-09T10:00:00Z",
         stages: [],
+      worktree_path: "",
       )
 
     let json_str = persistence.record_to_json(record)
@@ -743,6 +747,7 @@ pub fn all_status_roundtrip_test() {
         created_at: "2026-01-09T10:00:00Z",
         updated_at: "2026-01-09T10:00:00Z",
         stages: [],
+      worktree_path: "",
       )
 
     let json_str = persistence.record_to_json(record)
@@ -908,6 +913,7 @@ pub fn worktree_path_json_roundtrip_test() {
       created_at: "2026-01-10T10:00:00Z",
       updated_at: "2026-01-10T10:00:00Z",
       stages: [],
+      worktree_path: "",
       worktree_path: "/tmp/worktree/path",
     )
 
