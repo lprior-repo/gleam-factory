@@ -4,6 +4,7 @@ import gleam/option.{type Option, None, Some}
 import logging
 import otp_actor as actor
 import signal_bus
+import signals
 
 type MergeQueueState {
   MergeQueueState(
@@ -101,7 +102,14 @@ fn handle_message(
             "Patch accepted: " <> hash,
             dict.from_list([#("status", "passed")]),
           )
-          signal_bus.broadcast(state.signal_bus, signal_bus.PatchAccepted)
+          let patch_accepted = signals.PatchAccepted(
+            hash: signals.hash(hash),
+            merged_at: signals.timestamp(erlang_system_time_ms()),
+          )
+          signal_bus.broadcast(
+            state.signal_bus,
+            signal_bus.PatchAccepted(patch_accepted),
+          )
           actor.continue(
             MergeQueueState(
               ..state,
@@ -168,3 +176,6 @@ pub fn report_test_result(
 pub fn shutdown(queue: Subject(MergeQueueMessage)) -> Nil {
   process.send(queue, Shutdown)
 }
+
+@external(erlang, "logging_ffi", "system_time_ms")
+fn erlang_system_time_ms() -> Int

@@ -4,6 +4,7 @@
 
 import gleam/dict
 import gleam/erlang/process.{type Subject}
+import gleam/option
 import logging
 
 import signals
@@ -25,13 +26,37 @@ pub type Signal {
   ResourceExhausted
 }
 
+/// Signal type identifier for subscription purposes.
+pub opaque type SignalType {
+  SignalType(String)
+}
+
+/// Extract signal type identifier from a signal.
+fn signal_type(sig: Signal) -> SignalType {
+  case sig {
+    TestFailure -> SignalType("TestFailure")
+    TestPassing -> SignalType("TestPassing")
+    BeadAssigned(_) -> SignalType("BeadAssigned")
+    BeadRemoved(_) -> SignalType("BeadRemoved")
+    PatchProposed -> SignalType("PatchProposed")
+    PatchAccepted(_) -> SignalType("PatchAccepted")
+    PatchRejected(_) -> SignalType("PatchRejected")
+    GoldenMasterUpdated -> SignalType("GoldenMasterUpdated")
+    Evolution -> SignalType("Evolution")
+    LoopSpawned -> SignalType("LoopSpawned")
+    LoopComplete -> SignalType("LoopComplete")
+    LoopFailed -> SignalType("LoopFailed")
+    ResourceExhausted -> SignalType("ResourceExhausted")
+  }
+}
+
 /// Message type for signal bus actor.
 pub type SignalBusMessage {
-  Subscribe(signal: Signal, subscriber: Subject(Signal))
-  Unsubscribe(signal: Signal, subscriber: Subject(Signal))
+  Subscribe(signal_type: SignalType, subscriber: Subject(Signal))
+  Unsubscribe(signal_type: SignalType, subscriber: Subject(Signal))
   Publish(signal: Signal)
   ListSubscriptions(
-    reply_with: Subject(dict.Dict(Signal, List(Subject(Signal)))),
+    reply_with: Subject(dict.Dict(SignalType, List(Subject(Signal)))),
   )
 }
 
@@ -42,7 +67,7 @@ pub type SignalBusError {
 
 /// Signal bus state.
 type SignalBusState {
-  SignalBusState(subscriptions: dict.Dict(Signal, List(Subject(Signal))))
+  SignalBusState(subscriptions: dict.Dict(SignalType, List(Subject(Signal))))
 }
 
 /// Start the signal bus actor.
@@ -77,7 +102,7 @@ pub fn subscribe(
   signal: Signal,
   subscriber: Subject(Signal),
 ) -> Result(Nil, Nil) {
-  process.send(bus, Subscribe(signal:, subscriber:))
+  process.send(bus, Subscribe(signal_type: signal_type(signal), subscriber:))
   Ok(Nil)
 }
 
@@ -96,24 +121,25 @@ fn bus_loop(
   selector: process.Selector(SignalBusMessage),
 ) -> Nil {
   case process.selector_receive_forever(selector) {
-    Subscribe(signal, subscriber) -> {
-      let subs = case dict.get(state.subscriptions, signal) {
+    Subscribe(sig_type, subscriber) -> {
+      let subs = case dict.get(state.subscriptions, sig_type) {
         Ok(existing) -> [subscriber, ..existing]
         Error(Nil) -> [subscriber]
       }
-      let new_subs = dict.insert(state.subscriptions, signal, subs)
+      let new_subs = dict.insert(state.subscriptions, sig_type, subs)
       bus_loop(SignalBusState(subscriptions: new_subs), selector)
     }
-    Unsubscribe(signal, subscriber) -> {
-      let subs = case dict.get(state.subscriptions, signal) {
+    Unsubscribe(sig_type, subscriber) -> {
+      let subs = case dict.get(state.subscriptions, sig_type) {
         Ok(existing) -> remove_subscriber(existing, subscriber, [])
         Error(Nil) -> []
       }
-      let new_subs = dict.insert(state.subscriptions, signal, subs)
+      let new_subs = dict.insert(state.subscriptions, sig_type, subs)
       bus_loop(SignalBusState(subscriptions: new_subs), selector)
     }
     Publish(signal) -> {
-      case dict.get(state.subscriptions, signal) {
+      let sig_type = signal_type(signal)
+      case dict.get(state.subscriptions, sig_type) {
         Ok(subscribers) -> notify_all(subscribers, signal)
         Error(Nil) -> Nil
       }
