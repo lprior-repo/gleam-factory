@@ -27,6 +27,7 @@ fn test_config() -> factory_supervisor.SupervisorConfig {
     gpu_tickets: 1,
     beads_path: "/tmp/.beads/issues.jsonl",
     beads_poll_interval_ms: 1000,
+    workspace_root: "/tmp/workspaces",
   )
 }
 

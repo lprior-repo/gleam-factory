@@ -88,6 +88,7 @@ pub fn supervisor_signal_bus_isolated() {
       gpu_tickets: 1,
       beads_path: "/tmp/.beads/issues.jsonl",
       beads_poll_interval_ms: 1000,
+      workspace_root: "/tmp/workspaces",
     )
 
   case factory_supervisor.start_link(config) {

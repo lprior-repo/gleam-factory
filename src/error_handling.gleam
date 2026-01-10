@@ -1,4 +1,5 @@
 import gleam/option.{type Option, None, Some}
+import gleam/string
 
 // Error context captures source location and root cause
 pub type ErrorContext {
@@ -10,9 +11,15 @@ pub type Error {
   Error(reason: String, context: ErrorContext)
 }
 
-// wrap_error attaches context to an error value
-pub fn wrap_error(_e: a, context: ErrorContext) -> Error {
-  Error(reason: "Error occurred", context: context)
+// wrap_error attaches context to an error value, preserving the original error
+pub fn wrap_error(e: a, context: ErrorContext) -> Error {
+  let reason = string.inspect(e)
+  Error(reason:, context:)
+}
+
+// wrap_error_string wraps a string error with context
+pub fn wrap_error_string(reason: String, context: ErrorContext) -> Error {
+  Error(reason:, context:)
 }
 
 // format_error_details produces technical output including all context

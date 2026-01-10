@@ -4,6 +4,7 @@
 //// If any child fails, system gracefully degrades rather than cascading.
 
 import beads_watcher
+import factory_dispatcher
 import gleam/dict
 import gleam/erlang/process.{type Subject}
 import gleam/result
@@ -26,6 +27,7 @@ pub type SupervisorConfig {
     gpu_tickets: Int,
     beads_path: String,
     beads_poll_interval_ms: Int,
+    workspace_root: String,
   )
 }
 
@@ -92,7 +94,8 @@ pub fn start_link(config: SupervisorConfig) -> Result(Started, InitFailed) {
     |> result.map_error(fn(_) { InitFailed(reason: "heartbeat failed") }),
   )
 
-  let factory_dispatcher_pid = process.spawn(fn() { process.sleep_forever() })
+  let factory_dispatcher_pid =
+    factory_dispatcher.start(signal_bus_subject, config.workspace_root)
 
   let beads_watcher_pid =
     beads_watcher.start(config.beads_path, config.beads_poll_interval_ms)

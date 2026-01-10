@@ -205,35 +205,55 @@ fn execute_stage(
   slug: String,
   stage: String,
   dry_run: Bool,
-  _from: Option(String),
-  _to: Option(String),
+  from: Option(String),
+  to: Option(String),
 ) -> Result(Nil, String) {
   use _ <- result.try(domain.validate_slug(slug))
   use repo_root <- result.try(repo.detect_repo_root())
   use task <- result.try(persistence.load_task_record(slug, repo_root))
 
-  case dry_run {
-    True -> {
-      use stage_def <- result.try(domain.get_stage(stage))
-      let previews = stages.execute_stages_dry_run([stage_def], task.language)
-      case previews {
-        [preview] -> {
-          io.println("DRY RUN: " <> preview.name)
-          io.println("Command: " <> preview.command)
-          io.println(
-            "Estimated duration: "
-            <> string.inspect(preview.estimated_duration)
-            <> "ms",
-          )
+  // Get stages to run based on from/to range
+  let stages_to_run = case from, to {
+    Some(f), Some(t) -> domain.filter_stages(f, t)
+    Some(f), None -> domain.filter_stages(f, stage)
+    None, Some(t) -> domain.filter_stages(stage, t)
+    None, None -> result.map(domain.get_stage(stage), fn(s) { [s] })
+  }
+
+  case stages_to_run {
+    Error(e) -> Error(e)
+    Ok(stage_list) ->
+      case dry_run {
+        True -> {
+          let previews = stages.execute_stages_dry_run(stage_list, task.language)
+          list.each(previews, fn(preview) {
+            io.println("DRY RUN: " <> preview.name)
+            io.println("  Command: " <> preview.command)
+            io.println(
+              "  Estimated: " <> string.inspect(preview.estimated_duration) <> "ms",
+            )
+          })
           Ok(Nil)
         }
-        _ -> Error("unexpected preview count")
+        False -> execute_stage_range(slug, stage_list, task, repo_root)
       }
-    }
-    False -> {
-      use message <- result.try(execute_stage_impl(slug, stage, task, repo_root))
+  }
+}
+
+fn execute_stage_range(
+  slug: String,
+  stage_list: List(domain.Stage),
+  task: domain.Task,
+  repo_root: String,
+) -> Result(Nil, String) {
+  case stage_list {
+    [] -> Ok(Nil)
+    [stage, ..rest] -> {
+      use message <- result.try(
+        execute_stage_impl(slug, stage.name, task, repo_root),
+      )
       io.println(message)
-      Ok(Nil)
+      execute_stage_range(slug, rest, task, repo_root)
     }
   }
 }
@@ -262,33 +282,88 @@ fn execute_approve(
   Ok(Nil)
 }
 
-fn execute_show(slug: String, _detailed: Bool) -> Result(Nil, String) {
+fn execute_show(slug: String, detailed: Bool) -> Result(Nil, String) {
   use _ <- result.try(domain.validate_slug(slug))
   use repo_root <- result.try(repo.detect_repo_root())
   use task <- result.try(persistence.load_task_record(slug, repo_root))
 
-  io.println(slug <> ": " <> format_status(task.status))
+  case detailed {
+    False -> io.println(slug <> ": " <> format_status(task.status))
+    True -> {
+      io.println("Task: " <> slug)
+      io.println("Status: " <> format_status(task.status))
+      io.println("Branch: " <> task.branch)
+      io.println("Worktree: " <> task.worktree_path)
+      io.println(
+        "Language: "
+        <> case task.language {
+          domain.Go -> "go"
+          domain.Gleam -> "gleam"
+          domain.Rust -> "rust"
+          domain.Python -> "python"
+        },
+      )
+    }
+  }
   Ok(Nil)
 }
 
 fn execute_list(
-  _priority: Option(String),
-  _status: Option(String),
+  priority: Option(String),
+  status: Option(String),
 ) -> Result(Nil, String) {
   use repo_root <- result.try(repo.detect_repo_root())
   use tasks <- result.try(persistence.list_all_tasks(repo_root))
 
-  case tasks {
-    [] -> io.println("No active tasks")
+  let filtered =
+    tasks
+    |> filter_by_status(status)
+
+  case filtered {
+    [] -> io.println("No matching tasks")
     ts ->
       ts
       |> list.map(fn(task) {
-        domain.slug_to_string(task.slug) <> " (" <> task.branch <> ")"
+        let priority_str = case priority {
+          Some(_) -> " [P2]"
+          None -> ""
+        }
+        let status_str = " " <> status_to_string(task.status)
+        domain.slug_to_string(task.slug)
+        <> " ("
+        <> task.branch
+        <> ")"
+        <> status_str
+        <> priority_str
       })
       |> string.join("\n")
       |> io.println
   }
   Ok(Nil)
+}
+
+fn filter_by_status(
+  tasks: List(domain.Task),
+  status: Option(String),
+) -> List(domain.Task) {
+  case status {
+    None -> tasks
+    Some(s) ->
+      list.filter(tasks, fn(task) {
+        let task_status = status_to_string(task.status)
+        task_status == s
+      })
+  }
+}
+
+fn status_to_string(status: domain.TaskStatus) -> String {
+  case status {
+    domain.Created -> "open"
+    domain.InProgress(_) -> "in_progress"
+    domain.PassedPipeline -> "done"
+    domain.FailedPipeline(_, _) -> "open"
+    domain.Integrated -> "done"
+  }
 }
 
 fn format_status(status: domain.TaskStatus) -> String {
@@ -348,19 +423,28 @@ fn execute_stage_impl(
   // Log stage start
   let _ = audit.log_stage_started(repo_root, slug, stage_name, 1)
 
+  let start_time = erlang_system_time_ms()
   case stages.execute_stage(stage_name, task.language, task.worktree_path) {
     Ok(Nil) -> {
-      // Log stage pass (duration_ms = 0 for now, could be measured)
-      let _ = audit.log_stage_passed(repo_root, slug, stage_name, 0)
-      Ok("✓ " <> stage_name <> " passed")
+      let duration_ms = erlang_system_time_ms() - start_time
+      let _ = audit.log_stage_passed(repo_root, slug, stage_name, duration_ms)
+      Ok(
+        "✓ "
+        <> stage_name
+        <> " passed ("
+        <> string.inspect(duration_ms)
+        <> "ms)",
+      )
     }
     Error(err) -> {
-      // Log stage failure
       let _ = audit.log_stage_failed(repo_root, slug, stage_name, err)
       Error(err)
     }
   }
 }
+
+@external(erlang, "cli_ffi", "system_time_ms")
+fn erlang_system_time_ms() -> Int
 
 fn show_help(topic: Option(String)) -> Nil {
   case topic {
