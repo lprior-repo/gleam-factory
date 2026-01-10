@@ -51,9 +51,11 @@ fn build_request(prompt: String, max_tokens: Int) -> String {
   <> ",\"temperature\":0.7}"
 }
 
-fn escape_json(s: String) -> String {
+pub fn escape_json(s: String) -> String {
   s
   |> string.replace("\\", "\\\\")
   |> string.replace("\"", "\\\"")
   |> string.replace("\n", "\\n")
+  |> string.replace("\r", "\\r")
+  |> string.replace("\t", "\\t")
 }

@@ -191,12 +191,11 @@ fn extract_local_usage(json_str: String) -> llm.TokenUsage {
     Ok(usage) -> usage
     Error(_) -> {
       // Try llama.cpp format: tokens_predicted, tokens_evaluated
-      let llama_decoder =
-        decode.decode2(
-          fn(pred, eval) { llm.TokenUsage(eval, pred, eval + pred) },
-          decode.field("tokens_predicted", decode.int),
-          decode.field("tokens_evaluated", decode.int),
-        )
+      let llama_decoder = {
+        use pred <- decode.field("tokens_predicted", decode.int)
+        use eval <- decode.field("tokens_evaluated", decode.int)
+        decode.success(llm.TokenUsage(eval, pred, eval + pred))
+      }
       case json.parse(json_str, llama_decoder) {
         Ok(usage) -> usage
         Error(_) -> llm.TokenUsage(0, 0, 0)
