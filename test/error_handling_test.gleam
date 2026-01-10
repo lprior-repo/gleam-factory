@@ -92,6 +92,51 @@ pub fn user_facing_error_is_friendly_test() {
   |> should.be_true()
 }
 
+pub fn auth_error_returns_helpful_message_test() {
+  let context =
+    ErrorContext(
+      module: "auth",
+      function: "login",
+      cause: Some("authentication failed"),
+    )
+  let error = wrap_error(Nil, context)
+  let user_message = format_user_message(error)
+
+  user_message
+  |> string.contains("credentials")
+  |> should.be_true()
+}
+
+pub fn network_error_suggests_retry_test() {
+  let context =
+    ErrorContext(
+      module: "http",
+      function: "request",
+      cause: Some("network timeout"),
+    )
+  let error = wrap_error(Nil, context)
+  let user_message = format_user_message(error)
+
+  user_message
+  |> string.contains("connection")
+  |> should.be_true()
+}
+
+pub fn validation_error_shows_what_is_wrong_test() {
+  let context =
+    ErrorContext(
+      module: "validation",
+      function: "validate",
+      cause: Some("invalid email format"),
+    )
+  let error = wrap_error(Nil, context)
+  let user_message = format_user_message(error)
+
+  user_message
+  |> string.contains("invalid email format")
+  |> should.be_true()
+}
+
 pub fn error_chain_preserves_cause_test() {
   let original_cause = "file not found"
 

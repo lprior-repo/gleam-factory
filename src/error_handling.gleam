@@ -33,8 +33,27 @@ pub fn format_error_details(context: ErrorContext) -> String {
 }
 
 // format_user_message produces friendly output safe for end users
-pub fn format_user_message(_error: Error) -> String {
-  "Something went wrong. Please try again later."
+pub fn format_user_message(error: Error) -> String {
+  case error.context.module {
+    "auth" -> "Authentication failed. Please check your credentials."
+    "validation" ->
+      case error.context.cause {
+        Some(cause) -> "Invalid input: " <> cause
+        None -> "Something went wrong. Please try again later."
+      }
+    _ ->
+      case error.context.cause {
+        Some(cause) ->
+          case
+            string.contains(cause, "network")
+            || string.contains(cause, "timeout")
+          {
+            True -> "Network error. Please check your connection and retry."
+            False -> "Something went wrong. Please try again later."
+          }
+        None -> "Something went wrong. Please try again later."
+      }
+  }
 }
 
 // extract_cause gets the root cause from an error

@@ -1,11 +1,13 @@
 //// TCR runner - Test && Commit || Revert workflow execution.
 
+import agent_executor
 import agent_runners
 import audit
 import factory_loop
 import gleam/erlang/process.{type Subject}
 import gleam/io
 import gleam/string
+import shellout
 import signal_bus
 import signals
 
@@ -20,9 +22,12 @@ pub fn run_tcr_cycle(
   let state = factory_loop.get_state(loop)
   case state.phase {
     factory_loop.Implementing -> run_implementing_phase(loop, state, config)
+    factory_loop.TcrChecking -> run_tcr_checking_phase(loop, state, config)
     factory_loop.Reviewing -> run_reviewing_phase(loop, state, config)
-    factory_loop.Completed | factory_loop.Failed -> Nil
-    _ -> Nil
+    factory_loop.Pushing -> run_pushing_phase(loop, state, config)
+    factory_loop.Rebasing -> run_rebasing_phase(loop, state, config)
+    factory_loop.Completed -> Nil
+    factory_loop.Failed -> Nil
   }
 }
 
@@ -58,6 +63,28 @@ fn run_implementing_phase(
   }
 }
 
+fn run_tcr_checking_phase(
+  loop: Subject(factory_loop.LoopMessage),
+  state: factory_loop.FactoryLoopState,
+  _config: TcrConfig,
+) -> Nil {
+  io.println("TCR checking: running test cycle")
+  case agent_executor.run_tests_in_worktree(state.workspace_path) {
+    Ok(True) -> {
+      io.println("TCR check PASSED")
+      factory_loop.advance(loop, factory_loop.TestPassed)
+    }
+    Ok(False) -> {
+      io.println("TCR check FAILED")
+      factory_loop.advance(loop, factory_loop.TestFailed)
+    }
+    Error(_) -> {
+      io.println("TCR check ERROR")
+      factory_loop.advance(loop, factory_loop.TestFailed)
+    }
+  }
+}
+
 fn run_reviewing_phase(
   loop: Subject(factory_loop.LoopMessage),
   state: factory_loop.FactoryLoopState,
@@ -80,6 +107,44 @@ fn run_reviewing_phase(
       factory_loop.advance(loop, factory_loop.TestFailed)
     }
     _ -> Nil
+  }
+}
+
+fn run_pushing_phase(
+  loop: Subject(factory_loop.LoopMessage),
+  state: factory_loop.FactoryLoopState,
+  _config: TcrConfig,
+) -> Nil {
+  io.println("Pushing changes to remote")
+  case shellout.command("git", ["push"], state.workspace_path, []) {
+    Ok(_) -> {
+      io.println("Push SUCCESS")
+      factory_loop.advance(loop, factory_loop.PushSuccess)
+    }
+    Error(_) -> {
+      io.println("Push CONFLICT - need rebase")
+      factory_loop.advance(loop, factory_loop.PushConflict)
+    }
+  }
+}
+
+fn run_rebasing_phase(
+  loop: Subject(factory_loop.LoopMessage),
+  state: factory_loop.FactoryLoopState,
+  _config: TcrConfig,
+) -> Nil {
+  io.println("Rebasing onto remote")
+  case shellout.command("git", ["pull", "--rebase"], state.workspace_path, []) {
+    Ok(_) -> {
+      io.println("Rebase SUCCESS")
+      factory_loop.advance(loop, factory_loop.RebaseSuccess)
+    }
+    Error(_) -> {
+      io.println("Rebase CONFLICT - aborting")
+      let _ =
+        shellout.command("git", ["rebase", "--abort"], state.workspace_path, [])
+      factory_loop.advance(loop, factory_loop.RebaseConflict)
+    }
   }
 }
 

@@ -111,12 +111,20 @@ pub type TaskStatus {
   Integrated
 }
 
+/// Priority levels for tasks
+pub type Priority {
+  P1
+  P2
+  P3
+}
+
 /// Task represents a single unit of work
 pub type Task {
   Task(
     slug: Slug,
     language: Language,
     status: TaskStatus,
+    priority: Priority,
     worktree_path: String,
     branch: String,
   )
@@ -356,4 +364,23 @@ pub fn is_ready_for_integration(status: TaskStatus, language: Language) -> Bool 
 pub fn slug_to_string(slug: Slug) -> String {
   let Slug(s) = slug
   s
+}
+
+/// Convert priority to string
+pub fn priority_to_string(priority: Priority) -> String {
+  case priority {
+    P1 -> "P1"
+    P2 -> "P2"
+    P3 -> "P3"
+  }
+}
+
+/// Parse priority from string
+pub fn parse_priority(s: String) -> Result(Priority, String) {
+  case s {
+    "P1" -> Ok(P1)
+    "P2" -> Ok(P2)
+    "P3" -> Ok(P3)
+    _ -> Error("Invalid priority: " <> s)
+  }
 }

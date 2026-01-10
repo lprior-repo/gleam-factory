@@ -33,6 +33,7 @@ pub type TaskRecord {
     slug: String,
     language: String,
     status: String,
+    priority: String,
     created_at: String,
     updated_at: String,
     stages: List(StageRecord),
@@ -90,12 +91,15 @@ pub fn task_to_record(task: domain.Task) -> TaskRecord {
     domain.Integrated -> "integrated"
   }
 
+  let priority_str = domain.priority_to_string(task.priority)
+
   let timestamp = current_timestamp()
 
   TaskRecord(
     slug: domain.slug_to_string(task.slug),
     language: language_str,
     status: status_str,
+    priority: priority_str,
     created_at: timestamp,
     updated_at: timestamp,
     stages: [],
@@ -324,6 +328,7 @@ fn task_record_decoder() -> decode.Decoder(TaskRecord) {
   use slug <- decode.field("slug", decode.string)
   use language <- decode.field("language", decode.string)
   use status <- decode.field("status", decode.string)
+  use priority <- decode.field("priority", decode.string)
   use created_at <- decode.field("created_at", decode.string)
   use updated_at <- decode.field("updated_at", decode.string)
   use stages <- decode.field("stages", decode.list(stage_decoder()))
@@ -331,6 +336,7 @@ fn task_record_decoder() -> decode.Decoder(TaskRecord) {
     slug: slug,
     language: language,
     status: status,
+    priority: priority,
     created_at: created_at,
     updated_at: updated_at,
     stages: stages,

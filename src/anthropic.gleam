@@ -61,13 +61,11 @@ pub fn parse_response(json_str: String) -> Result(String, String) {
 
 fn extract_text(json_str: String) -> Result(String, String) {
   // Anthropic API returns: {"content": [{"type": "text", "text": "..."}]}
-  let content_decoder =
-    decode.at(
-      ["content"],
-      decode.list(
-        decode.field("text", decode.string),
-      ),
-    )
+  let text_decoder = {
+    use text <- decode.field("text", decode.string)
+    decode.success(text)
+  }
+  let content_decoder = decode.at(["content"], decode.list(text_decoder))
   case json.parse(json_str, content_decoder) {
     Ok(texts) ->
       case list.first(texts) {

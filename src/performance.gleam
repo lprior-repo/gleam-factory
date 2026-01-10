@@ -119,7 +119,7 @@ pub fn format_summary(summary: Summary) -> String {
   <> "ms"
 }
 
-pub fn measure<T>(f: fn() -> T, operation_name: String) -> #(T, Int) {
+pub fn measure(f: fn() -> t, operation_name: String) -> #(t, Int) {
   let start_time = erlang_monotonic_time()
   let result = f()
   let end_time = erlang_monotonic_time()
