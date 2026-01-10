@@ -19,18 +19,15 @@ pub fn run_tcr_cycle(
   loop: Subject(factory_loop.LoopMessage),
   config: TcrConfig,
 ) -> Nil {
-  case factory_loop.get_state(loop) {
-    Ok(state) ->
-      case state.phase {
-        factory_loop.Implementing -> run_implementing_phase(loop, state, config)
-        factory_loop.TcrChecking -> run_tcr_checking_phase(loop, state, config)
-        factory_loop.Reviewing -> run_reviewing_phase(loop, state, config)
-        factory_loop.Pushing -> run_pushing_phase(loop, state, config)
-        factory_loop.Rebasing -> run_rebasing_phase(loop, state, config)
-        factory_loop.Completed -> Nil
-        factory_loop.Failed -> Nil
-      }
-    Error(_) -> Nil
+  let state = factory_loop.get_state(loop)
+  case state.phase {
+    factory_loop.Implementing -> run_implementing_phase(loop, state, config)
+    factory_loop.TcrChecking -> run_tcr_checking_phase(loop, state, config)
+    factory_loop.Reviewing -> run_reviewing_phase(loop, state, config)
+    factory_loop.Pushing -> run_pushing_phase(loop, state, config)
+    factory_loop.Rebasing -> run_rebasing_phase(loop, state, config)
+    factory_loop.Completed -> Nil
+    factory_loop.Failed -> Nil
   }
 }
 
@@ -183,17 +180,14 @@ fn run_until_completion(
   config: TcrConfig,
   cycle_count: Int,
 ) -> Nil {
-  case factory_loop.get_state(loop) {
-    Ok(state) ->
-      case state.phase {
-        factory_loop.Completed -> io.println("TCR loop completed successfully")
-        factory_loop.Failed -> io.println("TCR loop failed")
-        _ -> {
-          run_tcr_cycle(loop, config)
-          process.sleep(1000)
-          run_until_completion(loop, config, cycle_count + 1)
-        }
-      }
-    Error(_) -> io.println("TCR loop timeout getting state")
+  let state = factory_loop.get_state(loop)
+  case state.phase {
+    factory_loop.Completed -> io.println("TCR loop completed successfully")
+    factory_loop.Failed -> io.println("TCR loop failed")
+    _ -> {
+      run_tcr_cycle(loop, config)
+      process.sleep(1000)
+      run_until_completion(loop, config, cycle_count + 1)
+    }
   }
 }

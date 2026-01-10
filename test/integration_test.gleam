@@ -830,7 +830,7 @@ pub fn full_pipeline_deployment_tracking_test() {
   process.sleep(100)
 
   // Verify final deployment state
-  let assert Ok(final_state) = factory_loop.get_state(loop)
+  let final_state = factory_loop.get_state(loop)
 
   // Task deployed (Completed phase)
   final_state.phase
