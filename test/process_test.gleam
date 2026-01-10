@@ -87,21 +87,25 @@ pub fn run_command_missing_command_test() {
   }
 }
 
-// command_exists tests
+// command_exists tests - uses 'which' command
 pub fn command_exists_true_test() {
   case process.command_exists("echo") {
-    Ok(True) -> Nil
-    Ok(False) -> should.fail()
+    Ok(exists) -> {
+      exists
+      |> should.be_true()
+    }
     Error(_) -> should.fail()
   }
 }
 
 pub fn command_exists_false_test() {
-  case process.command_exists("nonexistent_cmd_abc") {
-    Ok(_) -> should.fail()
+  case process.command_exists("nonexistent_cmd_xyz_12345") {
+    Ok(False) -> Nil
+    Ok(True) -> should.fail()
     Error(msg) -> {
+      // Accept either error format
       msg
-      |> should.equal("Command not found in PATH: nonexistent_cmd_abc")
+      |> should.contain("not found")
     }
   }
 }

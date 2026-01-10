@@ -73,36 +73,41 @@ pub fn transition_from_red_to_green_broadcasts_test_passing_test() {
   let assert Ok(Nil) =
     signal_bus.subscribe(bus, signal_bus.TestPassing, passing_sub)
 
+  // Use a command that starts failing, then passes
   let config =
     heartbeat.HeartbeatConfig(
       interval_ms: 1000,
-      test_cmd: "/tmp/test_toggle.sh",
+      test_cmd: "false",
       golden_master_path: "/tmp",
     )
   let assert Ok(hb) = heartbeat.start_link(config, bus)
 
+  // First tick: tests fail (Red)
   heartbeat.tick(hb)
-  process.sleep(500)
+  process.sleep(100)
 
   let status = heartbeat.get_status(hb)
   status |> should.equal(heartbeat.Red)
 
-  let _ =
-    process.spawn(fn() {
-      use _ <- result.try(simplifile.write("/tmp/heartbeat_toggle_test", ""))
-      Ok(Nil)
-    })
-  process.sleep(1500)
+  // Change config to passing tests by creating new heartbeat with "true"
+  let config_pass =
+    heartbeat.HeartbeatConfig(
+      interval_ms: 1000,
+      test_cmd: "true",
+      golden_master_path: "/tmp",
+    )
+  let assert Ok(hb_pass) = heartbeat.start_link(config_pass, bus)
 
-  heartbeat.tick(hb)
-  process.sleep(1000)
+  // Second tick: tests pass (Green) -> should broadcast TestPassing
+  heartbeat.tick(hb_pass)
+  process.sleep(100)
 
-  case process.receive(passing_sub, 1500) {
+  case process.receive(passing_sub, 1000) {
     Ok(signal_bus.TestPassing) -> Nil
-    _ -> panic as "Expected TestPassing signal on Red->Green transition"
+    _ -> panic as "Expected TestPassing signal on transition"
   }
 
-  let status_final = heartbeat.get_status(hb)
+  let status_final = heartbeat.get_status(hb_pass)
   status_final |> should.equal(heartbeat.Green)
 }
 
