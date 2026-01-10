@@ -201,10 +201,10 @@ pub fn calculate_error_rate_partial_errors_test() {
   let error_rate = feature_flags.calculate_error_rate(metrics)
 
   // Should be 0.05
-  error_rate >. 0.04
+  { error_rate >. 0.04 }
   |> should.be_true()
 
-  error_rate <. 0.06
+  { error_rate <. 0.06 }
   |> should.be_true()
 }
 

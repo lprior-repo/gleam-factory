@@ -3,7 +3,7 @@
 //// Verifies that the system can shutdown cleanly without losing state
 //// or leaving dangling resources.
 
-import dict
+import gleam/dict
 import factory_supervisor
 import gleeunit
 import gleeunit/should
