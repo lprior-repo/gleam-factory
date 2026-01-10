@@ -66,6 +66,7 @@ pub fn start_link(
         "Heartbeat started with test_cmd: " <> config.test_cmd,
         dict.from_list([#("interval_ms", int.to_string(config.interval_ms))]),
       )
+      schedule_tick(started.data, config.interval_ms)
       Ok(started.data)
     }
     Error(_) -> {
@@ -73,6 +74,10 @@ pub fn start_link(
       Error(InitFailed)
     }
   }
+}
+
+fn schedule_tick(subject: Subject(HeartbeatMessage), interval_ms: Int) -> Nil {
+  process.send_after(subject, interval_ms, Tick)
 }
 
 fn handle_message(
@@ -87,6 +92,7 @@ fn handle_message(
     Tick -> {
       let new_status = run_tests(state.config)
       let new_state = update_status(state, new_status)
+      schedule_tick(process.self(), state.config.interval_ms)
       actor.continue(new_state)
     }
     StreamProgress(task_id, chunk) -> {
