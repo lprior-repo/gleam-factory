@@ -222,11 +222,12 @@ pub fn advance_stage_updates_percentage_test() {
   let ctx = feature_flags.new_context("test", config)
 
   let updated = feature_flags.advance_stage(ctx, 10, feature_flags.OnePercent)
+  let state = feature_flags.get_state(updated)
 
-  updated.state.current_percentage
+  state.current_percentage
   |> should.equal(10)
 
-  updated.state.stage
+  state.stage
   |> should.equal(feature_flags.OnePercent)
 }
 
@@ -235,9 +236,11 @@ pub fn advance_stage_preserves_rollback_flag_test() {
   let ctx = feature_flags.new_context("test", config)
 
   let updated = feature_flags.advance_stage(ctx, 10, feature_flags.OnePercent)
+  let state = feature_flags.get_state(updated)
+  let orig_state = feature_flags.get_state(ctx)
 
-  updated.state.should_rollback
-  |> should.equal(ctx.state.should_rollback)
+  state.should_rollback
+  |> should.equal(orig_state.should_rollback)
 }
 
 // Rollback Triggering Tests
