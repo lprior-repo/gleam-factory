@@ -117,7 +117,10 @@ fn handle_message(
             "Patch rejected: " <> reason,
             dict.from_list([#("status", "failed")]),
           )
-          signal_bus.broadcast(state.signal_bus, signal_bus.PatchRejected(reason:))
+          signal_bus.broadcast(
+            state.signal_bus,
+            signal_bus.PatchRejected(reason:),
+          )
           actor.continue(
             MergeQueueState(
               ..state,

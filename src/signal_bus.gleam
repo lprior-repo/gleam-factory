@@ -16,7 +16,7 @@ pub type Signal {
   BeadRemoved(signals.BeadRemoved)
   PatchProposed
   PatchAccepted
-  PatchRejected
+  PatchRejected(reason: String)
   GoldenMasterUpdated
   Evolution
   LoopSpawned

@@ -45,6 +45,7 @@ pub type FactoryLoopState {
     history: List(HistoryEntry),
     last_feedback: String,
     signal_bus: Subject(signal_bus.SignalBusMessage),
+    tests_were_green: Bool,
   )
 }
 
@@ -77,6 +78,7 @@ pub fn start_link(
       history: [],
       last_feedback: "",
       signal_bus: bus,
+      tests_were_green: False,
     )
 
   signal_bus.broadcast(bus, signal_bus.LoopSpawned)
@@ -99,18 +101,43 @@ fn handle_message(
     }
     Advance(event) -> {
       let new_phase = transition(state.phase, event)
-      let new_state = case new_phase {
+      let new_state = case event, state.tests_were_green {
+        TestPassed, _ -> {
+          FactoryLoopState(
+            ..state,
+            phase: new_phase,
+            tests_were_green: True,
+          )
+        }
+        TestFailed, True -> {
+          signal_bus.broadcast(state.signal_bus, signal_bus.TestFailure)
+          FactoryLoopState(
+            ..state,
+            phase: new_phase,
+            tests_were_green: False,
+          )
+        }
+        TestFailed, False -> {
+          FactoryLoopState(
+            ..state,
+            phase: new_phase,
+            tests_were_green: False,
+          )
+        }
+        _, _ -> FactoryLoopState(..state, phase: new_phase)
+      }
+      let final_state = case new_phase {
         Completed -> {
           signal_bus.broadcast(state.signal_bus, signal_bus.LoopComplete)
-          FactoryLoopState(..state, phase: Completed)
+          FactoryLoopState(..new_state, phase: Completed)
         }
         Failed -> {
           signal_bus.broadcast(state.signal_bus, signal_bus.LoopFailed)
-          FactoryLoopState(..state, phase: Failed)
+          FactoryLoopState(..new_state, phase: Failed)
         }
-        _ -> FactoryLoopState(..state, phase: new_phase)
+        _ -> new_state
       }
-      actor.continue(new_state)
+      actor.continue(final_state)
     }
   }
 }
@@ -151,6 +178,7 @@ pub fn get_state(loop: Subject(LoopMessage)) -> FactoryLoopState {
         history: [],
         last_feedback: "timeout",
         signal_bus: process.new_subject(),
+        tests_were_green: False,
       )
   }
 }
