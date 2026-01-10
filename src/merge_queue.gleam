@@ -16,6 +16,7 @@ type MergeQueueState {
 pub type MergeQueueMessage {
   Shutdown
   GetAbsorbing(reply_with: Subject(Bool))
+  GetCurrentPatch(reply_with: Subject(String))
   HandlePatchProposed(hash: String)
   PatchTestResult(hash: String, passed: Bool)
 }
@@ -55,6 +56,14 @@ fn handle_message(
     Shutdown -> actor.stop(process.Normal)
     GetAbsorbing(reply) -> {
       process.send(reply, state.absorbing)
+      actor.continue(state)
+    }
+    GetCurrentPatch(reply) -> {
+      let patch = case state.current_patch_hash {
+        Some(hash) -> hash
+        None -> ""
+      }
+      process.send(reply, patch)
       actor.continue(state)
     }
     HandlePatchProposed(hash) -> {
@@ -129,6 +138,15 @@ pub fn is_absorbing(queue: Subject(MergeQueueMessage)) -> Bool {
   case process.receive(reply, 5000) {
     Ok(absorbing) -> absorbing
     Error(Nil) -> False
+  }
+}
+
+pub fn get_current_patch(queue: Subject(MergeQueueMessage)) -> String {
+  let reply = process.new_subject()
+  process.send(queue, GetCurrentPatch(reply_with: reply))
+  case process.receive(reply, 5000) {
+    Ok(patch) -> patch
+    Error(Nil) -> ""
   }
 }
 

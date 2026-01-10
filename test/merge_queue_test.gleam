@@ -57,10 +57,14 @@ pub fn report_test_result_failure_broadcasts_patch_rejected_test() {
   let assert Ok(bus) = signal_bus.start_link()
   let rejected_sub = process.new_subject()
 
-  // Subscribe to any PatchRejected signal (with any reason)
-  // We need to create a dummy signal for subscription
+  // Subscribe with the expected rejection reason
+  let expected_reason = "Tests failed for patch hash1"
   let assert Ok(Nil) =
-    signal_bus.subscribe(bus, signal_bus.PatchRejected(""), rejected_sub)
+    signal_bus.subscribe(
+      bus,
+      signal_bus.PatchRejected(expected_reason),
+      rejected_sub,
+    )
 
   let assert Ok(queue) = merge_queue.start_link(bus)
 
@@ -72,7 +76,7 @@ pub fn report_test_result_failure_broadcasts_patch_rejected_test() {
 
   case process.receive(rejected_sub, 500) {
     Ok(signal_bus.PatchRejected(reason)) -> {
-      should.string_contains(reason, "hash1")
+      reason |> should.equal(expected_reason)
     }
     _ -> panic as "Expected PatchRejected signal"
   }
@@ -118,4 +122,31 @@ pub fn only_matching_patch_hash_accepts_test() {
     Ok(_) -> panic as "Should not have sent PatchAccepted for different hash"
     Error(Nil) -> Nil
   }
+}
+
+pub fn first_wins_ignores_subsequent_patches_test() {
+  let assert Ok(bus) = signal_bus.start_link()
+  let assert Ok(queue) = merge_queue.start_link(bus)
+
+  // First patch wins
+  merge_queue.propose_patch(queue, "hash1")
+  process.sleep(100)
+
+  let absorbing_after_first = merge_queue.is_absorbing(queue)
+  absorbing_after_first |> should.equal(True)
+
+  // Second patch arrives while absorbing - should be ignored
+  merge_queue.propose_patch(queue, "hash2")
+  process.sleep(100)
+
+  // Should still be absorbing hash1
+  let current_patch = merge_queue.get_current_patch(queue)
+  current_patch |> should.equal("hash1")
+
+  // Complete first patch
+  merge_queue.report_test_result(queue, "hash1", True)
+  process.sleep(100)
+
+  let absorbing_after_complete = merge_queue.is_absorbing(queue)
+  absorbing_after_complete |> should.equal(False)
 }
