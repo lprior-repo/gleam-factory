@@ -21,6 +21,7 @@ pub fn roundtrip_created_test() {
       status: domain.Created,
       worktree_path: "/path/to/worktree",
       branch: "feat/test-task",
+      priority: domain.P2,
     )
 
   let record = persistence.task_to_record(task)

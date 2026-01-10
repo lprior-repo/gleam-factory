@@ -159,7 +159,7 @@ pub fn record_to_task(record: TaskRecord) -> Result(domain.Task, String) {
     language: lang,
     status: status,
     priority: priority,
-    worktree_path: "",
+    worktree_path: record.worktree_path,
     branch: branch_prefix <> record.slug,
   ))
 }
@@ -334,6 +334,7 @@ pub fn record_to_json(record: TaskRecord) -> String {
     #("created_at", json.string(record.created_at)),
     #("updated_at", json.string(record.updated_at)),
     #("stages", stages_json),
+    #("worktree_path", json.string(record.worktree_path)),
   ])
   |> json.to_string
 }
@@ -361,6 +362,7 @@ fn task_record_decoder() -> decode.Decoder(TaskRecord) {
   use created_at <- decode.field("created_at", decode.string)
   use updated_at <- decode.field("updated_at", decode.string)
   use stages <- decode.field("stages", decode.list(stage_decoder()))
+  use worktree_path <- decode.optional_field("worktree_path", "", decode.string)
   decode.success(TaskRecord(
     slug: slug,
     language: language,
@@ -369,6 +371,7 @@ fn task_record_decoder() -> decode.Decoder(TaskRecord) {
     created_at: created_at,
     updated_at: updated_at,
     stages: stages,
+    worktree_path: worktree_path,
   ))
 }
 

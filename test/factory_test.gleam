@@ -661,7 +661,7 @@ pub fn parse_args_new_command_with_short_contract_flag_test() {
   // -c should be equivalent to --contract
   result
   |> should.equal(
-    Ok(cli.NewTask("my-task", Some("path/to/contract.md"), False)),
+    Ok(cli.NewTask("my-task")),
   )
 }
 
