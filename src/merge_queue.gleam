@@ -102,12 +102,13 @@ fn handle_message(
           )
         }
         False, Some(current) if hash == current -> {
+          let reason = "Tests failed for patch " <> hash
           logging.log(
             logging.Error,
-            "Patch rejected: " <> hash,
+            "Patch rejected: " <> reason,
             dict.from_list([#("status", "failed")]),
           )
-          signal_bus.broadcast(state.signal_bus, signal_bus.PatchRejected)
+          signal_bus.broadcast(state.signal_bus, signal_bus.PatchRejected(reason:))
           actor.continue(
             MergeQueueState(
               ..state,
