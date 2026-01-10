@@ -85,6 +85,22 @@ pub fn is_shm_mounted() -> Result(Bool, String) {
   }
 }
 
+pub fn verify(min_free_ram_mb: Int, _golden_master_path: String) -> Result(Nil, String) {
+  use ram_gb <- result.try(get_available_ram())
+  let ram_mb = ram_gb * 1024
+  case ram_mb < min_free_ram_mb {
+    True ->
+      Error(
+        "Insufficient RAM: "
+        <> int.to_string(ram_mb)
+        <> "MB available, "
+        <> int.to_string(min_free_ram_mb)
+        <> "MB required",
+      )
+    False -> Ok(Nil)
+  }
+}
+
 fn parse_ram_from_free(output: String) -> Result(Int, String) {
   output
   |> string.split("\n")

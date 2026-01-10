@@ -211,3 +211,12 @@ pub fn refresh(master: Subject(GoldenMasterMessage)) -> Result(Nil, String) {
     Error(Nil) -> Error("timeout")
   }
 }
+
+pub fn prepare(master: Subject(GoldenMasterMessage)) -> Result(Nil, String) {
+  let reply = process.new_subject()
+  process.send(master, PrepareGoldenMaster(reply_with: reply))
+  case process.receive(reply, 60_000) {
+    Ok(result) -> result
+    Error(Nil) -> Error("timeout")
+  }
+}

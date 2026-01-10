@@ -10,7 +10,9 @@ import gleam/erlang/process.{type Subject}
 import gleam/result
 import golden_master
 import heartbeat
+import hardware_verification
 import logging
+import merge_queue
 import resource_governor
 import signal_bus
 import workspace_manager
@@ -40,6 +42,7 @@ pub type Started {
       workspace_manager.WorkspaceManagerMessage,
     ),
     golden_master_subject: Subject(golden_master.GoldenMasterMessage),
+    merge_queue_subject: Subject(merge_queue.MergeQueueMessage),
     factory_dispatcher_pid: process.Pid,
     beads_watcher_pid: process.Pid,
   )
@@ -50,9 +53,17 @@ pub type InitFailed {
 }
 
 /// Start supervisor with children: signal_bus, heartbeat, resource_governor,
-/// workspace_manager, golden_master, factory_dispatcher, beads_watcher
+/// workspace_manager, golden_master, merge_queue, factory_dispatcher, beads_watcher
 /// Gracefully handles child failures without cascading
 pub fn start_link(config: SupervisorConfig) -> Result(Started, InitFailed) {
+  use _ <- result.try(
+    hardware_verification.verify(
+      config.min_free_ram_mb,
+      config.golden_master_path,
+    )
+    |> result.map_error(fn(e) { InitFailed(reason: e) }),
+  )
+
   use signal_bus_subject <- result.try(
     signal_bus.start_link()
     |> result.map_error(fn(_) { InitFailed(reason: "signal_bus failed") }),
@@ -82,6 +93,16 @@ pub fn start_link(config: SupervisorConfig) -> Result(Started, InitFailed) {
     |> result.map_error(fn(_) { InitFailed(reason: "golden_master failed") }),
   )
 
+  use _ <- result.try(
+    golden_master.prepare(golden_master_subject)
+    |> result.map_error(fn(e) { InitFailed(reason: "golden_master prepare: " <> e) }),
+  )
+
+  use merge_queue_subject <- result.try(
+    merge_queue.start_link(signal_bus_subject)
+    |> result.map_error(fn(_) { InitFailed(reason: "merge_queue failed") }),
+  )
+
   let hb_config =
     heartbeat.HeartbeatConfig(
       interval_ms: config.test_interval_ms,
@@ -100,12 +121,15 @@ pub fn start_link(config: SupervisorConfig) -> Result(Started, InitFailed) {
   let beads_watcher_pid =
     beads_watcher.start(config.beads_path, config.beads_poll_interval_ms)
 
+  log_system_ready(config)
+
   Ok(Started(
     signal_bus_subject:,
     heartbeat_subject:,
     resource_governor_subject:,
     workspace_manager_subject:,
     golden_master_subject:,
+    merge_queue_subject:,
     factory_dispatcher_pid:,
     beads_watcher_pid:,
   ))
@@ -140,6 +164,13 @@ pub fn get_golden_master(
   started: Started,
 ) -> Subject(golden_master.GoldenMasterMessage) {
   started.golden_master_subject
+}
+
+/// Get merge queue from supervisor
+pub fn get_merge_queue(
+  started: Started,
+) -> Subject(merge_queue.MergeQueueMessage) {
+  started.merge_queue_subject
 }
 
 /// Get factory dispatcher from supervisor
