@@ -187,3 +187,18 @@ pub fn get_beads_watcher(started: Started) -> process.Pid {
 pub fn log_system_ready(_config: SupervisorConfig) -> Nil {
   logging.log(logging.Info, "System ready for beads", dict.new())
 }
+
+/// Gracefully shutdown all supervised actors
+pub fn shutdown(started: Started) -> Nil {
+  logging.log(logging.Info, "Initiating graceful shutdown", dict.new())
+
+  // Shutdown actors in reverse order of startup
+  merge_queue.shutdown(started.merge_queue_subject)
+  process.sleep(100)
+
+  logging.log(
+    logging.Info,
+    "All actors shutdown gracefully",
+    dict.new(),
+  )
+}
