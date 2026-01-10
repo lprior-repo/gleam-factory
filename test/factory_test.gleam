@@ -595,7 +595,7 @@ pub fn parse_args_new_command_with_slug_test() {
 
   // Assert: should return a NewTask command with the correct slug
   result
-  |> should.equal(Ok(cli.NewTask("my-task", None, False)))
+  |> should.equal(Ok(cli.NewTask("my-task")))
 }
 
 /// Test flexible flag ordering: --contract before --slug should work
@@ -607,12 +607,10 @@ pub fn parse_args_new_command_with_flexible_flag_order_test() {
   // Act: parse the args using the pure parse_args function
   let result = cli.parse_args(args)
 
-  // Assert: should return a NewTask command with both slug and contract
+  // Assert: should return a NewTask command with slug
   // The order of flags should NOT matter
   result
-  |> should.equal(
-    Ok(cli.NewTask("my-task", Some("path/to/contract.md"), False)),
-  )
+  |> should.equal(Ok(cli.NewTask("my-task")))
 }
 
 /// Test that 'new' command without required --slug flag returns an error
@@ -647,7 +645,7 @@ pub fn parse_args_new_command_with_short_slug_flag_test() {
 
   // Assert: should return same result as using --slug
   result
-  |> should.equal(Ok(cli.NewTask("my-task", None, False)))
+  |> should.equal(Ok(cli.NewTask("my-task")))
 }
 
 /// Test that short flag -c is equivalent to --contract

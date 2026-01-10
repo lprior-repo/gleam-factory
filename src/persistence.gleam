@@ -63,6 +63,7 @@ pub type TaskRecord {
     created_at: String,
     updated_at: String,
     stages: List(StageRecord),
+    worktree_path: String,
   )
 }
 
@@ -130,6 +131,7 @@ pub fn task_to_record(task: domain.Task) -> TaskRecord {
     created_at: timestamp,
     updated_at: timestamp,
     stages: [],
+    worktree_path: task.worktree_path,
   )
 }
 
