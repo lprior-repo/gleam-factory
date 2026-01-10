@@ -74,6 +74,7 @@ pub fn test_gleam_integration_nonexistent_repo_test() {
       slug: slug,
       language: domain.Gleam,
       status: domain.InProgress("integration"),
+      priority: domain.P2,
       worktree_path: "/tmp/test-wt",
       branch: "task/test-gleam",
     )
@@ -90,6 +91,7 @@ pub fn test_go_integration_invalid_repo_test() {
       slug: slug,
       language: domain.Go,
       status: domain.InProgress("integration"),
+      priority: domain.P2,
       worktree_path: "/tmp/test-go-wt",
       branch: "task/test-go",
     )
@@ -106,6 +108,7 @@ pub fn test_rust_integration_missing_repo_test() {
       slug: slug,
       language: domain.Rust,
       status: domain.InProgress("integration"),
+      priority: domain.P2,
       worktree_path: "/tmp/test-rust-wt",
       branch: "task/test-rust",
     )
@@ -122,6 +125,7 @@ pub fn test_python_integration_missing_repo_test() {
       slug: slug,
       language: domain.Python,
       status: domain.InProgress("integration"),
+      priority: domain.P2,
       worktree_path: "/tmp/test-py-wt",
       branch: "task/test-python",
     )
@@ -139,6 +143,7 @@ pub fn test_integration_merge_branch_creation_failure_test() {
       slug: slug,
       language: domain.Gleam,
       status: domain.InProgress("integration"),
+      priority: domain.P2,
       worktree_path: "/tmp/merge-fail-wt",
       branch: "task/merge-fail",
     )
@@ -155,6 +160,7 @@ pub fn test_integration_merge_conflict_test() {
       slug: slug,
       language: domain.Gleam,
       status: domain.InProgress("integration"),
+      priority: domain.P2,
       worktree_path: "/tmp/merge-conflict-wt",
       branch: "task/nonexistent-branch",
     )
@@ -171,6 +177,7 @@ pub fn test_integration_with_empty_branch_name_test() {
       slug: slug,
       language: domain.Gleam,
       status: domain.InProgress("integration"),
+      priority: domain.P2,
       worktree_path: "/tmp/empty-wt",
       branch: "",
     )
@@ -187,6 +194,7 @@ pub fn test_integration_with_special_chars_in_branch_test() {
       slug: slug,
       language: domain.Gleam,
       status: domain.InProgress("integration"),
+      priority: domain.P2,
       worktree_path: "/tmp/special-wt",
       branch: "task/special@#$%",
     )
@@ -318,6 +326,7 @@ pub fn integration_error_message_contains_context_test() {
       slug: slug,
       language: domain.Gleam,
       status: domain.InProgress("integration"),
+      priority: domain.P2,
       worktree_path: "/nonexistent",
       branch: "task/error-test",
     )
@@ -474,6 +483,7 @@ pub fn integration_cleanup_after_error_test() {
       slug: slug,
       language: domain.Gleam,
       status: domain.InProgress("integration"),
+      priority: domain.P2,
       worktree_path: "/tmp/cleanup-wt",
       branch: "task/cleanup",
     )

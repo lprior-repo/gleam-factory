@@ -841,3 +841,103 @@ pub fn stage_large_attempts_test() {
   let assert Ok(s) = restored.stages |> list.first
   s.attempts |> should.equal(9999)
 }
+
+// worktree_path persistence tests
+
+pub fn worktree_path_roundtrip_test() {
+  let assert Ok(slug) = domain.validate_slug("worktree-test")
+  let task =
+    domain.Task(
+      slug: slug,
+      language: domain.Gleam,
+      status: domain.Created,
+      priority: domain.P2,
+      worktree_path: "/home/user/worktrees/my-task",
+      branch: "feat/worktree-test",
+    )
+
+  let record = persistence.task_to_record(task)
+  let assert Ok(restored) = persistence.record_to_task(record)
+
+  restored.worktree_path |> should.equal("/home/user/worktrees/my-task")
+}
+
+pub fn worktree_path_with_spaces_test() {
+  let assert Ok(slug) = domain.validate_slug("spaces-test")
+  let task =
+    domain.Task(
+      slug: slug,
+      language: domain.Go,
+      status: domain.Created,
+      priority: domain.P1,
+      worktree_path: "/home/user/my worktrees/task folder",
+      branch: "feat/spaces-test",
+    )
+
+  let record = persistence.task_to_record(task)
+  let assert Ok(restored) = persistence.record_to_task(record)
+
+  restored.worktree_path |> should.equal("/home/user/my worktrees/task folder")
+}
+
+pub fn worktree_path_empty_valid_test() {
+  let assert Ok(slug) = domain.validate_slug("empty-path-test")
+  let task =
+    domain.Task(
+      slug: slug,
+      language: domain.Rust,
+      status: domain.Created,
+      priority: domain.P3,
+      worktree_path: "",
+      branch: "feat/empty-path-test",
+    )
+
+  let record = persistence.task_to_record(task)
+  let assert Ok(restored) = persistence.record_to_task(record)
+
+  restored.worktree_path |> should.equal("")
+}
+
+pub fn worktree_path_json_roundtrip_test() {
+  let record =
+    persistence.TaskRecord(
+      slug: "json-wt-test",
+      language: "gleam",
+      status: "created",
+      priority: "P2",
+      created_at: "2026-01-10T10:00:00Z",
+      updated_at: "2026-01-10T10:00:00Z",
+      stages: [],
+      worktree_path: "/tmp/worktree/path",
+    )
+
+  let json_str = persistence.record_to_json(record)
+  let assert Ok(restored) = persistence.json_to_record(json_str, "json-wt-test")
+
+  restored.worktree_path |> should.equal("/tmp/worktree/path")
+}
+
+pub fn worktree_path_file_io_roundtrip_test() {
+  let test_dir = "/tmp/persistence_wt_io"
+  let assert Ok(_) = simplifile.create_directory_all(test_dir)
+
+  let assert Ok(slug) = domain.validate_slug("wt-io-test")
+  let task =
+    domain.Task(
+      slug: slug,
+      language: domain.Python,
+      status: domain.Created,
+      priority: domain.P2,
+      worktree_path: "/some/worktree/path",
+      branch: "feat/wt-io-test",
+    )
+
+  let assert Ok(Nil) = persistence.save_task_record(task, test_dir)
+  let assert Ok(loaded) = persistence.load_task_record("wt-io-test", test_dir)
+
+  loaded.worktree_path |> should.equal("/some/worktree/path")
+
+  let assert Ok(_) = simplifile.delete(test_dir <> "/.factory/tasks.json")
+  let assert Ok(_) = simplifile.delete(test_dir <> "/.factory")
+  let assert Ok(_) = simplifile.delete(test_dir)
+}
