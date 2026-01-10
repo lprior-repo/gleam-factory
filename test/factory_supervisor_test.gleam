@@ -86,6 +86,7 @@ pub fn multiple_supervisors_test() {
       gpu_tickets: 1,
       beads_path: "/tmp/.beads/issues.jsonl",
       beads_poll_interval_ms: 1000,
+      workspace_root: "/tmp",
     )
 
   let config2 =
@@ -100,6 +101,7 @@ pub fn multiple_supervisors_test() {
       gpu_tickets: 1,
       beads_path: "/tmp/.beads/issues.jsonl",
       beads_poll_interval_ms: 1000,
+      workspace_root: "/tmp",
     )
 
   case
@@ -175,6 +177,7 @@ pub fn supervisor_startup_error_test() {
       gpu_tickets: 1,
       beads_path: "/tmp/.beads/issues.jsonl",
       beads_poll_interval_ms: 1000,
+      workspace_root: "/tmp",
     )
 
   case factory_supervisor.start_link(config) {
@@ -213,6 +216,7 @@ pub fn supervisor_config_flexibility_test() {
       gpu_tickets: 1,
       beads_path: "/tmp/.beads/issues.jsonl",
       beads_poll_interval_ms: 1000,
+      workspace_root: "/tmp",
     )
 
   let config2 =
@@ -227,6 +231,7 @@ pub fn supervisor_config_flexibility_test() {
       gpu_tickets: 1,
       beads_path: "/tmp/.beads/issues.jsonl",
       beads_poll_interval_ms: 1000,
+      workspace_root: "/tmp",
     )
 
   case
