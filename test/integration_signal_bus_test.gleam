@@ -7,6 +7,7 @@ import gleam/erlang/process
 import gleeunit
 import gleeunit/should
 import signal_bus
+import signals
 
 pub fn main() {
   gleeunit.main()
@@ -44,12 +45,17 @@ pub fn signal_bus_broadcast_patch_accepted() {
     Error(_) -> should.fail()
     Ok(bus) -> {
       let subscriber = process.new_subject()
-      let _ = signal_bus.subscribe(bus, signal_bus.PatchAccepted, subscriber)
+      let patch = signals.PatchAccepted(
+        hash: signals.hash("abc123"),
+        merged_at: signals.timestamp(0),
+      )
+      let _ =
+        signal_bus.subscribe(bus, signal_bus.PatchAccepted(patch), subscriber)
 
-      signal_bus.broadcast(bus, signal_bus.PatchAccepted)
+      signal_bus.broadcast(bus, signal_bus.PatchAccepted(patch))
 
       case process.receive(subscriber, 1000) {
-        Ok(signal_bus.PatchAccepted) -> Nil
+        Ok(signal_bus.PatchAccepted(_)) -> Nil
         _ -> should.fail()
       }
     }
@@ -62,12 +68,17 @@ pub fn signal_bus_broadcast_patch_rejected() {
     Error(_) -> should.fail()
     Ok(bus) -> {
       let subscriber = process.new_subject()
-      let _ = signal_bus.subscribe(bus, signal_bus.PatchRejected, subscriber)
+      let _ =
+        signal_bus.subscribe(
+          bus,
+          signal_bus.PatchRejected(reason: "test"),
+          subscriber,
+        )
 
-      signal_bus.broadcast(bus, signal_bus.PatchRejected)
+      signal_bus.broadcast(bus, signal_bus.PatchRejected(reason: "test"))
 
       case process.receive(subscriber, 1000) {
-        Ok(signal_bus.PatchRejected) -> Nil
+        Ok(signal_bus.PatchRejected(_)) -> Nil
         _ -> should.fail()
       }
     }
