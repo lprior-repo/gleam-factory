@@ -46,6 +46,7 @@ pub fn start_supervisor(
       gpu_tickets: 1,
       beads_path: ".beads/issues.jsonl",
       beads_poll_interval_ms: 2000,
+      workspace_root: ".",
     )
   factory_supervisor.start_link(config)
 }
