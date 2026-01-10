@@ -48,7 +48,8 @@ fn setup_test_loop(phase: factory_loop.Phase) -> process.Subject(factory_loop.Lo
       factory_loop.advance(loop, factory_loop.PushConflict)
       process.sleep(10)
     }
-    _ -> Nil
+    factory_loop.Completed -> Nil
+    factory_loop.Failed -> Nil
   }
   loop
 }
