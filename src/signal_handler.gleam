@@ -22,10 +22,9 @@ pub type SignalHandlerMessage {
 pub fn setup(handler: Subject(SignalHandlerMessage)) -> Result(Nil, Nil) {
   let sigterm = atom.create_from_string("sigterm")
   let callback = fn(signal: Dynamic) {
-    let sig = atom.cast_from_dynamic(signal)
-    let shutdown_signal = case sig == sigterm {
-      True -> Sigterm
-      False -> Sigint
+    let shutdown_signal = case atom.cast_from_dynamic(signal) {
+      Ok(sig) if sig == sigterm -> Sigterm
+      _ -> Sigint
     }
     process.send(handler, SignalReceived(shutdown_signal))
   }
