@@ -1,4 +1,4 @@
-import dict
+import gleam/dict
 import gleam/erlang/process.{type Subject}
 import gleam/option.{type Option, None, Some}
 import logging

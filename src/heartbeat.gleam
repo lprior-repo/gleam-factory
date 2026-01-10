@@ -91,6 +91,10 @@ fn handle_message(
   msg: HeartbeatMessage,
 ) -> actor.Next(HeartbeatState, HeartbeatMessage) {
   case msg {
+    SetSelf(subject) -> {
+      schedule_tick(subject, state.config.interval_ms)
+      actor.continue(HeartbeatState(..state, self_subject: subject))
+    }
     GetStatus(reply) -> {
       process.send(reply, state.last_status)
       actor.continue(state)
