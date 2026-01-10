@@ -8,6 +8,7 @@ import gleam/list
 import gleam/result
 import gleam/string
 import shellout
+import stdin
 
 /// Execute a command with status indicator
 pub fn run_with_status(
@@ -46,17 +47,27 @@ pub fn run_pipeline(
 
 /// Get user input from stdin
 pub fn prompt(message: String) -> String {
-  // Note: This is a placeholder since interactive stdin is not easily available
-  // in the current build environment. In production, would use stdin.read_line()
   io.print(message <> "> ")
-  ""
+  case stdin.line() {
+    Ok(line) -> string.trim(line)
+    Error(_) -> ""
+  }
 }
 
 /// Get yes/no confirmation
-pub fn confirm(_message: String) -> Result(Bool, String) {
-  // Note: stdin is not easily available in this build environment
-  // Return error indicating inability to get input
-  Error("stdin unavailable")
+pub fn confirm(message: String) -> Result(Bool, String) {
+  io.print(message <> " [y/n]: ")
+  case stdin.line() {
+    Ok(input) -> {
+      let trimmed = string.trim(input) |> string.lowercase
+      case trimmed {
+        "y" | "yes" -> Ok(True)
+        "n" | "no" -> Ok(False)
+        _ -> Error("Expected y/yes or n/no, got: " <> trimmed)
+      }
+    }
+    Error(_) -> Error("Failed to read stdin")
+  }
 }
 
 /// Format success message
