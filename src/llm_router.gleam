@@ -2,7 +2,10 @@
 ////
 //// Acquires GPU tickets before calling local endpoints, blocks when unavailable.
 
+import gleam/dynamic/decode
 import gleam/int
+import gleam/json
+import gleam/list
 import gleam/result
 import llm
 import process as shell_process
@@ -167,14 +170,34 @@ fn parse_anthropic_response(
   }
 }
 
-fn extract_content_field(json: String) -> Result(String, Nil) {
-  case string_split(json, "\"content\":\"") {
-    [_, rest, ..] ->
-      case string_split(rest, "\"") {
-        [content, ..] -> Ok(content)
-        [] -> Error(Nil)
+fn extract_content_field(json_str: String) -> Result(String, Nil) {
+  // Try Anthropic format first: content array with text blocks
+  let anthropic_decoder =
+    decode.at(
+      ["content"],
+      decode.list(decode.at(["text"], decode.string)),
+    )
+  case json.parse(json_str, anthropic_decoder) {
+    Ok(texts) ->
+      case list.first(texts) {
+        Ok(text) -> Ok(text)
+        Error(_) -> extract_content_fallback(json_str)
       }
-    _ -> Error(Nil)
+    Error(_) -> extract_content_fallback(json_str)
+  }
+}
+
+fn extract_content_fallback(json_str: String) -> Result(String, Nil) {
+  // Try local LLM format: direct content field
+  let local_decoder = decode.at(["content"], decode.string)
+  case json.parse(json_str, local_decoder) {
+    Ok(content) -> Ok(content)
+    Error(_) -> {
+      // Last resort: try response field (some local models)
+      let response_decoder = decode.at(["response"], decode.string)
+      json.parse(json_str, response_decoder)
+      |> result.replace_error(Nil)
+    }
   }
 }
 

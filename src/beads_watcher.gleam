@@ -11,12 +11,15 @@ pub type WatcherState {
   WatcherState(path: String, last_hash: String, poll_interval_ms: Int)
 }
 
-/// Compute simple hash of file contents (for change detection)
+/// Compute hash of file contents using erlang:phash2 (32-bit hash)
 fn compute_hash(content: String) -> String {
   content
-  |> string.length
+  |> erlang_phash2
   |> int.to_string
 }
+
+@external(erlang, "erlang", "phash2")
+fn erlang_phash2(term: a) -> Int
 
 /// Initialize watcher with polling interval
 pub fn new(path: String, poll_interval_ms: Int) -> WatcherState {

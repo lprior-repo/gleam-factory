@@ -93,7 +93,56 @@ fn extract_notifications(
 ) -> Result(List(types.AcpNotification), String) {
   case string.contains(json_str, "notifications") {
     False -> Ok([])
-    True -> Ok([])
+    True -> parse_notifications_array(json_str)
+  }
+}
+
+fn parse_notifications_array(
+  json_str: String,
+) -> Result(List(types.AcpNotification), String) {
+  case string.split(json_str, "\"notifications\":[") {
+    [_, rest, ..] -> {
+      case string.split(rest, "]") {
+        [notifs_part, ..] -> parse_notification_items(notifs_part, [])
+        _ -> Ok([])
+      }
+    }
+    _ -> Ok([])
+  }
+}
+
+fn parse_notification_items(
+  s: String,
+  acc: List(types.AcpNotification),
+) -> Result(List(types.AcpNotification), String) {
+  case string.contains(s, "{") {
+    False -> Ok(list.reverse(acc))
+    True -> {
+      case extract_notification_object(s) {
+        Ok(#(notif, remaining)) ->
+          parse_notification_items(remaining, [notif, ..acc])
+        Error(_) -> Ok(list.reverse(acc))
+      }
+    }
+  }
+}
+
+fn extract_notification_object(
+  s: String,
+) -> Result(#(types.AcpNotification, String), Nil) {
+  case string.split_once(s, "{") {
+    Ok(#(_, after_brace)) -> {
+      case string.split_once(after_brace, "}") {
+        Ok(#(obj_content, remaining)) -> {
+          case types.parse_acp_notification("{" <> obj_content <> "}") {
+            Ok(notif) -> Ok(#(notif, remaining))
+            Error(_) -> Error(Nil)
+          }
+        }
+        Error(_) -> Error(Nil)
+      }
+    }
+    Error(_) -> Error(Nil)
   }
 }
 
