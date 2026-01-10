@@ -159,12 +159,27 @@ pub fn transition(from: Phase, event: Event) -> Phase {
   }
 }
 
-pub fn get_state(loop: Subject(LoopMessage)) -> Result(FactoryLoopState, String) {
+pub fn get_state(loop: Subject(LoopMessage)) -> FactoryLoopState {
   let reply = process.new_subject()
   process.send(loop, GetState(reply_with: reply))
   case process.receive(reply, 5000) {
-    Ok(state) -> Ok(state)
-    Error(Nil) -> Error("timeout")
+    Ok(state) -> state
+    Error(Nil) ->
+      FactoryLoopState(
+        loop_id: "",
+        task_id: "",
+        task_spec: "",
+        workspace_path: "",
+        phase: Failed,
+        iteration: 0,
+        green_count: 0,
+        commit_count: 0,
+        revert_count: 0,
+        history: [],
+        last_feedback: "timeout",
+        signal_bus: process.new_subject(),
+        tests_were_green: False,
+      )
   }
 }
 

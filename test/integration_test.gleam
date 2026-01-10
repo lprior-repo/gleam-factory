@@ -830,7 +830,7 @@ pub fn full_pipeline_deployment_tracking_test() {
   process.sleep(100)
 
   // Verify final deployment state
-  let final_state = factory_loop.get_state(loop)
+  let assert Ok(final_state) = factory_loop.get_state(loop)
 
   // Task deployed (Completed phase)
   final_state.phase
@@ -845,8 +845,7 @@ pub fn full_pipeline_deployment_tracking_test() {
   |> should.equal("test deployment tracking")
 
   // Iteration incremented through stages
-  final_state.iteration
-  |> fn(x) { x >= 1 }
+  { final_state.iteration >= 1 }
   |> should.be_true
 
   // Workspace configured
