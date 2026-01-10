@@ -281,10 +281,11 @@ pub fn advance_rollout_succeeds_with_healthy_metrics_test() {
     healthy_metrics,
   ) {
     Ok(updated) -> {
-      updated.state.current_percentage
+      let state = feature_flags.get_state(updated)
+      state.current_percentage
       |> should.equal(10)
 
-      updated.state.stage
+      state.stage
       |> should.equal(feature_flags.OnePercent)
     }
     Error(_) -> should.fail()
@@ -334,13 +335,14 @@ pub fn advance_rollout_updates_metrics_test() {
 pub fn new_context_creates_initial_state_test() {
   let config = valid_config()
   let ctx = feature_flags.new_context("test", config)
+  let state = feature_flags.get_state(ctx)
 
-  ctx.state.current_percentage
+  state.current_percentage
   |> should.equal(config.initial_percentage)
 
-  ctx.state.stage
+  state.stage
   |> should.equal(feature_flags.Initial)
 
-  ctx.error_history
+  feature_flags.get_error_history(ctx)
   |> should.equal([])
 }
