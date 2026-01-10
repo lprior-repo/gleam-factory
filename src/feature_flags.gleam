@@ -86,6 +86,14 @@ pub fn new_context(_flag: String, config: RolloutConfig) -> RolloutContext {
   RolloutContext(state: initial_state, metrics: metrics, error_history: [])
 }
 
+pub fn get_state(ctx: RolloutContext) -> RolloutState {
+  ctx.state
+}
+
+pub fn get_error_history(ctx: RolloutContext) -> List(Float) {
+  ctx.error_history
+}
+
 pub fn calculate_error_rate(metrics: HealthMetrics) -> Float {
   case metrics.request_count {
     0 -> 0.0
