@@ -229,6 +229,7 @@ pub fn json_roundtrip_with_stages_test() {
       created_at: "2026-01-09T10:00:00Z",
       updated_at: "2026-01-09T10:05:00Z",
       stages: stages,
+      worktree_path: "",
     )
 
   let json_str = persistence.record_to_json(record)
@@ -255,6 +256,7 @@ pub fn json_all_fields_preserved_test() {
           last_error: "",
         ),
       ],
+      worktree_path: "",
     )
 
   let json_str = persistence.record_to_json(record)
@@ -673,6 +675,7 @@ pub fn json_special_chars_in_error_test() {
       created_at: "2026-01-09T10:00:00Z",
       updated_at: "2026-01-09T10:00:00Z",
       stages: [stage],
+      worktree_path: "",
     )
 
   let json_str = persistence.record_to_json(record)
@@ -701,6 +704,7 @@ pub fn json_multiline_error_test() {
       created_at: "2026-01-09T10:00:00Z",
       updated_at: "2026-01-09T10:00:00Z",
       stages: [stage],
+      worktree_path: "",
     )
 
   let json_str = persistence.record_to_json(record)
@@ -720,10 +724,11 @@ pub fn all_languages_roundtrip_test() {
         slug: lang <> "-test",
         language: lang,
         status: "created",
+        priority: "P2",
         created_at: "2026-01-09T10:00:00Z",
         updated_at: "2026-01-09T10:00:00Z",
         stages: [],
-      worktree_path: "",
+        worktree_path: "",
       )
 
     let json_str = persistence.record_to_json(record)
@@ -783,6 +788,7 @@ pub fn multiple_stages_roundtrip_test() {
       created_at: "2026-01-09T10:00:00Z",
       updated_at: "2026-01-09T10:00:00Z",
       stages: stages,
+      worktree_path: "",
     )
 
   let json_str = persistence.record_to_json(record)
@@ -809,6 +815,7 @@ pub fn stage_zero_attempts_test() {
       created_at: "2026-01-09T10:00:00Z",
       updated_at: "2026-01-09T10:00:00Z",
       stages: [stage],
+      worktree_path: "",
     )
 
   let json_str = persistence.record_to_json(record)
@@ -837,6 +844,7 @@ pub fn stage_large_attempts_test() {
       created_at: "2026-01-09T10:00:00Z",
       updated_at: "2026-01-09T10:00:00Z",
       stages: [stage],
+      worktree_path: "",
     )
 
   let json_str = persistence.record_to_json(record)
@@ -913,7 +921,6 @@ pub fn worktree_path_json_roundtrip_test() {
       created_at: "2026-01-10T10:00:00Z",
       updated_at: "2026-01-10T10:00:00Z",
       stages: [],
-      worktree_path: "",
       worktree_path: "/tmp/worktree/path",
     )
 
