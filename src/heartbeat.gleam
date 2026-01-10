@@ -27,6 +27,7 @@ pub type HeartbeatConfig {
 }
 
 pub type HeartbeatMessage {
+  SetSelf(subject: Subject(HeartbeatMessage))
   Tick
   GetStatus(reply_with: Subject(TestStatus))
   StreamProgress(task_id: String, chunk: String)
@@ -51,6 +52,8 @@ pub fn start_link(
   config: HeartbeatConfig,
   bus: Subject(signal_bus.SignalBusMessage),
 ) -> Result(Subject(HeartbeatMessage), HeartbeatError) {
+  // Create a placeholder subject that will be replaced after actor starts
+  let placeholder_subject = process.new_subject()
   let initial =
     HeartbeatState(
       config:,
@@ -58,6 +61,7 @@ pub fn start_link(
       last_hash: "",
       signal_bus: bus,
       progress_buffer: [],
+      self_subject: placeholder_subject,
     )
   let builder = actor.new(initial) |> actor.on_message(handle_message)
   case actor.start(builder) {
@@ -94,7 +98,7 @@ fn handle_message(
     Tick -> {
       let new_status = run_tests(state.config)
       let new_state = update_status(state, new_status)
-      schedule_tick(process.self(), state.config.interval_ms)
+      schedule_tick(state.self_subject, state.config.interval_ms)
       actor.continue(new_state)
     }
     StreamProgress(task_id, chunk) -> {
