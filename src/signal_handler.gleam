@@ -20,11 +20,12 @@ pub type SignalHandlerMessage {
 
 /// Setup signal handlers that send messages to the given subject
 pub fn setup(handler: Subject(SignalHandlerMessage)) -> Result(Nil, Nil) {
-  let sigterm = atom.create_from_string("sigterm")
+  let sigterm = atom.create("sigterm")
   let callback = fn(signal: Dynamic) {
-    let shutdown_signal = case atom.cast_from_dynamic(signal) {
-      Ok(sig) if sig == sigterm -> Sigterm
-      _ -> Sigint
+    let sig = atom.cast_from_dynamic(signal)
+    let shutdown_signal = case sig == sigterm {
+      True -> Sigterm
+      False -> Sigint
     }
     process.send(handler, SignalReceived(shutdown_signal))
   }
@@ -34,7 +35,11 @@ pub fn setup(handler: Subject(SignalHandlerMessage)) -> Result(Nil, Nil) {
       Ok(Nil)
     }
     SignalError -> {
-      logging.log(logging.Error, "Failed to install signal handlers", dict.new())
+      logging.log(
+        logging.Error,
+        "Failed to install signal handlers",
+        dict.new(),
+      )
       Error(Nil)
     }
   }
