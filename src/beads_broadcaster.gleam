@@ -35,6 +35,9 @@ fn broadcast_loop(state: BroadcasterState) -> Nil {
       // Broadcast signals for new beads
       broadcast_new_beads(detection.new_beads, state.bus)
 
+      // Broadcast signals for removed beads
+      broadcast_removed_beads(detection.removed_beads, state.bus)
+
       let updated =
         BroadcasterState(..state, snapshot: detection.current_snapshot)
 
@@ -61,6 +64,24 @@ fn broadcast_new_beads(
     signal_bus.broadcast(bus, signal_bus.BeadAssigned(signal))
   })
 }
+
+/// Broadcast BeadRemoved signal for each removed bead
+fn broadcast_removed_beads(
+  bead_ids: List(String),
+  bus: Subject(signal_bus.SignalBusMessage),
+) -> Nil {
+  bead_ids
+  |> list.each(fn(id) {
+    let signal = signals.BeadRemoved(
+      task_id: signals.task_id(id),
+      removed_at: signals.timestamp(get_current_timestamp()),
+    )
+    signal_bus.broadcast(bus, signal_bus.BeadRemoved(signal))
+  })
+}
+
+@external(erlang, "erlang", "system_time")
+fn get_current_timestamp() -> Int
 
 /// Convert Bead to BeadAssigned signal
 fn bead_to_assigned_signal(bead: bead_manager.Bead) -> signals.BeadAssigned {

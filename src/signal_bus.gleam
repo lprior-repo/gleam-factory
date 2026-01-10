@@ -12,6 +12,7 @@ pub type Signal {
   TestFailure
   TestPassing
   BeadAssigned(signals.BeadAssigned)
+  BeadRemoved(signals.BeadRemoved)
   PatchProposed
   PatchAccepted
   PatchRejected

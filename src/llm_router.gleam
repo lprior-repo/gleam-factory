@@ -136,37 +136,80 @@ fn build_anthropic_request_json(request: llm.LLMRequest) -> String {
   <> "\"}]}"
 }
 
-fn parse_local_response(json: String) -> Result(llm.LLMResponse, llm.LLMError) {
-  case extract_content_field(json) {
-    Ok(content) ->
-      Ok(llm.LLMResponse(
-        content:,
-        finish_reason: "stop",
-        usage: llm.TokenUsage(
-          prompt_tokens: 0,
-          completion_tokens: 0,
-          total_tokens: 0,
-        ),
-      ))
+fn parse_local_response(json_str: String) -> Result(llm.LLMResponse, llm.LLMError) {
+  case extract_content_field(json_str) {
+    Ok(content) -> {
+      let usage = extract_local_usage(json_str)
+      Ok(llm.LLMResponse(content:, finish_reason: "stop", usage:))
+    }
     Error(_) -> Error(llm.ParseError("Failed to parse local response"))
   }
 }
 
 fn parse_anthropic_response(
-  json: String,
+  json_str: String,
 ) -> Result(llm.LLMResponse, llm.LLMError) {
-  case extract_content_field(json) {
-    Ok(content) ->
-      Ok(llm.LLMResponse(
-        content:,
-        finish_reason: "end_turn",
-        usage: llm.TokenUsage(
-          prompt_tokens: 0,
-          completion_tokens: 0,
-          total_tokens: 0,
-        ),
-      ))
+  case extract_content_field(json_str) {
+    Ok(content) -> {
+      let usage = extract_anthropic_usage(json_str)
+      let finish_reason = extract_stop_reason(json_str)
+      Ok(llm.LLMResponse(content:, finish_reason:, usage:))
+    }
     Error(_) -> Error(llm.ParseError("Failed to parse Anthropic response"))
+  }
+}
+
+fn extract_anthropic_usage(json_str: String) -> llm.TokenUsage {
+  let usage_decoder =
+    decode.at(
+      ["usage"],
+      decode.decode3(
+        fn(i, o, _) { llm.TokenUsage(i, o, i + o) },
+        decode.field("input_tokens", decode.int),
+        decode.field("output_tokens", decode.int),
+        decode.optional_field("cache_creation_input_tokens", decode.int),
+      ),
+    )
+  case json.parse(json_str, usage_decoder) {
+    Ok(usage) -> usage
+    Error(_) -> llm.TokenUsage(0, 0, 0)
+  }
+}
+
+fn extract_local_usage(json_str: String) -> llm.TokenUsage {
+  let usage_decoder =
+    decode.at(
+      ["usage"],
+      decode.decode3(
+        llm.TokenUsage,
+        decode.field("prompt_tokens", decode.int),
+        decode.field("completion_tokens", decode.int),
+        decode.field("total_tokens", decode.int),
+      ),
+    )
+  case json.parse(json_str, usage_decoder) {
+    Ok(usage) -> usage
+    Error(_) -> {
+      // Try llama.cpp format: tokens_predicted, tokens_evaluated
+      let llama_decoder =
+        decode.decode2(
+          fn(pred, eval) { llm.TokenUsage(eval, pred, eval + pred) },
+          decode.field("tokens_predicted", decode.int),
+          decode.field("tokens_evaluated", decode.int),
+        )
+      case json.parse(json_str, llama_decoder) {
+        Ok(usage) -> usage
+        Error(_) -> llm.TokenUsage(0, 0, 0)
+      }
+    }
+  }
+}
+
+fn extract_stop_reason(json_str: String) -> String {
+  let decoder = decode.at(["stop_reason"], decode.string)
+  case json.parse(json_str, decoder) {
+    Ok(reason) -> reason
+    Error(_) -> "end_turn"
   }
 }
 

@@ -1,4 +1,6 @@
+import gleam/dynamic/decode
 import gleam/json
+import gleam/list
 import gleam/result
 import gleam/string
 import process
@@ -58,30 +60,29 @@ pub fn parse_response(json_str: String) -> Result(String, String) {
 }
 
 fn extract_text(json_str: String) -> Result(String, String) {
-  json_str
-  |> string.split("\"text\":\"")
-  |> take_second
-  |> result.try(fn(s) { s |> string.split("\"}") |> take_first })
-  |> result.map(unescape_json)
-}
-
-fn take_first(lst: List(a)) -> Result(a, String) {
-  case lst {
-    [x, ..] -> Ok(x)
-    [] -> Error("text field not found")
+  // Anthropic API returns: {"content": [{"type": "text", "text": "..."}]}
+  let content_decoder =
+    decode.at(
+      ["content"],
+      decode.list(
+        decode.field("text", decode.string),
+      ),
+    )
+  case json.parse(json_str, content_decoder) {
+    Ok(texts) ->
+      case list.first(texts) {
+        Ok(text) -> Ok(text)
+        Error(_) -> extract_text_fallback(json_str)
+      }
+    Error(_) -> extract_text_fallback(json_str)
   }
 }
 
-fn take_second(lst: List(a)) -> Result(a, String) {
-  case lst {
-    [_, x, ..] -> Ok(x)
-    _ -> Error("text field not found")
+fn extract_text_fallback(json_str: String) -> Result(String, String) {
+  // Fallback for simpler responses or different formats
+  let simple_decoder = decode.at(["content", "text"], decode.string)
+  case json.parse(json_str, simple_decoder) {
+    Ok(text) -> Ok(text)
+    Error(_) -> Error("Failed to extract text from response")
   }
-}
-
-fn unescape_json(s: String) -> String {
-  s
-  |> string.replace("\\n", "\n")
-  |> string.replace("\\\"", "\"")
-  |> string.replace("\\\\", "\\")
 }

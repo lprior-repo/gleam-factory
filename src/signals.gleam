@@ -122,3 +122,7 @@ pub type LoopFailed {
 pub type ResourceExhausted {
   ResourceExhausted(resource: String, current: Int, limit: Int)
 }
+
+pub type BeadRemoved {
+  BeadRemoved(task_id: TaskId, removed_at: Timestamp)
+}
