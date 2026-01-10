@@ -161,15 +161,11 @@ fn parse_anthropic_response(
 
 fn extract_anthropic_usage(json_str: String) -> llm.TokenUsage {
   let usage_decoder =
-    decode.at(
-      ["usage"],
-      decode.decode3(
-        fn(i, o, _) { llm.TokenUsage(i, o, i + o) },
-        decode.field("input_tokens", decode.int),
-        decode.field("output_tokens", decode.int),
-        decode.optional_field("cache_creation_input_tokens", decode.int),
-      ),
-    )
+    decode.at(["usage"], {
+      use input <- decode.field("input_tokens", decode.int)
+      use output <- decode.field("output_tokens", decode.int)
+      decode.success(llm.TokenUsage(input, output, input + output))
+    })
   case json.parse(json_str, usage_decoder) {
     Ok(usage) -> usage
     Error(_) -> llm.TokenUsage(0, 0, 0)
@@ -178,15 +174,12 @@ fn extract_anthropic_usage(json_str: String) -> llm.TokenUsage {
 
 fn extract_local_usage(json_str: String) -> llm.TokenUsage {
   let usage_decoder =
-    decode.at(
-      ["usage"],
-      decode.decode3(
-        llm.TokenUsage,
-        decode.field("prompt_tokens", decode.int),
-        decode.field("completion_tokens", decode.int),
-        decode.field("total_tokens", decode.int),
-      ),
-    )
+    decode.at(["usage"], {
+      use prompt <- decode.field("prompt_tokens", decode.int)
+      use completion <- decode.field("completion_tokens", decode.int)
+      use total <- decode.field("total_tokens", decode.int)
+      decode.success(llm.TokenUsage(prompt, completion, total))
+    })
   case json.parse(json_str, usage_decoder) {
     Ok(usage) -> usage
     Error(_) -> {
