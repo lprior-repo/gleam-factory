@@ -156,6 +156,7 @@ pub fn roundtrip_all_languages_rust_test() {
       status: domain.Created,
       worktree_path: "/path",
       branch: "feat/rust-task",
+      priority: domain.P2,
     )
 
   let record = persistence.task_to_record(task)
@@ -172,6 +173,7 @@ pub fn roundtrip_all_languages_python_test() {
       status: domain.Created,
       worktree_path: "/path",
       branch: "feat/python-task",
+      priority: domain.P2,
     )
 
   let record = persistence.task_to_record(task)
@@ -435,6 +437,7 @@ pub fn save_and_load_task_roundtrip_test() {
       status: domain.Created,
       worktree_path: "/tmp/wt",
       branch: "feat/file-io-test",
+      priority: domain.P2,
     )
 
   let assert Ok(Nil) = persistence.save_task_record(task, test_dir)
@@ -463,6 +466,7 @@ pub fn save_creates_factory_directory_test() {
       status: domain.Created,
       worktree_path: "/tmp",
       branch: "feat/factory-test",
+      priority: domain.P2,
     )
 
   let assert Ok(Nil) = persistence.save_task_record(task, test_dir)
@@ -576,6 +580,7 @@ pub fn update_stage_status_file_write_test() {
       status: domain.Created,
       worktree_path: "/tmp",
       branch: "feat/stage-write-test",
+      priority: domain.P2,
     )
 
   let assert Ok(Nil) =
@@ -608,6 +613,7 @@ pub fn update_stage_status_appends_stages_test() {
       status: domain.Created,
       worktree_path: "/tmp",
       branch: "feat/append-stages-test",
+      priority: domain.P2,
     )
 
   let assert Ok(Nil) =
