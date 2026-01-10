@@ -71,7 +71,7 @@ pub fn start_link(
         "Heartbeat started with test_cmd: " <> config.test_cmd,
         dict.from_list([#("interval_ms", int.to_string(config.interval_ms))]),
       )
-      schedule_tick(started.data, config.interval_ms)
+      process.send(started.data, SetSelf(started.data))
       Ok(started.data)
     }
     Error(_) -> {
