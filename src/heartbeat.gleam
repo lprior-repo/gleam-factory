@@ -3,8 +3,11 @@
 //// Polls tests at configurable intervals, broadcasts TestFailure/TestPassing
 //// signals on red-to-green or green-to-red transitions.
 
+import dict
 import gleam/erlang/process.{type Subject}
+import gleam/int
 import gleam/otp/actor
+import logging
 import process as shell_process
 import signal_bus
 
@@ -57,8 +60,18 @@ pub fn start_link(
     )
   let builder = actor.new(initial) |> actor.on_message(handle_message)
   case actor.start(builder) {
-    Ok(started) -> Ok(started.data)
-    Error(_) -> Error(InitFailed)
+    Ok(started) -> {
+      logging.log(
+        logging.Info,
+        "Heartbeat started with test_cmd: " <> config.test_cmd,
+        dict.from_list([#("interval_ms", int.to_string(config.interval_ms))]),
+      )
+      Ok(started.data)
+    }
+    Error(_) -> {
+      logging.log(logging.Error, "Heartbeat startup failed", dict.new())
+      Error(InitFailed)
+    }
   }
 }
 
@@ -89,10 +102,20 @@ fn update_status(
 ) -> HeartbeatState {
   case state.last_status, new_status {
     Green, Red -> {
+      logging.log(
+        logging.Error,
+        "Tests transitioned from Green to Red",
+        dict.new(),
+      )
       signal_bus.broadcast(state.signal_bus, signal_bus.TestFailure)
       HeartbeatState(..state, last_status: Red)
     }
     Red, Green -> {
+      logging.log(
+        logging.Info,
+        "Tests transitioned from Red to Green",
+        dict.new(),
+      )
       signal_bus.broadcast(state.signal_bus, signal_bus.TestPassing)
       HeartbeatState(..state, last_status: Green)
     }

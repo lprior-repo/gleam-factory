@@ -1,5 +1,7 @@
+import dict
 import gleam/erlang/process.{type Subject}
 import gleam/option.{type Option, None, Some}
+import logging
 import otp_actor as actor
 import signal_bus
 
@@ -7,7 +9,6 @@ type MergeQueueState {
   MergeQueueState(
     absorbing: Bool,
     signal_bus: Subject(signal_bus.SignalBusMessage),
-    subscriber: Option(Subject(signal_bus.Signal)),
     current_patch_hash: Option(String),
   )
 }
@@ -26,23 +27,23 @@ pub type MergeQueueError {
 pub fn start_link(
   bus: Subject(signal_bus.SignalBusMessage),
 ) -> Result(Subject(MergeQueueMessage), MergeQueueError) {
-  let subscriber = process.new_subject()
   let initial =
     MergeQueueState(
       absorbing: False,
       signal_bus: bus,
-      subscriber: Some(subscriber),
       current_patch_hash: None,
     )
   let builder = actor.new(initial) |> actor.on_message(handle_message)
 
   case actor.start(builder) {
     Ok(started) -> {
-      let _result =
-        signal_bus.subscribe(bus, signal_bus.PatchProposed, subscriber)
+      logging.log(logging.Info, "Merge queue started", dict.new())
       Ok(started.data)
     }
-    Error(_) -> Error(InitFailed)
+    Error(_) -> {
+      logging.log(logging.Error, "Merge queue startup failed", dict.new())
+      Error(InitFailed)
+    }
   }
 }
 
@@ -59,6 +60,11 @@ fn handle_message(
     HandlePatchProposed(hash) -> {
       case state.absorbing {
         False -> {
+          logging.log(
+            logging.Info,
+            "Patch proposed: " <> hash,
+            dict.from_list([#("absorbing", "true")]),
+          )
           signal_bus.broadcast(state.signal_bus, signal_bus.PatchProposed)
           actor.continue(
             MergeQueueState(
@@ -69,6 +75,11 @@ fn handle_message(
           )
         }
         True -> {
+          logging.log(
+            logging.Info,
+            "Patch rejected (already absorbing): " <> hash,
+            dict.new(),
+          )
           actor.continue(state)
         }
       }
@@ -76,6 +87,11 @@ fn handle_message(
     PatchTestResult(hash, passed) -> {
       case passed, state.current_patch_hash {
         True, Some(current) if hash == current -> {
+          logging.log(
+            logging.Info,
+            "Patch accepted: " <> hash,
+            dict.from_list([#("status", "passed")]),
+          )
           signal_bus.broadcast(state.signal_bus, signal_bus.PatchAccepted)
           actor.continue(
             MergeQueueState(
@@ -86,6 +102,11 @@ fn handle_message(
           )
         }
         False, Some(current) if hash == current -> {
+          logging.log(
+            logging.Error,
+            "Patch rejected: " <> hash,
+            dict.from_list([#("status", "failed")]),
+          )
           signal_bus.broadcast(state.signal_bus, signal_bus.PatchRejected)
           actor.continue(
             MergeQueueState(

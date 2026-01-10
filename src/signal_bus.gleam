@@ -4,6 +4,7 @@
 
 import gleam/dict
 import gleam/erlang/process.{type Subject}
+import logging
 
 import signals
 
@@ -59,8 +60,14 @@ pub fn start_link() -> Result(Subject(SignalBusMessage), SignalBusError) {
   })
 
   case process.receive(parent_subject, 5000) {
-    Ok(child_subject) -> Ok(child_subject)
-    Error(Nil) -> Error(InitFailed)
+    Ok(child_subject) -> {
+      logging.log(logging.Info, "Signal bus started", dict.new())
+      Ok(child_subject)
+    }
+    Error(Nil) -> {
+      logging.log(logging.Error, "Signal bus startup failed", dict.new())
+      Error(InitFailed)
+    }
   }
 }
 
