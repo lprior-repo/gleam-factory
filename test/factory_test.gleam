@@ -117,6 +117,7 @@ pub fn task_to_record_preserves_slug_test() {
       slug:,
       language: domain.Go,
       status: domain.Created,
+      priority: domain.P2,
       worktree_path: "/tmp/test",
       branch: "feat/test-123",
     )
@@ -133,6 +134,7 @@ pub fn task_to_record_preserves_language_test() {
       slug:,
       language: domain.Rust,
       status: domain.Created,
+      priority: domain.P2,
       worktree_path: "/tmp/test",
       branch: "feat/test",
     )
@@ -148,6 +150,7 @@ pub fn record_to_task_preserves_language_test() {
       slug: "test",
       language: "python",
       status: "created",
+      priority: "P2",
       created_at: "2025-01-04T00:00:00Z",
       updated_at: "2025-01-04T00:00:00Z",
       stages: [],
@@ -165,6 +168,7 @@ pub fn record_to_task_invalid_language_test() {
       slug: "test",
       language: "java",
       status: "created",
+      priority: "P2",
       created_at: "2025-01-04T00:00:00Z",
       updated_at: "2025-01-04T00:00:00Z",
       stages: [],

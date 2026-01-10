@@ -50,6 +50,7 @@ pub fn roundtrip_in_progress_test() {
       status: domain.InProgress("implement"),
       worktree_path: "/path",
       branch: "feat/task-progress",
+      priority: domain.P2,
     )
 
   let record = persistence.task_to_record(task)
@@ -70,6 +71,7 @@ pub fn roundtrip_passed_pipeline_test() {
       status: domain.PassedPipeline,
       worktree_path: "/path",
       branch: "feat/task-passed",
+      priority: domain.P2,
     )
 
   let record = persistence.task_to_record(task)
@@ -91,6 +93,7 @@ pub fn roundtrip_failed_pipeline_test() {
       status: domain.FailedPipeline("lint", "formatting error"),
       worktree_path: "/path",
       branch: "feat/task-failed",
+      priority: domain.P2,
     )
 
   let record = persistence.task_to_record(task)
@@ -114,6 +117,7 @@ pub fn roundtrip_integrated_test() {
       status: domain.Integrated,
       worktree_path: "/path",
       branch: "feat/task-integrated",
+      priority: domain.P2,
     )
 
   let record = persistence.task_to_record(task)
@@ -135,6 +139,7 @@ pub fn roundtrip_all_languages_go_test() {
       status: domain.Created,
       worktree_path: "/path",
       branch: "feat/go-task",
+      priority: domain.P2,
     )
 
   let record = persistence.task_to_record(task)
