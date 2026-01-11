@@ -3,7 +3,7 @@
 //// Verifies complete pipeline flow: task creation -> stage execution -> signal handling -> completion
 //// Tests error cases, timeout handling, signal broadcasting, state transitions
 
-import dict
+import gleam/dict
 import factory_supervisor
 import gleeunit
 import gleeunit/should
@@ -50,9 +50,9 @@ pub fn pipeline_signal_broadcast_test() {
   case factory_supervisor.start_link(config) {
     Ok(supervisor) -> {
       let bus = factory_supervisor.get_signal_bus(supervisor)
-      signal_bus.publish(bus, signal_bus.TestPassing)
-      signal_bus.publish(bus, signal_bus.TestFailure)
-      signal_bus.publish(bus, signal_bus.PatchProposed)
+      signal_bus.broadcast(bus, signal_bus.TestPassing)
+      signal_bus.broadcast(bus, signal_bus.TestFailure)
+      signal_bus.broadcast(bus, signal_bus.PatchProposed)
       Nil
     }
     Error(_e) -> should.fail()
@@ -111,7 +111,7 @@ pub fn pipeline_test_failure_signal_test() {
 
       // Trigger test and verify signal broadcasts
       heartbeat.tick(hb)
-      signal_bus.publish(bus, signal_bus.TestFailure)
+      signal_bus.broadcast(bus, signal_bus.TestFailure)
       Nil
     }
     Error(_e) -> should.fail()
@@ -142,12 +142,18 @@ pub fn pipeline_multiple_subscriptions_test() {
       let bus = factory_supervisor.get_signal_bus(supervisor)
 
       // Subscribe multiple times
-      let sub1 = signal_bus.subscribe(bus, fn(_sig) { Nil })
-      let sub2 = signal_bus.subscribe(bus, fn(_sig) { Nil })
+      let sub1 = process.new_subject()
+      let sub2 = process.new_subject()
+      let _res1 = signal_bus.subscribe(bus, signal_bus.TestPassing, sub1)
+      let _res2 = signal_bus.subscribe(bus, signal_bus.TestPassing, sub2)
 
       // Publish and verify both receive
-      signal_bus.publish(bus, signal_bus.TestPassing)
-      signal_bus.publish(bus, signal_bus.PatchAccepted)
+      signal_bus.broadcast(bus, signal_bus.TestPassing)
+      let patch = signals.PatchAccepted(
+        hash: signals.hash("abc123"),
+        merged_at: signals.timestamp(0),
+      )
+      signal_bus.broadcast(bus, signal_bus.PatchAccepted(patch))
       Nil
     }
     Error(_e) -> should.fail()
@@ -164,7 +170,7 @@ pub fn pipeline_error_handling_resilience_test() {
       let bus = factory_supervisor.get_signal_bus(supervisor)
 
       // Simulate errors
-      signal_bus.publish(bus, signal_bus.ResourceExhausted)
+      signal_bus.broadcast(bus, signal_bus.ResourceExhausted)
 
       // Verify system still responsive
       let hb = factory_supervisor.get_heartbeat(supervisor)
@@ -196,8 +202,12 @@ pub fn pipeline_complete_workflow_test() {
       heartbeat.tick(hb)
 
       // Step 4: Signals broadcast
-      signal_bus.publish(bus, signal_bus.TestPassing)
-      signal_bus.publish(bus, signal_bus.PatchAccepted)
+      signal_bus.broadcast(bus, signal_bus.TestPassing)
+      let patch = signals.PatchAccepted(
+        hash: signals.hash("def456"),
+        merged_at: signals.timestamp(0),
+      )
+      signal_bus.broadcast(bus, signal_bus.PatchAccepted(patch))
 
       Nil
     }
