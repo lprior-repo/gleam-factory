@@ -44,24 +44,6 @@ pub fn run_pipeline(
   })
 }
 
-/// Get user input from stdin
-pub fn prompt(message: String) -> String {
-  io.print(message <> "> ")
-  ""
-}
-
-/// Get yes/no confirmation
-pub fn confirm(message: String) -> Result(Bool, String) {
-  io.print(message <> " [y/n]: ")
-  let input = ""
-  let trimmed = string.trim(input) |> string.lowercase
-  case trimmed {
-    "y" | "yes" -> Ok(True)
-    "n" | "no" -> Ok(False)
-    _ -> Error("Expected y/yes or n/no, got: " <> trimmed)
-  }
-}
-
 /// Format success message
 pub fn format_success(msg: String) -> String {
   "✓ " <> msg
