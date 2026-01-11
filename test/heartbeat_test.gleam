@@ -1,4 +1,6 @@
 import gleam/erlang/process
+import gleam/int
+import gleam/list
 import gleeunit
 import gleeunit/should
 import heartbeat
@@ -221,4 +223,30 @@ pub fn get_status_returns_current_state_test() {
 
   let status = heartbeat.get_status(hb_fail)
   status |> should.equal(heartbeat.Red)
+}
+
+pub fn progress_buffer_bounded_test() {
+  let assert Ok(bus) = signal_bus.start_link()
+  let config =
+    heartbeat.HeartbeatConfig(
+      interval_ms: 1000,
+      test_cmd: "true",
+      golden_master_path: "/tmp",
+    )
+  let assert Ok(hb) = heartbeat.start_link(config, bus)
+
+  list.range(0, 2000)
+  |> list.fold(
+    Nil,
+    fn(_acc, i) {
+      heartbeat.stream_progress(hb, "task_" <> int.to_string(i), "chunk_data")
+      Nil
+    },
+  )
+  |> fn(_) { Nil }
+
+  process.sleep(100)
+
+  let status = heartbeat.get_status(hb)
+  status |> should.equal(heartbeat.Green)
 }

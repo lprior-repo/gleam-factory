@@ -156,19 +156,26 @@ pub fn call_claude_stream(
 
 fn parse_stream(body: String, on_chunk: fn(StreamChunk) -> Nil) -> Nil {
   body
-  |> string.split("data: ")
-  |> list.each(fn(chunk) {
-    case string.contains(chunk, "content_block_delta") {
-      True ->
-        case extract_stream_text(chunk) {
-          Ok(text) -> on_chunk(ContentDelta(text))
-          Error(_) -> Nil
+  |> string.split("\n")
+  |> list.each(fn(line) {
+    let trimmed = string.trim(line)
+    case string.starts_with(trimmed, "data: ") {
+      True -> {
+        let json_str = string.slice(trimmed, 6, string.length(trimmed))
+        case string.contains(json_str, "content_block_delta") {
+          True ->
+            case extract_stream_text(json_str) {
+              Ok(text) -> on_chunk(ContentDelta(text))
+              Error(_) -> Nil
+            }
+          False ->
+            case string.contains(json_str, "message_stop") {
+              True -> on_chunk(MessageComplete)
+              False -> Nil
+            }
         }
-      False ->
-        case string.contains(chunk, "message_stop") {
-          True -> on_chunk(MessageComplete)
-          False -> Nil
-        }
+      }
+      False -> Nil
     }
   })
 }

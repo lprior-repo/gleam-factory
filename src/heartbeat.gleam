@@ -6,12 +6,15 @@
 import gleam/dict
 import gleam/erlang/process.{type Subject}
 import gleam/int
+import gleam/list
 import gleam/otp/actor
 import logging
 import process as shell_process
 import signal_bus
 
 const default_timeout_ms = 5000
+
+const max_buffer_size = 1000
 
 pub type TestStatus {
   Green
@@ -107,7 +110,8 @@ fn handle_message(
     }
     StreamProgress(task_id, chunk) -> {
       let new_buffer = [#(task_id, chunk), ..state.progress_buffer]
-      actor.continue(HeartbeatState(..state, progress_buffer: new_buffer))
+      let trimmed_buffer = list.take(new_buffer, max_buffer_size)
+      actor.continue(HeartbeatState(..state, progress_buffer: trimmed_buffer))
     }
   }
 }

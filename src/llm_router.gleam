@@ -90,8 +90,9 @@ fn call_anthropic(
   request: llm.LLMRequest,
 ) -> Result(llm.LLMResponse, llm.LLMError) {
   let json_body = build_anthropic_request_json(request)
+  let env = [#("ANTHROPIC_API_KEY", config.anthropic_key)]
   case
-    shell_process.run_command(
+    shell_process.run_command_with_env(
       "curl",
       [
         "-s",
@@ -100,7 +101,7 @@ fn call_anthropic(
         "-H",
         "Content-Type: application/json",
         "-H",
-        "x-api-key: " <> config.anthropic_key,
+        "x-api-key: $ANTHROPIC_API_KEY",
         "-H",
         "anthropic-version: 2023-06-01",
         "-d",
@@ -108,6 +109,7 @@ fn call_anthropic(
         config.anthropic_url,
       ],
       "",
+      env,
     )
   {
     Ok(shell_process.Success(stdout, _, _)) -> parse_anthropic_response(stdout)
