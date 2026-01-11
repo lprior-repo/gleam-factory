@@ -7,7 +7,7 @@ import signal_bus
 import signals
 
 fn setup_test_loop(phase: factory_loop.Phase) -> process.Subject(factory_loop.LoopMessage) {
-  let bus = signal_bus.start()
+  let assert Ok(bus) = signal_bus.start_link()
   let bead = signals.BeadAssigned(
     task_id: signals.task_id("test-task"),
     spec: "test spec",

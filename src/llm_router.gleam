@@ -245,9 +245,6 @@ fn escape_json(s: String) -> String {
   |> string_replace("\t", "\\t")
 }
 
-@external(erlang, "string", "split")
-fn string_split(s: String, sep: String) -> List(String)
-
 @external(erlang, "string", "replace")
 fn string_replace(s: String, from: String, to: String) -> String
 

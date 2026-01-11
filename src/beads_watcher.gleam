@@ -4,7 +4,6 @@
 import gleam/erlang/process
 import gleam/int
 import gleam/result
-import gleam/string
 import simplifile
 
 pub type WatcherState {

@@ -1,7 +1,5 @@
 import domain
-import gleam/int
 import gleam/result
-import gleam/string
 import gleeunit
 import gleeunit/should
 import repo

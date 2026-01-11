@@ -50,6 +50,7 @@ pub fn prop_task_to_record_preserves_slug__test() {
       slug: validated_slug,
       language: domain.Gleam,
       status: domain.Created,
+      priority: domain.P2,
       worktree_path: "/tmp",
       branch: "main",
     )
@@ -65,6 +66,7 @@ pub fn prop_task_to_record_language_go__test() {
       slug:,
       language: domain.Go,
       status: domain.Created,
+      priority: domain.P2,
       worktree_path: "/tmp",
       branch: "main",
     )
@@ -79,6 +81,7 @@ pub fn prop_task_to_record_language_gleam__test() {
       slug:,
       language: domain.Gleam,
       status: domain.Created,
+      priority: domain.P2,
       worktree_path: "/tmp",
       branch: "main",
     )
@@ -93,6 +96,7 @@ pub fn prop_task_to_record_language_rust__test() {
       slug:,
       language: domain.Rust,
       status: domain.Created,
+      priority: domain.P2,
       worktree_path: "/tmp",
       branch: "main",
     )
@@ -107,6 +111,7 @@ pub fn prop_task_to_record_language_python__test() {
       slug:,
       language: domain.Python,
       status: domain.Created,
+      priority: domain.P2,
       worktree_path: "/tmp",
       branch: "main",
     )
@@ -122,6 +127,7 @@ pub fn prop_task_to_record_status_created__test() {
       slug:,
       language: domain.Gleam,
       status: domain.Created,
+      priority: domain.P2,
       worktree_path: "/tmp",
       branch: "main",
     )
@@ -137,6 +143,7 @@ pub fn prop_task_to_record_status_in_progress__test() {
       slug:,
       language: domain.Gleam,
       status: domain.InProgress("test-stage"),
+      priority: domain.P2,
       worktree_path: "/tmp",
       branch: "main",
     )
@@ -152,6 +159,7 @@ pub fn prop_task_to_record_status_passed__test() {
       slug:,
       language: domain.Gleam,
       status: domain.PassedPipeline,
+      priority: domain.P2,
       worktree_path: "/tmp",
       branch: "main",
     )
@@ -167,6 +175,7 @@ pub fn prop_task_to_record_status_failed__test() {
       slug:,
       language: domain.Gleam,
       status: domain.FailedPipeline("test-stage", "error"),
+      priority: domain.P2,
       worktree_path: "/tmp",
       branch: "main",
     )
@@ -182,6 +191,7 @@ pub fn prop_task_to_record_status_integrated__test() {
       slug:,
       language: domain.Gleam,
       status: domain.Integrated,
+      priority: domain.P2,
       worktree_path: "/tmp",
       branch: "main",
     )
@@ -197,6 +207,7 @@ pub fn prop_record_to_task_created_roundtrip__test() {
       slug:,
       language: domain.Gleam,
       status: domain.Created,
+      priority: domain.P2,
       worktree_path: "/tmp",
       branch: "main",
     )
@@ -268,6 +279,8 @@ pub fn prop_task_record_preserves_slug_chars__test() {
       slug: slug,
       language: "gleam",
       status: "created",
+      priority: "P2",
+      worktree_path: "/tmp",
       created_at: "2025-01-01",
       updated_at: "2025-01-01",
       stages: [],
@@ -282,6 +295,8 @@ pub fn prop_task_record_empty_stages__test() {
       slug: "test",
       language: "gleam",
       status: "created",
+      priority: "P2",
+      worktree_path: "/tmp",
       created_at: "2025-01-01",
       updated_at: "2025-01-01",
       stages: [],
@@ -307,6 +322,8 @@ pub fn prop_task_record_append_stages__test() {
       slug: "test",
       language: "gleam",
       status: "created",
+      priority: "P2",
+      worktree_path: "/tmp",
       created_at: "2025-01-01",
       updated_at: "2025-01-01",
       stages: stages,

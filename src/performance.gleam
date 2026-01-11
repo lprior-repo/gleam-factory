@@ -6,7 +6,6 @@
 import gleam/dict
 import gleam/int
 import gleam/list
-import gleam/string
 
 pub opaque type Metrics {
   Metrics(measurements: dict.Dict(String, List(Int)))
@@ -125,7 +124,7 @@ pub fn format_summary(summary: Summary) -> String {
   <> "ms"
 }
 
-pub fn measure(f: fn() -> t, operation_name: String) -> #(t, Int) {
+pub fn measure(f: fn() -> t, _operation_name: String) -> #(t, Int) {
   let start_time = erlang_monotonic_time()
   let result = f()
   let end_time = erlang_monotonic_time()

@@ -150,7 +150,7 @@ pub fn cli_init_creates_jj_repo_test() {
   case setup_jj_repo(repo_path) {
     Error(msg) -> {
       let _ = teardown_jj_repo(repo_path)
-      panic(msg)
+      panic as msg
     }
     Ok(_) -> {
       let assert Ok(Nil) = teardown_jj_repo(repo_path)
@@ -166,13 +166,13 @@ pub fn cli_status_shows_clean_repo_test() {
   case setup_jj_repo(repo_path) {
     Error(msg) -> {
       let _ = teardown_jj_repo(repo_path)
-      panic(msg)
+      panic as msg
     }
     Ok(_) -> {
       case get_jj_status(repo_path) {
         Error(msg) -> {
           let _ = teardown_jj_repo(repo_path)
-          panic(msg)
+          panic as msg
         }
         Ok(status) -> {
           let _ = teardown_jj_repo(repo_path)
@@ -195,13 +195,13 @@ pub fn cli_log_shows_commits_test() {
   {
     Error(msg) -> {
       let _ = teardown_jj_repo(repo_path)
-      panic(msg)
+      panic as msg
     }
     Ok(_) -> {
       case get_jj_log(repo_path) {
         Error(msg) -> {
           let _ = teardown_jj_repo(repo_path)
-          panic(msg)
+          panic as msg
         }
         Ok(log) -> {
           let _ = teardown_jj_repo(repo_path)
@@ -226,7 +226,7 @@ pub fn cli_commit_records_change_test() {
   {
     Error(msg) -> {
       let _ = teardown_jj_repo(repo_path)
-      panic(msg)
+      panic as msg
     }
     Ok(log) -> {
       let _ = teardown_jj_repo(repo_path)

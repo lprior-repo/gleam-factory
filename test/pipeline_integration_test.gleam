@@ -3,7 +3,6 @@
 //// Verifies complete pipeline flow: task creation -> stage execution -> signal handling -> completion
 //// Tests error cases, timeout handling, signal broadcasting, state transitions
 
-import gleam/dict
 import gleam/erlang/process
 import factory_supervisor
 import gleeunit
@@ -12,7 +11,6 @@ import heartbeat
 import signals
 import merge_queue
 import signal_bus
-import golden_master
 
 pub fn main() {
   gleeunit.main()
@@ -84,7 +82,7 @@ pub fn pipeline_merge_queue_patch_absorption_test() {
 
   case factory_supervisor.start_link(config) {
     Ok(supervisor) -> {
-      let bus = factory_supervisor.get_signal_bus(supervisor)
+      let _bus = factory_supervisor.get_signal_bus(supervisor)
       let queue = factory_supervisor.get_merge_queue(supervisor)
 
       // Propose first patch

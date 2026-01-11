@@ -2,6 +2,7 @@ import gleam/erlang/process
 import gleeunit
 import gleeunit/should
 import signal_bus
+import signals
 
 pub fn main() {
   gleeunit.main()
@@ -116,11 +117,15 @@ pub fn multiple_signals_single_subscriber_test() {
 
   let assert Ok(Nil) =
     signal_bus.subscribe(bus, signal_bus.PatchProposed, subscriber)
+  let patch = signals.PatchAccepted(
+    hash: signals.hash("test"),
+    merged_at: signals.timestamp(0),
+  )
   let assert Ok(Nil) =
-    signal_bus.subscribe(bus, signal_bus.PatchAccepted, subscriber)
+    signal_bus.subscribe(bus, signal_bus.PatchAccepted(patch), subscriber)
 
   signal_bus.publish(bus, signal_bus.PatchProposed)
-  signal_bus.publish(bus, signal_bus.PatchAccepted)
+  signal_bus.publish(bus, signal_bus.PatchAccepted(patch))
 
   case process.receive(subscriber, 1000) {
     Ok(signal_bus.PatchProposed) -> Nil
@@ -128,7 +133,7 @@ pub fn multiple_signals_single_subscriber_test() {
   }
 
   case process.receive(subscriber, 1000) {
-    Ok(signal_bus.PatchAccepted) -> Nil
+    Ok(signal_bus.PatchAccepted(_)) -> Nil
     _ -> panic as "Expected PatchAccepted"
   }
 }

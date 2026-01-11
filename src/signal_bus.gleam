@@ -4,7 +4,6 @@
 
 import gleam/dict
 import gleam/erlang/process.{type Subject}
-import gleam/option
 import logging
 
 import signals

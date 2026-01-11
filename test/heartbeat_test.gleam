@@ -1,10 +1,8 @@
 import gleam/erlang/process
-import gleam/result
 import gleeunit
 import gleeunit/should
 import heartbeat
 import signal_bus
-import simplifile
 
 pub fn main() {
   gleeunit.main()
