@@ -68,7 +68,7 @@ pub fn report_test_result_failure_broadcasts_patch_rejected_test() {
   let assert Ok(Nil) =
     signal_bus.subscribe(
       bus,
-      signal_bus.PatchRejected(expected_reason),
+      signal_bus.PatchRejected(""),
       rejected_sub,
     )
 
