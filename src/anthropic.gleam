@@ -27,6 +27,7 @@ fn build_request(prompt: String) -> String {
 }
 
 fn curl_post(api_key: String, body: String) -> Result(String, String) {
+  let env = [#("ANTHROPIC_API_KEY", api_key)]
   let args = [
     "-s",
     "-X",
@@ -34,7 +35,7 @@ fn curl_post(api_key: String, body: String) -> Result(String, String) {
     "-H",
     "Content-Type: application/json",
     "-H",
-    "x-api-key: " <> api_key,
+    "x-api-key: $ANTHROPIC_API_KEY",
     "-H",
     "anthropic-version: 2023-06-01",
     "-d",
@@ -43,7 +44,7 @@ fn curl_post(api_key: String, body: String) -> Result(String, String) {
     "30",
     "https://api.anthropic.com/v1/messages",
   ]
-  use result <- result.try(process.run_command("curl", args, ""))
+  use result <- result.try(process.run_command_with_env("curl", args, "", env))
   case result {
     process.Success(stdout, _, 0) -> Ok(stdout)
     process.Success(_, _, code) | process.Failure(_, code) ->

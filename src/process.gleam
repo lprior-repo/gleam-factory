@@ -95,6 +95,24 @@ pub fn run_command(
   Ok(parse_command_output(output))
 }
 
+/// Execute a command with environment variables (secrets passed via env, not args)
+/// Returns Success if exit_code == 0, Failure otherwise
+pub fn run_command_with_env(
+  cmd: String,
+  args: List(String),
+  cwd: String,
+  env: List(#(String, String)),
+) -> Result(CommandResult, String) {
+  let shell_cmd = build_shell_command(cmd, args, cwd)
+  let env_prefix = list.fold(env, "", fn(acc, pair) {
+    let #(key, val) = pair
+    acc <> key <> "='" <> string.replace(val, "'", "'\"'\"'") <> "' "
+  })
+  let full_cmd = env_prefix <> shell_cmd
+  let output = os_cmd(full_cmd)
+  Ok(parse_command_output(output))
+}
+
 fn reverse_list(list: List(a)) -> List(a) {
   reverse_acc(list, [])
 }

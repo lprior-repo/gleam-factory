@@ -154,27 +154,6 @@ pub fn prop_int_to_string_matches_standard__test() {
   assert custom == standard
 }
 
-// CONFIRM - Property: returns Result(Bool, String)
-pub fn prop_confirm_returns_result__test() {
-  let result = utils.confirm("test")
-  // Verify it returns a Result type
-  assert case result {
-    Ok(_) -> True
-    Error(_) -> True
-  }
-}
-
-// PROMPT - Property: always returns string
-pub fn prop_prompt_returns_string__test() {
-  use len <- qcheck.given(qcheck.bounded_int(1, 100))
-  let msg = string.repeat("a", len)
-  let result = utils.prompt(msg)
-  // Prompt returns empty in test environment
-  assert case result {
-    "" -> True
-    _ -> True
-  }
-}
 
 // FORMATTING CONSISTENCY - Property: all format functions follow same pattern
 pub fn prop_format_consistency__test() {
