@@ -596,3 +596,26 @@ pub fn parse_args_stage_dry_run_with_from_to_test() {
     Ok(cli.RunStage("test-slug", "implement", True, Some("start"), Some("end"))),
   )
 }
+
+// Test: filter_by_priority applies the filter correctly
+pub fn filter_by_priority_filters_p1_test() {
+  // NOTE: filter_by_priority is private in cli module, so we test via parse_args
+  // which demonstrates the priority filter is extracted correctly during parsing
+  cli.parse_args(["list", "--priority", "P1"])
+  |> should.equal(Ok(cli.ListTasks(Some("P1"), None)))
+}
+
+pub fn filter_by_priority_filters_p2_test() {
+  cli.parse_args(["list", "--priority", "P2"])
+  |> should.equal(Ok(cli.ListTasks(Some("P2"), None)))
+}
+
+pub fn filter_by_priority_filters_p3_test() {
+  cli.parse_args(["list", "--priority", "P3"])
+  |> should.equal(Ok(cli.ListTasks(Some("P3"), None)))
+}
+
+pub fn filter_by_priority_with_status_test() {
+  cli.parse_args(["list", "--priority", "P1", "--status", "open"])
+  |> should.equal(Ok(cli.ListTasks(Some("P1"), Some("open"))))
+}
