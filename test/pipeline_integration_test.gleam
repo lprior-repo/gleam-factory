@@ -4,10 +4,12 @@
 //// Tests error cases, timeout handling, signal broadcasting, state transitions
 
 import gleam/dict
+import gleam/erlang/process
 import factory_supervisor
 import gleeunit
 import gleeunit/should
 import heartbeat
+import signals
 import merge_queue
 import signal_bus
 import golden_master
