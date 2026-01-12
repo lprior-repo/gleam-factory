@@ -1,19 +1,19 @@
 # Factory Gleam - System Architecture
 
 **Status**: Design phase with v1 implementation complete
-**Last Updated**: January 5, 2026
+**Last Updated**: January 12, 2026
 **Version**: v2 (in planning phase)
 
 ---
 
 ## Executive Summary
 
-Factory is a contract-driven, TCR-based CI/CD system built in Gleam that manages automated code generation, testing, and deployment with human oversight. It enforces strict boundaries, dependency awareness, and explicit approval gates.
+Factory is a contract-driven CI/CD system built in Gleam that manages automated code generation, testing, and deployment with human oversight. It enforces strict boundaries, dependency awareness, and explicit approval gates.
 
 ### Three Core Principles
 
 1. **Contracts First**: Every task has a written contract defining what's allowed (files, dependencies, test coverage)
-2. **TCR Discipline**: Test-Code-Revert cycle ensures code only commits when tests pass
+2. **Test Discipline**: Tests must pass before changes are accepted
 3. **Human Oversight**: System prepares everything, humans make deployment decisions
 
 ---
@@ -42,12 +42,11 @@ Factory is a contract-driven, TCR-based CI/CD system built in Gleam that manages
          ├─ Stage 2: Unit Test ────→ Run tests
          ├─ Stage 3: Coverage ─────→ Measure coverage
          ├─ Stage 4: Lint ────────→ Style check
-         ├─ Stage 5: Integration ─→ Integration tests
-         ├─ Stage 6: Review ──────→ Code review checks
-         ├─ Stage 7: Boundary ────→ Scope enforcement
-         ├─ Stage 8: Integrate ───→ Merge conflicts check
-         ├─ Stage 9: TCR ────────→ Full test run
-         └─ Stage 10: Deploy ────→ Prepare deployment
+         ├─ Stage 5: Static ──────→ Static analysis
+         ├─ Stage 6: Integration ─→ Integration tests
+         ├─ Stage 7: Security ────→ Security checks
+         ├─ Stage 8: Review ──────→ Code review checks
+         └─ Stage 9: Accept ──────→ Ready for merge
          │
          ▼
 ┌─────────────────────────────────────────┐
@@ -76,7 +75,6 @@ src/
 ├── repo.gleam          # Repository operations
 ├── worktree.gleam      # Jujutsu workspace management
 ├── stages.gleam        # Pipeline stage implementations
-├── tcr.gleam           # Test-Code-Revert discipline
 ├── persistence.gleam   # Task state and result storage
 ├── integration.gleam   # External tool integrations (moon.dev, Beads)
 └── main.gleam          # Entry point stub
@@ -142,13 +140,12 @@ pub type TaskStatus {
   DeployedToProduction    // 100% of users
   Done                    // Complete
   Failed(reason: String)  // Error explanation
-  Reverted                // TCR reverted changes
 }
 ```
 
 ---
 
-## Pipeline Stages (10-Stage Standard)
+## Pipeline Stages (9-Stage Standard)
 
 ### Stage 1: Implement
 **Purpose**: Verify code compiles and basic structure is correct
@@ -201,14 +198,31 @@ gleam format --check src/
 
 ---
 
-### Stage 5: Integration
+### Stage 5: Static Analysis
+**Purpose**: Static analysis checks
+
+**Output**: Analysis results
+
+---
+
+### Stage 6: Integration
 **Purpose**: Integration tests against real dependencies
 
 **Output**: Integration test results
 
 ---
 
-### Stage 6: Review
+### Stage 7: Security
+**Purpose**: Security vulnerability checks
+
+**Checks**:
+- Dependency vulnerabilities
+- Code security patterns
+- Secret detection
+
+---
+
+### Stage 8: Review
 **Purpose**: Automated code review checks
 
 **Checks**:
@@ -219,37 +233,13 @@ gleam format --check src/
 
 ---
 
-### Stage 7: Boundary
-**Purpose**: Enforce contract boundaries
-
-**Checks**:
-- Modified files match contract
-- No new dependencies added (if not allowed)
-- Lines changed < max
-
----
-
-### Stage 8: Integrate
-**Purpose**: Check for merge conflicts
-
-**Output**: Merge status
-
----
-
-### Stage 9: TCR (Test-Code-Revert)
-**Purpose**: Final validation before deployment
+### Stage 9: Accept
+**Purpose**: Final validation before merge
 
 **Process**:
 1. Run full test suite
 2. If pass: Mark ready for deployment
-3. If fail: Revert all changes
-
----
-
-### Stage 10: Deploy
-**Purpose**: Prepare deployment package
-
-**Output**: Feature flag configuration, rollout plan
+3. If fail: Return for fixes
 
 ---
 
@@ -284,13 +274,7 @@ gleam format --check src/
 ### worktree.gleam (Jujutsu Integration)
 - Create isolated workspaces with `jj new`
 - Manage revisions
-- Handle TCR reverts
 - Clean up workspaces
-
-### tcr.gleam (TCR Discipline)
-- Monitor test status
-- Revert on failure
-- Track revert history
 
 ### persistence.gleam (State Management)
 - Load task definitions
@@ -427,19 +411,19 @@ pub fn approve_deployment(task: Task) -> Result(FeatureFlagState, String) {
 
 **Effect**: Prevents auto-deployment
 
-### 4. TCR Discipline
+### 4. Test Discipline
 ```gleam
-// In tcr.gleam
-pub fn test_then_commit(workspace: Workspace) -> Result(Nil, String) {
-  let result = run_tests(workspace)
+// In stages.gleam
+pub fn run_tests(workspace: Workspace) -> Result(Nil, String) {
+  let result = execute_tests(workspace)
   case result {
-    Ok(test_result) -> commit_workspace(workspace)
-    Error(_) -> revert_workspace(workspace)
+    Ok(_) -> Ok(Nil)
+    Error(e) -> Error("Tests failed: " <> e)
   }
 }
 ```
 
-**Effect**: Code only commits when tests pass
+**Effect**: Code only accepted when tests pass
 
 ### 5. Audit Trail
 ```yaml
@@ -608,11 +592,11 @@ gradual_rollout:
 Factory is a **human-in-the-loop** system that:
 
 1. **Creates** tasks with clear contracts
-2. **Runs** a 10-stage pipeline in isolated jj workspaces
+2. **Runs** a 9-stage pipeline in isolated jj workspaces
 3. **Collects** metrics (coverage, lines, dependencies)
 4. **Presents** data to humans for decision-making
 5. **Executes** approved deployments with gradual rollout
 6. **Maintains** audit trail of all decisions
-7. **Enforces** boundaries and TCR discipline
+7. **Enforces** boundaries and test discipline
 
 The goal: **10x leverage without giving up control.**
