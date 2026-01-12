@@ -55,7 +55,7 @@ pub opaque type Slug {
 
 const max_slug_length: Int = 50
 
-/// Validate slug: non-empty, 1-50 chars, only [a-zA-Z0-9_-]
+/// Validate slug: non-empty, 1-50 chars, only [a-z0-9_-] (lowercase)
 pub fn validate_slug(slug: String) -> Result(Slug, String) {
   let len = string.length(slug)
   case len {

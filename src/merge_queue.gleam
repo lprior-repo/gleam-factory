@@ -1,3 +1,11 @@
+//// Merge queue with first-wins absorption strategy.
+////
+//// Strategy: First patch to pass tests wins and gets merged.
+//// - When not absorbing: accept patch proposal, enter absorbing state
+//// - When absorbing: reject all other patches (first-wins)
+//// - On test pass: broadcast PatchAccepted, exit absorbing state
+//// - On test fail: broadcast PatchRejected, exit absorbing state
+
 import gleam/dict
 import gleam/erlang/process.{type Subject}
 import gleam/option.{type Option, None, Some}

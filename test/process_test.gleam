@@ -100,12 +100,11 @@ pub fn command_exists_true_test() {
 
 pub fn command_exists_false_test() {
   case process.command_exists("nonexistent_cmd_xyz_12345") {
-    Ok(False) -> Nil
-    Ok(True) -> should.fail()
-    Error(_msg) -> {
-      // Accept either error format - command should not exist
-      Nil
+    Ok(exists) -> {
+      exists
+      |> should.be_false()
     }
+    Error(_) -> should.fail()
   }
 }
 

@@ -12,7 +12,7 @@ import stages
 import worktree
 
 pub type Command {
-  NewTask(slug: String)
+  NewTask(slug: String, contract: Option(String), interactive: Bool)
   RunStage(
     slug: String,
     stage_name: String,
@@ -60,7 +60,11 @@ fn has_flag(args: List(String), long: String, short: String) -> Bool {
 fn parse_new(args: List(String)) -> Result(Command, String) {
   case get_flag(args, "--slug", "-s") {
     None -> Error("--slug is required for new command")
-    Some(slug) -> Ok(NewTask(slug))
+    Some(slug) -> {
+      let contract = get_flag(args, "--contract", "-c")
+      let interactive = has_flag(args, "--interactive", "-i")
+      Ok(NewTask(slug, contract, interactive))
+    }
   }
 }
 
@@ -152,7 +156,8 @@ fn validate_status(s: String) -> Result(String, String) {
 /// Execute parsed command
 pub fn execute(cmd: Command) -> Result(Nil, String) {
   case cmd {
-    NewTask(slug) -> execute_new(slug)
+    NewTask(slug, contract, interactive) ->
+      execute_new(slug, contract, interactive)
 
     RunStage(slug, stage, dry_run, from, to) ->
       execute_stage(slug, stage, dry_run, from, to)
@@ -175,7 +180,11 @@ pub fn execute(cmd: Command) -> Result(Nil, String) {
   }
 }
 
-fn execute_new(slug: String) -> Result(Nil, String) {
+fn execute_new(
+  slug: String,
+  contract: Option(String),
+  interactive: Bool,
+) -> Result(Nil, String) {
   use _ <- result.try(domain.validate_slug(slug))
   use repo_root <- result.try(repo.detect_repo_root())
   use lang <- result.try(repo.detect_language(repo_root))
@@ -185,6 +194,15 @@ fn execute_new(slug: String) -> Result(Nil, String) {
     domain.Gleam -> "gleam"
     domain.Rust -> "rust"
     domain.Python -> "python"
+  }
+
+  case contract {
+    Some(c) -> io.println("Using contract: " <> c)
+    None -> Nil
+  }
+  case interactive {
+    True -> io.println("Interactive mode enabled")
+    False -> Nil
   }
 
   use message <- result.try(execute_new_impl(slug, lang_str, repo_root))
@@ -421,13 +439,13 @@ fn execute_stage_impl(
   task: domain.Task,
   repo_root: String,
 ) -> Result(String, String) {
-  use _ <- result.try(domain.get_stage(stage_name))
+  use stage <- result.try(domain.get_stage(stage_name))
 
   // Log stage start
   let _ = audit.log_stage_started(repo_root, slug, stage_name, 1)
 
   let start_time = erlang_system_time_ms()
-  case stages.execute_stage(stage_name, task.language, task.worktree_path) {
+  case stages.execute_stage_with_retry(stage, task.language, task.worktree_path) {
     Ok(Nil) -> {
       let duration_ms = erlang_system_time_ms() - start_time
       let _ = audit.log_stage_passed(repo_root, slug, stage_name, duration_ms)

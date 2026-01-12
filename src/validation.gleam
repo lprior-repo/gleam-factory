@@ -4,13 +4,17 @@
 import gleam/int
 import gleam/string
 
-/// Validate email format (structural check: exactly one @, non-empty local and domain)
+/// Validate email format (structural check: exactly one @, non-empty local/domain, dot in domain)
 pub fn validate_email(email: String) -> Result(String, String) {
   case string.split(email, "@") {
     [local, domain] ->
-      case string.length(local) > 0 && string.length(domain) > 0 {
+      case
+        string.length(local) > 0
+        && string.length(domain) > 0
+        && string.contains(domain, ".")
+      {
         True -> Ok(email)
-        False -> Error("Invalid email: empty local or domain part")
+        False -> Error("Invalid email: requires non-empty local, domain with dot")
       }
     _ -> Error("Invalid email: must contain exactly one @ symbol")
   }

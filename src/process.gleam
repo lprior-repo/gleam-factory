@@ -177,8 +177,8 @@ pub fn command_exists(cmd: String) -> Result(Bool, String) {
   // Use 'which' command to check if command exists in PATH
   case run_command("which", [cmd], "") {
     Ok(Success(_, _, _)) -> Ok(True)
-    Ok(Failure(_, _)) -> Error("Command not found in PATH: " <> cmd)
-    Error(_) -> Error("Command not found in PATH: " <> cmd)
+    Ok(Failure(_, _)) -> Ok(False)
+    Error(e) -> Error(e)
   }
 }
 
@@ -240,7 +240,8 @@ pub fn run_command_safe(
   cwd: String,
 ) -> Result(CommandResult, String) {
   case command_exists(cmd) {
-    Ok(_) -> run_command(cmd, args, cwd)
+    Ok(True) -> run_command(cmd, args, cwd)
+    Ok(False) -> Error("Command not found in PATH: " <> cmd)
     Error(e) -> Error(e)
   }
 }

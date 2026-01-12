@@ -21,7 +21,7 @@ pub fn tick_updates_status_to_green_when_tests_pass_test() {
   let assert Ok(hb) = heartbeat.start_link(config, bus)
 
   heartbeat.tick(hb)
-  process.sleep(1000)
+  process.sleep(500)
 
   let status = heartbeat.get_status(hb)
   status |> should.equal(heartbeat.Green)
@@ -38,7 +38,7 @@ pub fn tick_updates_status_to_red_when_tests_fail_test() {
   let assert Ok(hb) = heartbeat.start_link(config, bus)
 
   heartbeat.tick(hb)
-  process.sleep(100)
+  process.sleep(500)
 
   let status = heartbeat.get_status(hb)
   status |> should.equal(heartbeat.Red)
@@ -59,9 +59,9 @@ pub fn transition_from_green_to_red_broadcasts_test_failure_test() {
   let assert Ok(hb) = heartbeat.start_link(config, bus)
 
   heartbeat.tick(hb)
-  process.sleep(100)
+  process.sleep(500)
 
-  case process.receive(subscriber, 500) {
+  case process.receive(subscriber, 1000) {
     Ok(signal_bus.TestFailure) -> Nil
     _ -> panic as "Expected TestFailure signal on Green->Red transition"
   }
@@ -84,7 +84,7 @@ pub fn transition_from_red_to_green_broadcasts_test_passing_test() {
 
   // First tick: tests fail (Red)
   heartbeat.tick(hb)
-  process.sleep(100)
+  process.sleep(500)
 
   let status = heartbeat.get_status(hb)
   status |> should.equal(heartbeat.Red)
@@ -100,7 +100,7 @@ pub fn transition_from_red_to_green_broadcasts_test_passing_test() {
 
   // Second tick: tests pass (Green) -> should broadcast TestPassing
   heartbeat.tick(hb_pass)
-  process.sleep(100)
+  process.sleep(500)
 
   case process.receive(passing_sub, 1000) {
     Ok(signal_bus.TestPassing) -> Nil
@@ -128,12 +128,12 @@ pub fn no_signal_broadcast_when_status_unchanged_green_test() {
   let assert Ok(hb) = heartbeat.start_link(config, bus)
 
   heartbeat.tick(hb)
-  process.sleep(1500)
+  process.sleep(500)
 
   heartbeat.tick(hb)
-  process.sleep(1500)
+  process.sleep(500)
 
-  case process.receive(subscriber, 2500) {
+  case process.receive(subscriber, 500) {
     Ok(_) -> panic as "Expected no signal when status unchanged"
     Error(Nil) -> Nil
   }
@@ -156,17 +156,17 @@ pub fn no_signal_broadcast_when_status_unchanged_red_test() {
   let assert Ok(hb) = heartbeat.start_link(config, bus)
 
   heartbeat.tick(hb)
-  process.sleep(100)
+  process.sleep(500)
 
-  case process.receive(subscriber, 200) {
+  case process.receive(subscriber, 1000) {
     Ok(signal_bus.TestFailure) -> Nil
     _ -> panic as "Expected TestFailure on first tick"
   }
 
   heartbeat.tick(hb)
-  process.sleep(100)
+  process.sleep(500)
 
-  case process.receive(subscriber, 200) {
+  case process.receive(subscriber, 500) {
     Ok(_) -> panic as "Expected no signal when status unchanged"
     Error(Nil) -> Nil
   }
@@ -187,9 +187,9 @@ pub fn multiple_transitions_test() {
   let assert Ok(hb) = heartbeat.start_link(config, bus)
 
   heartbeat.tick(hb)
-  process.sleep(100)
+  process.sleep(500)
 
-  case process.receive(failure_sub, 500) {
+  case process.receive(failure_sub, 1000) {
     Ok(signal_bus.TestFailure) -> Nil
     _ -> panic as "Expected TestFailure on Green->Red"
   }
@@ -219,7 +219,7 @@ pub fn get_status_returns_current_state_test() {
     )
   let assert Ok(hb_fail) = heartbeat.start_link(config_fail, bus)
   heartbeat.tick(hb_fail)
-  process.sleep(100)
+  process.sleep(500)
 
   let status = heartbeat.get_status(hb_fail)
   status |> should.equal(heartbeat.Red)

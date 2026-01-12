@@ -623,3 +623,84 @@ fn python_accept(cwd: String) -> Result(Nil, String) {
   use _ <- result.try(python_lint(cwd))
   Ok(Nil)
 }
+
+// ============================================================================
+// RETRY LOGIC WITH EXPONENTIAL BACKOFF
+// ============================================================================
+
+const base_delay_ms = 1000
+
+fn sleep_ms(ms: Int) -> Nil {
+  erlang_sleep(ms)
+}
+
+@external(erlang, "timer", "sleep")
+fn erlang_sleep(ms: Int) -> Nil
+
+fn calculate_backoff(attempt: Int) -> Int {
+  base_delay_ms * power_of_two(attempt)
+}
+
+fn power_of_two(n: Int) -> Int {
+  case n {
+    0 -> 1
+    _ -> 2 * power_of_two(n - 1)
+  }
+}
+
+pub fn execute_stage_with_retry(
+  stage: domain.Stage,
+  language: domain.Language,
+  worktree_path: String,
+) -> Result(Nil, String) {
+  let domain.Stage(name, _, max_retries) = stage
+  execute_with_attempts(name, language, worktree_path, 0, max_retries)
+}
+
+fn execute_with_attempts(
+  stage_name: String,
+  language: domain.Language,
+  worktree_path: String,
+  attempt: Int,
+  max_retries: Int,
+) -> Result(Nil, String) {
+  case execute_stage(stage_name, language, worktree_path) {
+    Ok(Nil) -> Ok(Nil)
+    Error(err) -> {
+      case attempt < max_retries {
+        True -> {
+          let delay = calculate_backoff(attempt)
+          logging.log(
+            logging.Info,
+            "Stage failed, retrying",
+            dict.from_list([
+              #("stage", stage_name),
+              #("attempt", string.inspect(attempt + 1)),
+              #("max_retries", string.inspect(max_retries)),
+              #("backoff_ms", string.inspect(delay)),
+            ]),
+          )
+          sleep_ms(delay)
+          execute_with_attempts(
+            stage_name,
+            language,
+            worktree_path,
+            attempt + 1,
+            max_retries,
+          )
+        }
+        False -> {
+          logging.log(
+            logging.Error,
+            "Stage exhausted retries",
+            dict.from_list([
+              #("stage", stage_name),
+              #("attempts", string.inspect(attempt + 1)),
+            ]),
+          )
+          Error(err)
+        }
+      }
+    }
+  }
+}

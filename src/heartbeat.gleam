@@ -40,7 +40,6 @@ type HeartbeatState {
   HeartbeatState(
     config: HeartbeatConfig,
     last_status: TestStatus,
-    last_hash: String,
     signal_bus: Subject(signal_bus.SignalBusMessage),
     progress_buffer: List(#(String, String)),
     self_subject: Subject(HeartbeatMessage),
@@ -61,7 +60,6 @@ pub fn start_link(
     HeartbeatState(
       config:,
       last_status: Green,
-      last_hash: "",
       signal_bus: bus,
       progress_buffer: [],
       self_subject: placeholder_subject,

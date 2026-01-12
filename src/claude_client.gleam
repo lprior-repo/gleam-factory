@@ -1,4 +1,9 @@
-//// Claude API client with streaming support.
+//// Claude API client for Anthropic's Claude API.
+////
+//// Note: call_claude_buffered_sse requests streaming from the API and parses
+//// the SSE format, but the underlying HTTP client buffers the full response
+//// before returning. Chunks are delivered to the callback after the request
+//// completes, not as they arrive over the network.
 
 import gleam/dynamic/decode
 import gleam/http
@@ -118,7 +123,10 @@ fn extract_stream_text(json_str: String) -> Result(String, String) {
   |> result.replace_error("No delta text")
 }
 
-pub fn call_claude_stream(
+/// Calls Claude API with stream:true, parses SSE response, invokes callback per chunk.
+/// Note: Response is buffered by httpc before parsing. For true network streaming,
+/// use a streaming HTTP client like hackney or gun.
+pub fn call_claude_buffered_sse(
   api_key: String,
   req: ClaudeRequest,
   on_chunk: fn(StreamChunk) -> Nil,

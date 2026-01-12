@@ -39,7 +39,7 @@ pub fn format_user_message(error: Error) -> String {
     "validation" ->
       case error.context.cause {
         Some(cause) -> "Invalid input: " <> cause
-        None -> "Something went wrong. Please try again later."
+        None -> "Validation error: " <> error.reason
       }
     _ ->
       case error.context.cause {
@@ -49,9 +49,9 @@ pub fn format_user_message(error: Error) -> String {
             || string.contains(cause, "timeout")
           {
             True -> "Network error. Please check your connection and retry."
-            False -> "Something went wrong. Please try again later."
+            False -> "Error: " <> error.reason
           }
-        None -> "Something went wrong. Please try again later."
+        None -> "Error: " <> error.reason
       }
   }
 }
