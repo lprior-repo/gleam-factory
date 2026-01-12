@@ -772,25 +772,6 @@ pub fn standard_pipeline_accept_exists_test() {
   |> should.be_ok()
 }
 
-// Pipeline stage properties - TCR enabled
-pub fn stage_all_tcr_enabled_test() {
-  domain.standard_pipeline()
-  |> list.all(domain.is_tcr_stage)
-  |> should.equal(True)
-}
-
-pub fn is_tcr_stage_test() {
-  let stage = domain.Stage("implement", "Code compiles", 5, True)
-  domain.is_tcr_stage(stage)
-  |> should.equal(True)
-}
-
-pub fn is_not_tcr_stage_test() {
-  let stage = domain.Stage("manual", "Manual check", 1, False)
-  domain.is_tcr_stage(stage)
-  |> should.equal(False)
-}
-
 // Pipeline stage properties - Retries
 pub fn stage_retries_implement_test() {
   let assert Ok(stage) = domain.get_stage("implement")
@@ -847,28 +828,9 @@ pub fn stage_retries_accept_test() {
 }
 
 pub fn get_stage_retries_test() {
-  let stage = domain.Stage("implement", "Code compiles", 5, True)
+  let stage = domain.Stage("implement", "Code compiles", 5)
   domain.get_stage_retries(stage)
   |> should.equal(5)
-}
-
-// Pipeline tests - TCR stages
-pub fn count_tcr_stages_test() {
-  domain.standard_pipeline()
-  |> domain.count_tcr_stages()
-  |> should.equal(9)
-}
-
-pub fn first_tcr_stage_test() {
-  domain.standard_pipeline()
-  |> domain.first_tcr_stage()
-  |> should.be_ok()
-}
-
-pub fn non_tcr_stages_test() {
-  domain.standard_pipeline()
-  |> domain.non_tcr_stages()
-  |> should.equal([])
 }
 
 // Slug property tests
@@ -912,9 +874,9 @@ pub fn max_pipeline_retries_test() {
 
 pub fn count_stages_by_gate_test() {
   let pipeline = [
-    domain.Stage("s1", "gate1", 1, True),
-    domain.Stage("s2", "gate1", 1, True),
-    domain.Stage("s3", "gate2", 1, True),
+    domain.Stage("s1", "gate1", 1),
+    domain.Stage("s2", "gate1", 1),
+    domain.Stage("s3", "gate2", 1),
   ]
   domain.count_stages_by_gate(pipeline, "gate1")
   |> should.equal(2)
@@ -922,8 +884,8 @@ pub fn count_stages_by_gate_test() {
 
 pub fn gate_names_test() {
   let pipeline = [
-    domain.Stage("s1", "gate1", 1, True),
-    domain.Stage("s2", "gate2", 1, True),
+    domain.Stage("s1", "gate1", 1),
+    domain.Stage("s2", "gate2", 1),
   ]
   domain.gate_names(pipeline)
   |> should.equal(["gate1", "gate2"])

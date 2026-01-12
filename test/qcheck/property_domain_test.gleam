@@ -103,7 +103,7 @@ pub fn prop_language_requires_manifest__test() {
   }
 }
 
-// PIPELINE - Property: always 9 stages (pure TCR pipeline)
+// PIPELINE - Property: always 9 stages
 pub fn prop_pipeline_size__test() {
   use _n <- qcheck.given(qcheck.small_non_negative_int())
   let p = domain.standard_pipeline()

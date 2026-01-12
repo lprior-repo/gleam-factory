@@ -434,13 +434,6 @@ pub fn standard_pipeline_has_integration_stage_test() {
   |> should.be_ok
 }
 
-pub fn integration_stage_is_tcr_enabled_test() {
-  let assert Ok(stages) = domain.filter_stages("integration", "integration")
-  let assert [integration_stage] = stages
-  domain.is_tcr_stage(integration_stage)
-  |> should.be_true
-}
-
 pub fn integration_stage_has_retries_test() {
   let assert Ok(stages) = domain.filter_stages("integration", "integration")
   let assert [integration_stage] = stages
@@ -458,7 +451,7 @@ pub fn pipeline_order_is_stable_test() {
 pub fn pipeline_implement_stage_first_test() {
   let assert [first, ..] = domain.standard_pipeline()
   case first {
-    domain.Stage("implement", _, _, _) -> Nil
+    domain.Stage("implement", _, _) -> Nil
     _ -> should.fail()
   }
 }
@@ -470,7 +463,7 @@ pub fn pipeline_accept_stage_last_test() {
     |> list.last
     |> should.be_ok
   case last {
-    domain.Stage("accept", _, _, _) -> Nil
+    domain.Stage("accept", _, _) -> Nil
     _ -> should.fail()
   }
 }

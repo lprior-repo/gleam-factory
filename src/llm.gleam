@@ -92,11 +92,11 @@ pub fn system_prompt(role: Role) -> String {
 }
 
 fn auditor_system_prompt() -> String {
-  "You are an AUDITOR in a TCR loop. Write ONE failing test that drives good design. Rules: test/ files only, src/ is read-only, test should fail initially (red phase). Focus on behavior, edge cases matter. Types use PascalCase, functions use snake_case, use Result for errors."
+  "You are an AUDITOR. Write ONE failing test that drives good design. Rules: test/ files only, src/ is read-only, test should fail initially (red phase). Focus on behavior, edge cases matter. Types use PascalCase, functions use snake_case, use Result for errors."
 }
 
 fn implementer_system_prompt() -> String {
-  "You are an IMPLEMENTER in a TCR loop. Write MINIMAL code to pass tests. Rules: src/ files only, if tests fail ALL changes are REVERTED, follow existing patterns, no refactoring, no extra features. Types use PascalCase, functions use snake_case, use Result for errors, pattern matching over conditionals."
+  "You are an IMPLEMENTER. Write MINIMAL code to pass tests. Rules: src/ files only, follow existing patterns, no refactoring, no extra features. Types use PascalCase, functions use snake_case, use Result for errors, pattern matching over conditionals."
 }
 
 fn architect_system_prompt() -> String {

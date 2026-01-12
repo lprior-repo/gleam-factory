@@ -1,4 +1,4 @@
-//// Implementer role configuration for TCR workflow.
+//// Implementer role configuration.
 ////
 //// Defines model, tools, and filesystem access for code implementation agents.
 

@@ -438,7 +438,7 @@ pub fn query_all_updates(store: UpdateStore) -> List(AcpNotification) {
   dict.values(d) |> list.flatten |> list.reverse
 }
 
-/// HistoryEntry tracks the output of a role in the TDD-TCR loop.
+/// HistoryEntry tracks the output of a role in the development loop.
 pub type HistoryEntry {
   HistoryEntry(iteration: Int, role: String, content: String, timestamp: String)
 }
