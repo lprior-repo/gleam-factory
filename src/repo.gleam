@@ -85,13 +85,8 @@ pub fn get_base_branch(repo_root: String) -> Result(String, String) {
       case cmd_result {
         process.Success(output, _, _) -> {
           let trimmed = string.trim(output)
-          case string.split(trimmed, "/") {
-            [_, _, branch] -> {
-              case string.length(branch) > 0 {
-                True -> Ok(branch)
-                False -> Error("empty branch name")
-              }
-            }
+          case list.last(string.split(trimmed, "/")) {
+            Ok(branch) if branch != "" -> Ok(branch)
             _ -> Error("invalid symbolic-ref format")
           }
         }
