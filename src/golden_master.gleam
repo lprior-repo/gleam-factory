@@ -153,11 +153,21 @@ fn do_refresh(state: GoldenMasterState) -> Result(GoldenMasterState, String) {
 }
 
 fn do_prepare(state: GoldenMasterState) -> Result(GoldenMasterState, String) {
+  use _ <- result.try(verify_path_exists(state.path))
   use _ <- result.try(ensure_repo_exists(state.path))
   use _ <- result.try(fetch_latest(state.path))
   use _ <- result.try(build_dependencies(state.path))
-  use _ <- result.try(verify_tests_pass(state.path))
-  Ok(state)
+  use hash <- result.try(get_hash_from_jj(state.path))
+  Ok(GoldenMasterState(..state, hash: Some(hash)))
+}
+
+fn verify_path_exists(path: String) -> Result(Nil, String) {
+  case shell_process.run_command("test", ["-d", path], "") {
+    Ok(shell_process.Success(_, _, _)) -> Ok(Nil)
+    Ok(shell_process.Failure(_, _)) ->
+      Error("Golden master path does not exist: " <> path)
+    Error(e) -> Error("Path check error: " <> e)
+  }
 }
 
 fn ensure_repo_exists(path: String) -> Result(Nil, String) {

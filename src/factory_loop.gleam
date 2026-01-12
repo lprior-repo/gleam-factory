@@ -4,9 +4,11 @@
 //// Tracks token usage for budget management.
 
 import feedback_loop
+import gleam/dict
 import gleam/erlang/process.{type Subject}
 import gleam/int
 import gleam/otp/actor
+import logging
 import signal_bus
 import signals
 
@@ -174,7 +176,23 @@ fn handle_message(
         BudgetExhausted, _ -> {
           FactoryLoopState(..state, phase: Failed)
         }
-        _, _ -> FactoryLoopState(..state, phase: new_phase)
+        PushSuccess, _ | PushConflict, _ | RebaseSuccess, _ | RebaseConflict, _
+        | MaxIterationsReached, _ ->
+          FactoryLoopState(..state, phase: new_phase)
+        _, _ -> {
+          logging.log(
+            logging.Debug,
+            "Unhandled event/state combination in factory loop",
+            dict.from_list([
+              #("event", format_event(event)),
+              #("tests_were_green", case state.tests_were_green {
+                True -> "true"
+                False -> "false"
+              }),
+            ]),
+          )
+          FactoryLoopState(..state, phase: new_phase)
+        }
       }
       let final_state = case new_phase {
         Completed -> {
@@ -205,7 +223,30 @@ pub fn transition(from: Phase, event: Event) -> Phase {
     Rebasing, RebaseSuccess -> Pushing
     Rebasing, RebaseConflict -> Failed
     _, BudgetExhausted -> Failed
-    _, _ -> from
+    _, _ -> {
+      logging.log(
+        logging.Debug,
+        "Unexpected phase/event in transition",
+        dict.from_list([
+          #("phase", format_phase(from)),
+          #("event", format_event(event)),
+        ]),
+      )
+      from
+    }
+  }
+}
+
+fn format_event(event: Event) -> String {
+  case event {
+    TestPassed -> "TestPassed"
+    TestFailed -> "TestFailed"
+    PushSuccess -> "PushSuccess"
+    PushConflict -> "PushConflict"
+    RebaseSuccess -> "RebaseSuccess"
+    RebaseConflict -> "RebaseConflict"
+    MaxIterationsReached -> "MaxIterationsReached"
+    BudgetExhausted -> "BudgetExhausted"
   }
 }
 

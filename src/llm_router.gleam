@@ -251,11 +251,17 @@ fn escape_json(s: String) -> String {
 fn string_replace(s: String, from: String, to: String) -> String
 
 fn float_to_string(f: Float) -> String {
-  case f <. 1.0 && f >=. 0.0 {
-    True -> "0." <> int.to_string(truncate(f *. 10.0))
-    False -> int.to_string(truncate(f)) <> ".0"
-  }
+  float_to_binary(f, [#(decimals, 2)])
 }
 
-@external(erlang, "erlang", "trunc")
-fn truncate(f: Float) -> Int
+type FloatOption {
+  #(FloatOptionKey, Int)
+}
+
+type FloatOptionKey {
+  @external(erlang, "erlang", "binary_to_atom")
+  decimals
+}
+
+@external(erlang, "erlang", "float_to_binary")
+fn float_to_binary(f: Float, opts: List(FloatOption)) -> String

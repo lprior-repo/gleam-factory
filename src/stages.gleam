@@ -2,10 +2,43 @@
 // Each language gets proper linting, testing, static analysis
 
 import domain
+import gleam/dict
 import gleam/list
 import gleam/result
 import gleam/string
+import logging
 import process
+
+/// Error types for stage execution
+pub type StageError {
+  CommandNotFound(command: String)
+  CommandFailed(stage: String, exit_code: Int, output: String)
+  InvalidStage(stage: String, language: String)
+  StageTransitionError(from: String, to: String, reason: String)
+}
+
+/// Format stage error for display
+pub fn format_stage_error(err: StageError) -> String {
+  case err {
+    CommandNotFound(cmd) ->
+      "Command not found: '" <> cmd <> "'. Please install it and try again."
+    CommandFailed(stage, code, output) ->
+      "Stage '"
+      <> stage
+      <> "' failed (exit "
+      <> string.inspect(code)
+      <> "): "
+      <> string.slice(output, 0, 200)
+    InvalidStage(stage, lang) ->
+      "Unknown stage '"
+      <> stage
+      <> "' for language '"
+      <> lang
+      <> "'. Valid stages: implement, unit-test, coverage, lint, static, integration, security, review, accept"
+    StageTransitionError(from, to, reason) ->
+      "Cannot transition from '" <> from <> "' to '" <> to <> "': " <> reason
+  }
+}
 
 /// Validate that a stage transition is valid (forward-only in pipeline)
 pub fn validate_stage_transition(
@@ -120,12 +153,44 @@ pub fn execute_stage(
   language: domain.Language,
   worktree_path: String,
 ) -> Result(Nil, String) {
-  case language {
+  let lang_str = domain.language_to_string(language)
+  logging.log(
+    logging.Info,
+    "Stage starting",
+    dict.from_list([
+      #("stage", stage_name),
+      #("language", lang_str),
+      #("path", worktree_path),
+    ]),
+  )
+
+  let result = case language {
     domain.Go -> execute_go_stage(stage_name, worktree_path)
     domain.Gleam -> execute_gleam_stage(stage_name, worktree_path)
     domain.Rust -> execute_rust_stage(stage_name, worktree_path)
     domain.Python -> execute_python_stage(stage_name, worktree_path)
   }
+
+  case result {
+    Ok(Nil) ->
+      logging.log(
+        logging.Info,
+        "Stage completed",
+        dict.from_list([#("stage", stage_name), #("language", lang_str)]),
+      )
+    Error(err) ->
+      logging.log(
+        logging.Error,
+        "Stage failed",
+        dict.from_list([
+          #("stage", stage_name),
+          #("language", lang_str),
+          #("error", err),
+        ]),
+      )
+  }
+
+  result
 }
 
 // ============================================================================

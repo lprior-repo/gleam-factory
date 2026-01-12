@@ -2,9 +2,12 @@
 ////
 //// Scans .beads/beads.db for open beads and broadcasts BeadAssigned signals.
 
+import audit
+import gleam/dict
 import gleam/erlang/process.{type Subject}
 import gleam/list
 import gleam/string
+import logging
 import process as shell_process
 import signal_bus
 import signals
@@ -167,10 +170,46 @@ pub fn update_bead_state(
     ]
     _ -> ["update", bead_id, "--status", status_str]
   }
+
+  logging.log(
+    logging.Info,
+    "Updating bead state",
+    dict.from_list([
+      #("bead_id", bead_id),
+      #("new_status", status_str),
+      #("reason", close_reason),
+    ]),
+  )
+
+  let audit_event = case new_status {
+    Done -> audit.TaskApproved
+    Blocked -> audit.TaskRejected
+    InProgress -> audit.TaskUpdated
+    Open -> audit.TaskUpdated
+  }
+  let _ =
+    audit.log_event(".", audit_event, bead_id, "State: " <> status_str, [
+      #("close_reason", close_reason),
+    ])
+
   case shell_process.run_command("bd", args, "") {
     Ok(shell_process.Success(_, _, _)) -> Ok(Nil)
-    Ok(shell_process.Failure(err, _)) -> Error("bd update failed: " <> err)
-    Error(e) -> Error(e)
+    Ok(shell_process.Failure(err, _)) -> {
+      logging.log(
+        logging.Error,
+        "Bead state update failed",
+        dict.from_list([#("bead_id", bead_id), #("error", err)]),
+      )
+      Error("bd update failed: " <> err)
+    }
+    Error(e) -> {
+      logging.log(
+        logging.Error,
+        "Bead state update failed",
+        dict.from_list([#("bead_id", bead_id), #("error", e)]),
+      )
+      Error(e)
+    }
   }
 }
 

@@ -2,27 +2,39 @@
 // Wires all modules together for CLI execution
 
 import cli
+import error_handling.{type Error, ErrorContext}
 import factory_loop
 import factory_supervisor
+import gleam/dict
 import gleam/erlang/process.{type Subject}
+import gleam/int
 import gleam/io
+import gleam/option.{None, Some}
+import logging
 
 pub fn main() {
-  // Parse CLI and execute
   case cli.parse() {
     Ok(cmd) ->
       case cli.execute(cmd) {
         Ok(Nil) -> Nil
         Error(err) -> {
-          io.println("Error: " <> err)
+          let ctx = ErrorContext("factory", "main", Some(err))
+          let error = error_handling.wrap_error_string(err, ctx)
+          io.println("Error: " <> format_error(error))
         }
       }
     Error(err) -> {
-      io.println("Error: " <> err)
+      let ctx = ErrorContext("factory", "parse", Some(err))
+      let error = error_handling.wrap_error_string(err, ctx)
+      io.println("Error: " <> format_error(error))
       io.println("")
       io.println(cli.help_text())
     }
   }
+}
+
+fn format_error(error: Error) -> String {
+  error.reason
 }
 
 /// Execute a command using new CLI interface
@@ -81,14 +93,42 @@ fn run_loop_cycle(
   cycle: Int,
 ) -> CompletionResult {
   case cycle >= max_cycles {
-    True -> MaxCyclesReached(cycle)
+    True -> {
+      logging.log(
+        logging.Info,
+        "Max cycles reached",
+        dict.from_list([#("cycles", int.to_string(cycle))]),
+      )
+      MaxCyclesReached(cycle)
+    }
     False -> {
       case factory_loop.get_state(loop) {
-        factory_loop.GetStateTimeout -> LoopUnresponsive(cycle)
+        factory_loop.GetStateTimeout -> {
+          logging.log(
+            logging.Error,
+            "Loop unresponsive",
+            dict.from_list([#("cycle", int.to_string(cycle))]),
+          )
+          LoopUnresponsive(cycle)
+        }
         factory_loop.GotState(state) -> {
           case state.phase {
-            factory_loop.Completed -> Completed(cycle)
-            factory_loop.Failed -> LoopFailed(cycle, state.phase)
+            factory_loop.Completed -> {
+              logging.log(
+                logging.Info,
+                "Loop completed",
+                dict.from_list([#("cycles", int.to_string(cycle))]),
+              )
+              Completed(cycle)
+            }
+            factory_loop.Failed -> {
+              logging.log(
+                logging.Error,
+                "Loop failed",
+                dict.from_list([#("cycle", int.to_string(cycle))]),
+              )
+              LoopFailed(cycle, state.phase)
+            }
             _ -> {
               process.sleep(100)
               run_loop_cycle(loop, max_cycles, cycle + 1)

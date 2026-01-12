@@ -2,10 +2,12 @@
 // Manages creating, retrieving, and removing isolated work directories
 
 import domain
+import gleam/dict
 import gleam/int
 import gleam/list
 import gleam/result
 import gleam/string
+import logging
 import process
 import repo
 
@@ -35,6 +37,12 @@ pub fn create_worktree(
   let worktree_path = workspaces_base <> "/" <> worktree_name
   let branch = branch_prefix <> slug
 
+  logging.log(
+    logging.Info,
+    "Creating worktree",
+    dict.from_list([#("slug", slug), #("path", worktree_path), #("branch", branch)]),
+  )
+
   use _ <- result.try(create_base_dir(workspaces_base, repo_root))
   use _ <- result.try(create_jj_workspace(
     worktree_name,
@@ -43,6 +51,12 @@ pub fn create_worktree(
   ))
   use _ <- result.try(create_bookmark(worktree_path, branch, repo_root))
   use _ <- result.try(create_symlink(worktree_path, slug, repo_root))
+
+  logging.log(
+    logging.Info,
+    "Worktree created",
+    dict.from_list([#("slug", slug), #("path", worktree_path)]),
+  )
 
   Ok(Worktree(slug, worktree_path, branch, language))
 }
@@ -139,6 +153,12 @@ pub fn get_worktree(slug: String, repo_root: String) -> Result(Worktree, String)
 }
 
 pub fn remove_worktree(slug: String, repo_root: String) -> Result(Nil, String) {
+  logging.log(
+    logging.Info,
+    "Removing worktree",
+    dict.from_list([#("slug", slug)]),
+  )
+
   use wt <- result.try(get_worktree(slug, repo_root))
 
   let _ =
@@ -157,6 +177,12 @@ pub fn remove_worktree(slug: String, repo_root: String) -> Result(Nil, String) {
 
   let symlink_path = repo_root <> "/" <> factory_dir <> "/" <> slug
   let _ = process.run_command("rm", ["-f", symlink_path], repo_root)
+
+  logging.log(
+    logging.Info,
+    "Worktree removed",
+    dict.from_list([#("slug", slug), #("path", wt.path)]),
+  )
 
   Ok(Nil)
 }
