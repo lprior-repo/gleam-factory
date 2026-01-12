@@ -2,9 +2,43 @@
 // Each language gets proper linting, testing, static analysis
 
 import domain
+import gleam/dict
 import gleam/list
 import gleam/result
+import gleam/string
+import logging
 import process
+
+/// Error types for stage execution
+pub type StageError {
+  CommandNotFound(command: String)
+  CommandFailed(stage: String, exit_code: Int, output: String)
+  InvalidStage(stage: String, language: String)
+  StageTransitionError(from: String, to: String, reason: String)
+}
+
+/// Format stage error for display
+pub fn format_stage_error(err: StageError) -> String {
+  case err {
+    CommandNotFound(cmd) ->
+      "Command not found: '" <> cmd <> "'. Please install it and try again."
+    CommandFailed(stage, code, output) ->
+      "Stage '"
+      <> stage
+      <> "' failed (exit "
+      <> string.inspect(code)
+      <> "): "
+      <> string.slice(output, 0, 200)
+    InvalidStage(stage, lang) ->
+      "Unknown stage '"
+      <> stage
+      <> "' for language '"
+      <> lang
+      <> "'. Valid stages: implement, unit-test, coverage, lint, static, integration, security, review, accept"
+    StageTransitionError(from, to, reason) ->
+      "Cannot transition from '" <> from <> "' to '" <> to <> "': " <> reason
+  }
+}
 
 /// Validate that a stage transition is valid (forward-only in pipeline)
 pub fn validate_stage_transition(
@@ -119,12 +153,44 @@ pub fn execute_stage(
   language: domain.Language,
   worktree_path: String,
 ) -> Result(Nil, String) {
-  case language {
+  let lang_str = domain.language_to_string(language)
+  logging.log(
+    logging.Info,
+    "Stage starting",
+    dict.from_list([
+      #("stage", stage_name),
+      #("language", lang_str),
+      #("path", worktree_path),
+    ]),
+  )
+
+  let result = case language {
     domain.Go -> execute_go_stage(stage_name, worktree_path)
     domain.Gleam -> execute_gleam_stage(stage_name, worktree_path)
     domain.Rust -> execute_rust_stage(stage_name, worktree_path)
     domain.Python -> execute_python_stage(stage_name, worktree_path)
   }
+
+  case result {
+    Ok(Nil) ->
+      logging.log(
+        logging.Info,
+        "Stage completed",
+        dict.from_list([#("stage", stage_name), #("language", lang_str)]),
+      )
+    Error(err) ->
+      logging.log(
+        logging.Error,
+        "Stage failed",
+        dict.from_list([
+          #("stage", stage_name),
+          #("language", lang_str),
+          #("error", err),
+        ]),
+      )
+  }
+
+  result
 }
 
 // ============================================================================
@@ -285,10 +351,16 @@ fn go_coverage(cwd: String) -> Result(Nil, String) {
 }
 
 fn go_lint(cwd: String) -> Result(Nil, String) {
-  // gofmt -l
-  use cmd_result <- result.try(process.run_command("gofmt", ["-l", "."], cwd))
-  process.check_success(cmd_result)
-  |> result.map_error(fn(_) { "Go: gofmt check failed" })
+  case process.run_command("gofmt", ["-l", "."], cwd) {
+    Ok(process.Success(stdout, _, _)) -> {
+      case string.is_empty(string.trim(stdout)) {
+        True -> Ok(Nil)
+        False -> Error("Unformatted files: " <> stdout)
+      }
+    }
+    Ok(process.Failure(err, _)) -> Error(err)
+    Error(e) -> Error(e)
+  }
 }
 
 fn go_static(cwd: String) -> Result(Nil, String) {
@@ -423,8 +495,17 @@ fn rust_security(cwd: String) -> Result(Nil, String) {
   |> result.map_error(fn(_) { "Rust: Security audit failed" })
 }
 
-fn rust_review(_cwd: String) -> Result(Nil, String) {
-  Ok(Nil)
+fn rust_review(cwd: String) -> Result(Nil, String) {
+  case
+    process.run_command(
+      "grep",
+      ["-r", "TODO\\|FIXME\\|XXX\\|HACK", "--include=*.rs", "."],
+      cwd,
+    )
+  {
+    Ok(_) -> Error("Rust: TODO/FIXME/XXX/HACK markers found")
+    Error(_) -> Ok(Nil)
+  }
 }
 
 fn rust_accept(cwd: String) -> Result(Nil, String) {
@@ -523,8 +604,17 @@ fn python_security(cwd: String) -> Result(Nil, String) {
   |> result.map_error(fn(_) { "Python: Security scan failed" })
 }
 
-fn python_review(_cwd: String) -> Result(Nil, String) {
-  Ok(Nil)
+fn python_review(cwd: String) -> Result(Nil, String) {
+  case
+    process.run_command(
+      "grep",
+      ["-r", "TODO\\|FIXME\\|XXX\\|HACK", "--include=*.py", "."],
+      cwd,
+    )
+  {
+    Ok(_) -> Error("Python: TODO/FIXME/XXX/HACK markers found")
+    Error(_) -> Ok(Nil)
+  }
 }
 
 fn python_accept(cwd: String) -> Result(Nil, String) {

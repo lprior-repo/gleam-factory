@@ -1,5 +1,6 @@
 import gleam/dynamic/decode
 import gleam/json
+import gleam/list
 import gleam/result
 import gleam/string
 import process
@@ -58,4 +59,19 @@ pub fn escape_json(s: String) -> String {
   |> string.replace("\n", "\\n")
   |> string.replace("\r", "\\r")
   |> string.replace("\t", "\\t")
+  |> string.replace("\u{0008}", "\\b")
+  |> string.replace("\u{000C}", "\\f")
+  |> strip_control_chars
+}
+
+fn strip_control_chars(s: String) -> String {
+  s
+  |> string.to_graphemes
+  |> list.filter(fn(c) {
+    case string.to_utf_codepoints(c) {
+      [cp] -> string.utf_codepoint_to_int(cp) >= 0x20
+      _ -> True
+    }
+  })
+  |> string.join("")
 }

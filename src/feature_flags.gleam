@@ -7,6 +7,7 @@ pub type Stage {
   Initial
   OnePercent
   TenPercent
+  FiftyPercent
   Complete
 }
 
@@ -47,15 +48,24 @@ pub opaque type RolloutContext {
 }
 
 pub fn validate_config(config: RolloutConfig) -> Result(Nil, RolloutError) {
-  case
-    config.initial_percentage >= 0
-    && config.initial_percentage <= 100
-    && config.error_threshold >=. 0.0
-    && config.error_threshold <=. 1.0
-  {
+  validate_config_with(config, default_validator)
+}
+
+pub fn validate_config_with(
+  config: RolloutConfig,
+  validator: fn(RolloutConfig) -> Bool,
+) -> Result(Nil, RolloutError) {
+  case validator(config) {
     True -> Ok(Nil)
     False -> Error(InvalidConfig)
   }
+}
+
+pub fn default_validator(config: RolloutConfig) -> Bool {
+  config.initial_percentage >= 0
+  && config.initial_percentage <= 100
+  && config.error_threshold >=. 0.0
+  && config.error_threshold <=. 1.0
 }
 
 pub fn rollout_feature(
@@ -146,6 +156,41 @@ pub fn advance_rollout(
       let updated_ctx = advance_stage(ctx, next_percentage, next_stage)
       let with_metrics = RolloutContext(..updated_ctx, metrics: updated_metrics)
       Ok(with_metrics)
+    }
+  }
+}
+
+pub fn next_stage(current: Stage) -> Stage {
+  case current {
+    Initial -> OnePercent
+    OnePercent -> TenPercent
+    TenPercent -> FiftyPercent
+    FiftyPercent -> Complete
+    Complete -> Complete
+  }
+}
+
+pub fn stage_percentage(stage: Stage) -> Int {
+  case stage {
+    Initial -> 0
+    OnePercent -> 1
+    TenPercent -> 10
+    FiftyPercent -> 50
+    Complete -> 100
+  }
+}
+
+pub fn gradual_advance(
+  ctx: RolloutContext,
+  config: RolloutConfig,
+  metrics: HealthMetrics,
+) -> Result(RolloutContext, RolloutError) {
+  let current = ctx.state.stage
+  case current {
+    Complete -> Ok(ctx)
+    _ -> {
+      let target = next_stage(current)
+      advance_rollout(ctx, config, stage_percentage(target), target, metrics)
     }
   }
 }

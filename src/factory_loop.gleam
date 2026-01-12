@@ -4,9 +4,11 @@
 //// Tracks token usage for budget management.
 
 import feedback_loop
+import gleam/dict
 import gleam/erlang/process.{type Subject}
 import gleam/int
 import gleam/otp/actor
+import logging
 import signal_bus
 import signals
 
@@ -174,7 +176,23 @@ fn handle_message(
         BudgetExhausted, _ -> {
           FactoryLoopState(..state, phase: Failed)
         }
-        _, _ -> FactoryLoopState(..state, phase: new_phase)
+        PushSuccess, _ | PushConflict, _ | RebaseSuccess, _ | RebaseConflict, _
+        | MaxIterationsReached, _ ->
+          FactoryLoopState(..state, phase: new_phase)
+        _, _ -> {
+          logging.log(
+            logging.Debug,
+            "Unhandled event/state combination in factory loop",
+            dict.from_list([
+              #("event", format_event(event)),
+              #("tests_were_green", case state.tests_were_green {
+                True -> "true"
+                False -> "false"
+              }),
+            ]),
+          )
+          FactoryLoopState(..state, phase: new_phase)
+        }
       }
       let final_state = case new_phase {
         Completed -> {
@@ -205,33 +223,52 @@ pub fn transition(from: Phase, event: Event) -> Phase {
     Rebasing, RebaseSuccess -> Pushing
     Rebasing, RebaseConflict -> Failed
     _, BudgetExhausted -> Failed
-    _, _ -> from
+    _, _ -> {
+      logging.log(
+        logging.Debug,
+        "Unexpected phase/event in transition",
+        dict.from_list([
+          #("phase", format_phase(from)),
+          #("event", format_event(event)),
+        ]),
+      )
+      from
+    }
   }
 }
 
-pub fn get_state(loop: Subject(LoopMessage)) -> FactoryLoopState {
+fn format_event(event: Event) -> String {
+  case event {
+    TestPassed -> "TestPassed"
+    TestFailed -> "TestFailed"
+    PushSuccess -> "PushSuccess"
+    PushConflict -> "PushConflict"
+    RebaseSuccess -> "RebaseSuccess"
+    RebaseConflict -> "RebaseConflict"
+    MaxIterationsReached -> "MaxIterationsReached"
+    BudgetExhausted -> "BudgetExhausted"
+  }
+}
+
+pub type GetStateResult {
+  GotState(state: FactoryLoopState)
+  GetStateTimeout
+}
+
+pub fn get_state(loop: Subject(LoopMessage)) -> GetStateResult {
   let reply = process.new_subject()
   process.send(loop, GetState(reply_with: reply))
   case process.receive(reply, 5000) {
-    Ok(state) -> state
-    Error(Nil) ->
-      FactoryLoopState(
-        loop_id: "",
-        task_id: "",
-        task_spec: "",
-        workspace_path: "",
-        phase: Failed,
-        iteration: 0,
-        green_count: 0,
-        commit_count: 0,
-        revert_count: 0,
-        history: [],
-        last_feedback: "timeout",
-        signal_bus: process.new_subject(),
-        tests_were_green: False,
-        total_tokens_used: 0,
-        token_budget: 0,
-      )
+    Ok(state) -> GotState(state)
+    Error(Nil) -> GetStateTimeout
+  }
+}
+
+pub fn unwrap_state(result: GetStateResult) -> FactoryLoopState {
+  case result {
+    GotState(state) -> state
+    GetStateTimeout ->
+      panic as "get_state timed out - loop unresponsive"
   }
 }
 

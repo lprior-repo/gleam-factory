@@ -86,9 +86,16 @@ pub fn is_shm_mounted() -> Result(Bool, String) {
 }
 
 pub fn verify(min_free_ram_mb: Int, _golden_master_path: String) -> Result(Nil, String) {
+  verify_startup(min_free_ram_mb, False)
+}
+
+pub fn verify_startup(
+  min_free_ram_mb: Int,
+  require_gpu: Bool,
+) -> Result(Nil, String) {
   use ram_gb <- result.try(get_available_ram())
   let ram_mb = ram_gb * 1024
-  case ram_mb < min_free_ram_mb {
+  use _ <- result.try(case ram_mb < min_free_ram_mb {
     True ->
       Error(
         "Insufficient RAM: "
@@ -98,6 +105,11 @@ pub fn verify(min_free_ram_mb: Int, _golden_master_path: String) -> Result(Nil, 
         <> "MB required",
       )
     False -> Ok(Nil)
+  })
+  use gpu_avail <- result.try(is_gpu_available())
+  case require_gpu, gpu_avail {
+    True, False -> Error("GPU required but not available")
+    _, _ -> Ok(Nil)
   }
 }
 
