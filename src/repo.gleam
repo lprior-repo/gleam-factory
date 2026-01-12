@@ -42,24 +42,29 @@ pub fn detect_repo_root() -> Result(String, String) {
 
 /// Auto-detect language from repository contents
 pub fn detect_language(repo_root: String) -> Result(domain.Language, String) {
-  // Check for language files in order of priority
-  let has_gleam_toml = file_exists(repo_root <> "/gleam.toml")
-  let has_go_mod = file_exists(repo_root <> "/go.mod")
-  let has_cargo_toml = file_exists(repo_root <> "/Cargo.toml")
-  let has_pyproject = file_exists(repo_root <> "/pyproject.toml")
+  // Verify directory exists first
+  simplifile.verify_is_directory(repo_root)
+  |> result.map_error(fn(_) { "directory does not exist: " <> repo_root })
+  |> result.try(fn(_) {
+    // Check for language files in order of priority
+    let has_gleam_toml = file_exists(repo_root <> "/gleam.toml")
+    let has_go_mod = file_exists(repo_root <> "/go.mod")
+    let has_cargo_toml = file_exists(repo_root <> "/Cargo.toml")
+    let has_pyproject = file_exists(repo_root <> "/pyproject.toml")
 
-  domain.detect_language_from_files(
-    has_gleam_toml,
-    has_go_mod,
-    has_cargo_toml,
-    has_pyproject,
-  )
+    domain.detect_language_from_files(
+      has_gleam_toml,
+      has_go_mod,
+      has_cargo_toml,
+      has_pyproject,
+    )
+  })
 }
 
 /// Check if file exists
 fn file_exists(path: String) -> Bool {
   simplifile.verify_is_file(path)
-  |> result.is_ok()
+  |> result.unwrap(False)
 }
 
 /// Get the main/master branch of the repository
