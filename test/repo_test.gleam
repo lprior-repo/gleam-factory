@@ -1,4 +1,5 @@
 import domain
+import gleam/int
 import gleam/result
 import gleeunit
 import gleeunit/should
@@ -11,11 +12,10 @@ pub fn main() {
 
 // Helper: Create temp directory with unique name
 fn create_temp_dir() -> Result(String, String) {
-  let temp_base = "/tmp/factory-gleam-test-repo"
-  // Delete if exists from previous failed test, then recreate
-  let _ = simplifile.delete_all([temp_base])
-  simplifile.create_directory_all(temp_base)
-  |> result.map(fn(_) { temp_base })
+  let unique_id = int.random(1000000) |> int.to_string
+  let temp_dir = "/tmp/factory-gleam-test-repo-" <> unique_id
+  simplifile.create_directory_all(temp_dir)
+  |> result.map(fn(_) { temp_dir })
   |> result.map_error(fn(_) { "Failed to create temp dir" })
 }
 
