@@ -328,9 +328,9 @@ pub fn gate_names(pipeline: List(Stage)) -> List(String) {
 }
 
 // BEAD 19: Check if task is ready for integration
-pub fn is_ready_for_integration(status: TaskStatus, language: Language) -> Bool {
+pub fn is_ready_for_integration(status: TaskStatus, _language: Language) -> Bool {
   case status {
-    PassedPipeline -> is_compiled_language(language)
+    PassedPipeline -> True
     _ -> False
   }
 }

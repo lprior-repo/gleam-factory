@@ -2,10 +2,12 @@
 // Manages creating, retrieving, and removing isolated work directories
 
 import domain
+import gleam/int
 import gleam/list
 import gleam/result
 import gleam/string
 import process
+import repo
 
 const workspaces_dir = ".factory-workspaces"
 
@@ -124,8 +126,13 @@ pub fn get_worktree(slug: String, repo_root: String) -> Result(Worktree, String)
   |> result.map_error(fn(_) { "Worktree not found: " <> slug })
   |> result.try(fn(result) {
     case result {
-      process.Success(path, _, _) ->
-        Ok(Worktree(slug, string.trim(path), branch_prefix <> slug, domain.Go))
+      process.Success(path, _, _) -> {
+        let worktree_path = string.trim(path)
+        let language =
+          repo.detect_language(worktree_path)
+          |> result.unwrap(domain.Go)
+        Ok(Worktree(slug, worktree_path, branch_prefix <> slug, language))
+      }
       _ -> Error("Could not resolve worktree path")
     }
   })
@@ -175,6 +182,9 @@ const unique_id_offset = 2
 
 const unique_id_length = 8
 
+@external(erlang, "erlang", "unique_integer")
+fn erlang_unique_integer() -> Int
+
 fn generate_unique_id() -> String {
   case process.run_command("date", ["+%s%N"], ".") {
     Ok(process.Success(timestamp, _, _)) ->
@@ -184,7 +194,7 @@ fn generate_unique_id() -> String {
     _ ->
       case process.run_command("sh", ["-c", "echo $RANDOM$RANDOM"], ".") {
         Ok(process.Success(rand, _, _)) -> string.trim(rand)
-        _ -> "default"
+        _ -> int.to_string(int.absolute_value(erlang_unique_integer()))
       }
   }
 }

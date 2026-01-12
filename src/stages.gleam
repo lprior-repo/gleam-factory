@@ -47,7 +47,7 @@ pub fn execute_stages_dry_run(
 }
 
 fn stage_preview(stage: domain.Stage, language: domain.Language) -> StagePreview {
-  let domain.Stage(name, _, _, _) = stage
+  let domain.Stage(name, _, _) = stage
   let cmd = stage_command(name, language)
   let duration = estimate_duration(name)
   StagePreview(name, cmd, duration)
