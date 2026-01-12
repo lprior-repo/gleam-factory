@@ -4,6 +4,7 @@
 import domain
 import gleam/list
 import gleam/result
+import gleam/string
 import process
 
 /// Validate that a stage transition is valid (forward-only in pipeline)
@@ -285,10 +286,16 @@ fn go_coverage(cwd: String) -> Result(Nil, String) {
 }
 
 fn go_lint(cwd: String) -> Result(Nil, String) {
-  // gofmt -l
-  use cmd_result <- result.try(process.run_command("gofmt", ["-l", "."], cwd))
-  process.check_success(cmd_result)
-  |> result.map_error(fn(_) { "Go: gofmt check failed" })
+  case process.run_command("gofmt", ["-l", "."], cwd) {
+    Ok(process.Success(stdout, _, _)) -> {
+      case string.is_empty(string.trim(stdout)) {
+        True -> Ok(Nil)
+        False -> Error("Unformatted files: " <> stdout)
+      }
+    }
+    Ok(process.Failure(err, _)) -> Error(err)
+    Error(e) -> Error(e)
+  }
 }
 
 fn go_static(cwd: String) -> Result(Nil, String) {
@@ -423,8 +430,17 @@ fn rust_security(cwd: String) -> Result(Nil, String) {
   |> result.map_error(fn(_) { "Rust: Security audit failed" })
 }
 
-fn rust_review(_cwd: String) -> Result(Nil, String) {
-  Ok(Nil)
+fn rust_review(cwd: String) -> Result(Nil, String) {
+  case
+    process.run_command(
+      "grep",
+      ["-r", "TODO\\|FIXME\\|XXX\\|HACK", "--include=*.rs", "."],
+      cwd,
+    )
+  {
+    Ok(_) -> Error("Rust: TODO/FIXME/XXX/HACK markers found")
+    Error(_) -> Ok(Nil)
+  }
 }
 
 fn rust_accept(cwd: String) -> Result(Nil, String) {
@@ -523,8 +539,17 @@ fn python_security(cwd: String) -> Result(Nil, String) {
   |> result.map_error(fn(_) { "Python: Security scan failed" })
 }
 
-fn python_review(_cwd: String) -> Result(Nil, String) {
-  Ok(Nil)
+fn python_review(cwd: String) -> Result(Nil, String) {
+  case
+    process.run_command(
+      "grep",
+      ["-r", "TODO\\|FIXME\\|XXX\\|HACK", "--include=*.py", "."],
+      cwd,
+    )
+  {
+    Ok(_) -> Error("Python: TODO/FIXME/XXX/HACK markers found")
+    Error(_) -> Ok(Nil)
+  }
 }
 
 fn python_accept(cwd: String) -> Result(Nil, String) {
