@@ -42,6 +42,19 @@ pub fn detect_repo_root() -> Result(String, String) {
 
 /// Auto-detect language from repository contents
 pub fn detect_language(repo_root: String) -> Result(domain.Language, String) {
+  // Verify directory exists and is actually a directory
+  use is_dir <- result.try(
+    simplifile.verify_is_directory(repo_root)
+    |> result.map_error(fn(_) { "directory does not exist: " <> repo_root }),
+  )
+
+  use _ <- result.try(
+    case is_dir {
+      True -> Ok(Nil)
+      False -> Error("path is not a directory: " <> repo_root)
+    }
+  )
+
   // Check for language files in order of priority
   let has_gleam_toml = file_exists(repo_root <> "/gleam.toml")
   let has_go_mod = file_exists(repo_root <> "/go.mod")
