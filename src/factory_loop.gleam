@@ -1,6 +1,4 @@
-//// Factory loop actor for TCR cycles.
-////
-//// Manages implementing a bead through pure TCR: test && commit || revert.
+//// Factory loop actor for managing implementation cycles.
 
 import gleam/erlang/process.{type Subject}
 import gleam/otp/actor
@@ -9,7 +7,6 @@ import signals
 
 pub type Phase {
   Implementing
-  TcrChecking
   Reviewing
   Pushing
   Rebasing
@@ -144,11 +141,9 @@ fn handle_message(
 
 pub fn transition(from: Phase, event: Event) -> Phase {
   case from, event {
-    Implementing, TestPassed -> TcrChecking
+    Implementing, TestPassed -> Reviewing
     Implementing, TestFailed -> Implementing
     Implementing, MaxIterationsReached -> Failed
-    TcrChecking, TestPassed -> Reviewing
-    TcrChecking, TestFailed -> Implementing
     Reviewing, TestPassed -> Pushing
     Reviewing, TestFailed -> Failed
     Pushing, PushSuccess -> Completed

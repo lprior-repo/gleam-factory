@@ -115,12 +115,6 @@ pub fn factory_loop_phase_transitions_test() {
   process.sleep(100)
   let state1 = factory_loop.get_state(loop)
   state1.phase
-  |> should.equal(factory_loop.TcrChecking)
-
-  factory_loop.advance(loop, factory_loop.TestPassed)
-  process.sleep(100)
-  let state2 = factory_loop.get_state(loop)
-  state2.phase
   |> should.equal(factory_loop.Reviewing)
 
   factory_loop.advance(loop, factory_loop.TestPassed)
@@ -420,9 +414,9 @@ pub fn e2e_concurrent_loops_test() {
   let state2 = factory_loop.get_state(loop2)
 
   state1.phase
-  |> should.equal(factory_loop.TcrChecking)
+  |> should.equal(factory_loop.Reviewing)
   state2.phase
-  |> should.equal(factory_loop.TcrChecking)
+  |> should.equal(factory_loop.Reviewing)
   state1.task_id
   |> should.equal("e2e-2a")
   state2.task_id
@@ -555,13 +549,13 @@ pub fn full_pipeline_execution_test() {
   // Stage 1: Plan (represented by Implementing phase)
   process.sleep(100)
 
-  // Stage 2: Implement & Test (TestPassed advances through TcrChecking→Reviewing→Pushing)
+  // Stage 2: Implement & Test (TestPassed advances through Reviewing→Pushing)
   factory_loop.advance(loop, factory_loop.TestPassed)
   process.sleep(100)
 
   let state1 = factory_loop.get_state(loop)
   state1.phase
-  |> should.equal(factory_loop.TcrChecking)
+  |> should.equal(factory_loop.Reviewing)
   state1.iteration
   |> should.equal(1)
 
@@ -636,14 +630,14 @@ pub fn full_pipeline_with_stage_transitions_test() {
   state0.phase
   |> should.equal(factory_loop.Implementing)
 
-  // Stage sequence: Implementing → TcrChecking → Reviewing → Pushing → Completed
+  // Stage sequence: Implementing → Reviewing → Pushing → Completed
   // Each TestPassed advances phase
   factory_loop.advance(loop, factory_loop.TestPassed)
   process.sleep(100)
 
   let state1 = factory_loop.get_state(loop)
   state1.phase
-  |> should.equal(factory_loop.TcrChecking)
+  |> should.equal(factory_loop.Reviewing)
   state1.iteration
   |> should.equal(1)
 

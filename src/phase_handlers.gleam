@@ -1,6 +1,4 @@
 //// Phase handlers for factory loop phases.
-////
-//// Handles TCR phases: Implementing, TcrChecking, Reviewing, Pushing, Rebasing.
 
 import factory_loop
 import gleam/option
@@ -76,51 +74,6 @@ pub fn handle_implementing_phase(
   }
 }
 
-pub fn handle_tcr_checking_phase(
-  state: factory_loop.FactoryLoopState,
-) -> factory_loop.Event {
-  case verification_gauntlet.run_gauntlet(state.workspace_path, "gleam") {
-    Ok(verification_gauntlet.Passed(_)) -> {
-      // Tests pass - commit changes
-      case tcr_commit(state.workspace_path) {
-        Ok(_) -> factory_loop.TestPassed
-        Error(_) -> factory_loop.TestFailed
-      }
-    }
-    Ok(verification_gauntlet.Failed(_, _)) -> {
-      // Tests fail - revert changes
-      case tcr_revert(state.workspace_path) {
-        Ok(_) -> factory_loop.TestFailed
-        Error(_) -> factory_loop.TestFailed
-      }
-    }
-    Error(_) -> factory_loop.TestFailed
-  }
-}
-
-fn tcr_commit(workspace_path: String) -> Result(Nil, String) {
-  process.run_command(
-    "jj",
-    ["commit", "-m", "Auto-commit from TCR"],
-    workspace_path,
-  )
-  |> result.try(fn(result) {
-    case result {
-      process.Success(_, _, _) -> Ok(Nil)
-      process.Failure(err, _) -> Error(err)
-    }
-  })
-}
-
-fn tcr_revert(workspace_path: String) -> Result(Nil, String) {
-  process.run_command("jj", ["restore"], workspace_path)
-  |> result.try(fn(result) {
-    case result {
-      process.Success(_, _, _) -> Ok(Nil)
-      process.Failure(err, _) -> Error(err)
-    }
-  })
-}
 
 pub fn handle_write_file(
   path: String,
