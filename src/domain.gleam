@@ -99,7 +99,7 @@ fn is_valid_slug_chars(s: String) -> Bool {
 
 /// Stage type - defines a single gate in the pipeline
 pub type Stage {
-  Stage(name: String, gate: String, retries: Int, tcr: Bool)
+  Stage(name: String, gate: String, retries: Int)
 }
 
 /// Task status - overall pipeline status
@@ -130,18 +130,18 @@ pub type Task {
   )
 }
 
-/// Pipeline configuration - TCR stages (all have commit/revert)
+/// Pipeline configuration - standard stages
 pub fn standard_pipeline() -> List(Stage) {
   [
-    Stage("implement", "Code compiles", 5, True),
-    Stage("unit-test", "All tests pass", 3, True),
-    Stage("coverage", "80% coverage", 5, True),
-    Stage("lint", "Code formatted", 3, True),
-    Stage("static", "Static analysis passes", 3, True),
-    Stage("integration", "Integration tests pass", 3, True),
-    Stage("security", "No vulnerabilities", 2, True),
-    Stage("review", "Code review passes", 3, True),
-    Stage("accept", "Ready for merge", 1, True),
+    Stage("implement", "Code compiles", 5),
+    Stage("unit-test", "All tests pass", 3),
+    Stage("coverage", "80% coverage", 5),
+    Stage("lint", "Code formatted", 3),
+    Stage("static", "Static analysis passes", 3),
+    Stage("integration", "Integration tests pass", 3),
+    Stage("security", "No vulnerabilities", 2),
+    Stage("review", "Code review passes", 3),
+    Stage("accept", "Ready for merge", 1),
   ]
 }
 
@@ -164,7 +164,7 @@ fn find_stage_index_helper(
 ) -> Result(Int, Nil) {
   case pipeline {
     [] -> Error(Nil)
-    [Stage(n, _, _, _), ..rest] -> {
+    [Stage(n, _, _), ..rest] -> {
       case n == name {
         True -> Ok(index)
         False -> find_stage_index_helper(rest, name, index + 1)
@@ -209,17 +209,10 @@ pub fn filter_stages(
   }
 }
 
-// BEAD 1: Check if stage is tcr-enabled
-pub fn is_tcr_stage(stage: Stage) -> Bool {
-  case stage {
-    Stage(_, _, _, tcr) -> tcr
-  }
-}
-
 // BEAD 2: Get stage retry count
 pub fn get_stage_retries(stage: Stage) -> Int {
   case stage {
-    Stage(_, _, retries, _) -> retries
+    Stage(_, _, retries) -> retries
   }
 }
 
@@ -261,24 +254,6 @@ pub fn get_current_stage(status: TaskStatus) -> Result(String, String) {
     InProgress(stage) -> Ok(stage)
     _ -> Error("task not in progress")
   }
-}
-
-// BEAD 8: Count tcr stages in pipeline
-pub fn count_tcr_stages(pipeline: List(Stage)) -> Int {
-  pipeline
-  |> list.filter(is_tcr_stage)
-  |> list.length
-}
-
-// BEAD 9: Get non-tcr stages
-pub fn non_tcr_stages(pipeline: List(Stage)) -> List(Stage) {
-  list.filter(pipeline, fn(s) { !is_tcr_stage(s) })
-}
-
-// BEAD 10: Find first tcr stage
-pub fn first_tcr_stage(pipeline: List(Stage)) -> Result(Stage, String) {
-  list.find(pipeline, is_tcr_stage)
-  |> result.map_error(fn(_) { "no tcr stages found" })
 }
 
 // BEAD 11: Check if language is compiled
@@ -336,7 +311,7 @@ pub fn count_stages_by_gate(pipeline: List(Stage), gate: String) -> Int {
   pipeline
   |> list.filter(fn(s) {
     case s {
-      Stage(_, g, _, _) -> g == gate
+      Stage(_, g, _) -> g == gate
     }
   })
   |> list.length
@@ -347,7 +322,7 @@ pub fn gate_names(pipeline: List(Stage)) -> List(String) {
   pipeline
   |> list.map(fn(s) {
     case s {
-      Stage(_, gate, _, _) -> gate
+      Stage(_, gate, _) -> gate
     }
   })
 }

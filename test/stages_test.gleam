@@ -114,7 +114,7 @@ pub fn execute_python_unknown_stage_test() {
 
 // Dry-run mode tests
 pub fn execute_stages_dry_run_gleam_single_stage_test() {
-  let stage = domain.Stage("implement", "Code compiles", 5, True)
+  let stage = domain.Stage("implement", "Code compiles", 5)
   let previews = stages.execute_stages_dry_run([stage], domain.Gleam)
 
   case previews {
@@ -128,8 +128,8 @@ pub fn execute_stages_dry_run_gleam_single_stage_test() {
 }
 
 pub fn execute_stages_dry_run_go_multiple_stages_test() {
-  let stage1 = domain.Stage("implement", "Code compiles", 5, True)
-  let stage2 = domain.Stage("unit-test", "All tests pass", 3, True)
+  let stage1 = domain.Stage("implement", "Code compiles", 5)
+  let stage2 = domain.Stage("unit-test", "All tests pass", 3)
   let previews = stages.execute_stages_dry_run([stage1, stage2], domain.Go)
 
   case previews {
@@ -146,7 +146,7 @@ pub fn execute_stages_dry_run_go_multiple_stages_test() {
 }
 
 pub fn execute_stages_dry_run_rust_accept_stage_test() {
-  let stage = domain.Stage("accept", "Ready for merge", 1, True)
+  let stage = domain.Stage("accept", "Ready for merge", 1)
   let previews = stages.execute_stages_dry_run([stage], domain.Rust)
 
   case previews {
@@ -161,7 +161,7 @@ pub fn execute_stages_dry_run_rust_accept_stage_test() {
 }
 
 pub fn execute_stages_dry_run_python_security_stage_test() {
-  let stage = domain.Stage("security", "No vulnerabilities", 2, True)
+  let stage = domain.Stage("security", "No vulnerabilities", 2)
   let previews = stages.execute_stages_dry_run([stage], domain.Python)
 
   case previews {

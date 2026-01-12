@@ -326,7 +326,7 @@ pub fn log_deployment_rolled_back(
   )
 }
 
-/// Log agent execution (for TCR loop tracking)
+/// Log agent execution
 pub fn log_agent_run(
   task_slug: String,
   iteration: Int,

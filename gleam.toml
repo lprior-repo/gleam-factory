@@ -1,6 +1,6 @@
 name = "factory"
 version = "1.0.0"
-description = "Multi-language engineering pipeline with real TCR, integration testing, and no interactive prompts"
+description = "Multi-language engineering pipeline with integration testing and no interactive prompts"
 licences = ["Apache-2.0"]
 
 [dependencies]

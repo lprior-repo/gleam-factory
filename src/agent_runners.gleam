@@ -47,7 +47,7 @@ fn run_implementer_with_mode(
           case
             agent_executor.commit_changes(
               state.workspace_path,
-              "TCR: " <> state.task_spec,
+              "Implement: " <> state.task_spec,
             )
           {
             Ok(_) -> factory_loop.TestPassed
@@ -214,7 +214,7 @@ fn run_implementer_streaming_with_mode(
           case
             agent_executor.commit_changes(
               state.workspace_path,
-              "TCR: " <> state.task_spec,
+              "Implement: " <> state.task_spec,
             )
           {
             Ok(_) -> factory_loop.TestPassed

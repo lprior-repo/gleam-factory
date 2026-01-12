@@ -1,21 +1,20 @@
 # Factory
 
-Contract-driven CI/CD pipeline with Test-Commit-Revert (TCR) workflow for multi-language projects.
+Contract-driven CI/CD pipeline for multi-language projects.
 
 ## Architecture
 
-Factory implements an automated TCR pipeline that:
+Factory implements an automated pipeline that:
 - Creates isolated jj worktrees per task
 - Runs language-specific validation stages
-- Auto-commits passing changes, reverts failures
 - Tracks progress via .factory/tasks.json
 
 ### Core Modules
 
 **domain.gleam** - Type-safe core model
 - Language types: Go, Gleam, Rust, Python
-- Task status state machine: Created → InProgress → PassedPipeline/FailedPipeline → Integrated
-- Pipeline stage definitions with retry counts and TCR flags
+- Task status state machine: Created -> InProgress -> PassedPipeline/FailedPipeline -> Integrated
+- Pipeline stage definitions with retry counts
 - Validated slug types (1-50 chars, [a-z0-9_-])
 
 **cli.gleam** - Command interface
@@ -35,12 +34,6 @@ Factory implements an automated TCR pipeline that:
 - **Go**: go build, test -short, test -coverprofile, gofmt -l, go vet, gosec
 - **Rust**: cargo build, test, fmt --check, clippy, tarpaulin, audit
 - **Python**: py_compile, pytest, coverage, black --check, mypy, bandit
-
-**tcr.gleam** - Test-commit-revert logic
-- Captures jj state before stage execution
-- On pass: `jj describe` + `jj new` (commit)
-- On fail: `jj restore --from <hash>` (revert)
-- Returns TCROutcome tracking commits/reverts
 
 **persistence.gleam** - Task state tracking
 - JSON serialization to `.factory/tasks.json`
@@ -65,7 +58,7 @@ Factory implements an automated TCR pipeline that:
 # Create new task (auto-detects language)
 factory new -s my-feature
 
-# Run implementation stage with TCR
+# Run implementation stage
 factory stage -s my-feature --stage implement
 
 # Run specific stage range
@@ -86,8 +79,6 @@ factory help
 
 ## Pipeline Stages
 
-All stages support TCR (auto-commit on pass, revert on fail):
-
 1. **implement** - Code compiles (5 retries)
 2. **unit-test** - All tests pass (3 retries)
 3. **coverage** - 80% coverage (5 retries)
@@ -98,7 +89,7 @@ All stages support TCR (auto-commit on pass, revert on fail):
 8. **review** - Code review passes (3 retries)
 9. **accept** - Ready for merge (1 retry)
 
-Each stage uses language-appropriate tooling. Retries happen automatically with exponential backoff.
+Each stage uses language-appropriate tooling.
 
 ## Design Decisions
 
@@ -115,11 +106,6 @@ Each stage uses language-appropriate tooling. Retries happen automatically with 
 - Explicit error handling, no exceptions
 - Forces callers to handle failure cases
 - Composable via use <- result.try()
-
-**Why TCR on all stages?**
-- Prevents broken code from persisting
-- Creates audit trail of working increments
-- Enforces discipline: tests must pass before commit
 
 **Stage-specific retry counts?**
 - Different stages have different flakiness (network, timing)

@@ -1265,7 +1265,7 @@ pub fn resource_exhausted_signal_has_required_fields_test() {
 
 /// Test that gleam_otp is available as a dependency
 /// This verifies that the project has gleam_otp >= 0.10.0 in gleam.toml
-/// The actor model is essential for the TCR loop and signal handling
+/// The actor model is essential for signal handling
 /// Note: The import at the top of this file (gleam/otp) already validates
 /// the dependency exists - if it doesn't, this file won't compile at all.
 pub fn gleam_otp_is_available_as_dependency_test() {

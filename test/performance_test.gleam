@@ -68,7 +68,7 @@ fn simulate_work() -> Nil {
 }
 
 pub fn benchmark_implement_stage_test() {
-  let stage = domain.Stage("implement", "Code compiles", 5, True)
+  let stage = domain.Stage("implement", "Code compiles", 5)
   let result = benchmark_stage(stage)
 
   result.stage_name
@@ -82,7 +82,7 @@ pub fn benchmark_implement_stage_test() {
 }
 
 pub fn benchmark_unit_test_stage_test() {
-  let stage = domain.Stage("unit-test", "All tests pass", 3, True)
+  let stage = domain.Stage("unit-test", "All tests pass", 3)
   let result = benchmark_stage(stage)
 
   result.stage_name
@@ -96,7 +96,7 @@ pub fn benchmark_unit_test_stage_test() {
 }
 
 pub fn benchmark_lint_stage_test() {
-  let stage = domain.Stage("lint", "Code formatted", 3, True)
+  let stage = domain.Stage("lint", "Code formatted", 3)
   let result = benchmark_stage(stage)
 
   result.stage_name
@@ -110,7 +110,7 @@ pub fn benchmark_lint_stage_test() {
 }
 
 pub fn benchmark_static_stage_test() {
-  let stage = domain.Stage("static", "Static analysis passes", 3, True)
+  let stage = domain.Stage("static", "Static analysis passes", 3)
   let result = benchmark_stage(stage)
 
   result.stage_name
@@ -124,7 +124,7 @@ pub fn benchmark_static_stage_test() {
 }
 
 pub fn benchmark_integration_stage_test() {
-  let stage = domain.Stage("integration", "Integration tests pass", 3, True)
+  let stage = domain.Stage("integration", "Integration tests pass", 3)
   let result = benchmark_stage(stage)
 
   result.stage_name
@@ -138,7 +138,7 @@ pub fn benchmark_integration_stage_test() {
 }
 
 pub fn benchmark_throughput_calculation_test() {
-  let stage = domain.Stage("static", "Static analysis passes", 3, True)
+  let stage = domain.Stage("static", "Static analysis passes", 3)
   let result = benchmark_stage(stage)
 
   result.stage_name
@@ -149,7 +149,7 @@ pub fn benchmark_throughput_calculation_test() {
 }
 
 pub fn benchmark_memory_measurement_test() {
-  let stage = domain.Stage("lint", "Code formatted", 3, True)
+  let stage = domain.Stage("lint", "Code formatted", 3)
   let result = benchmark_stage(stage)
 
   result.stage_name

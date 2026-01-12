@@ -236,7 +236,7 @@ let queue = factory_supervisor.get_merge_queue(started)
 
 - Signal timeouts may need tuning for slow systems
 - Feature flags require manual metrics updates
-- No automatic retry beyond TCR stage retries
+- No automatic retry beyond stage-configured retries
 - Persistence uses JSON, not distributed database
 - Logging outputs to stdout only, not file logging
 

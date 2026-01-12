@@ -1,6 +1,6 @@
 // Runtime validation schemas for AI outputs - COMPACT FORMAT
 // Validate: echo '{"s":"tw",...}' | cue vet schemas.cue -d '#AuditorOutput' -
-package tcr
+package factory
 
 // Auditor output - compact keys
 #AuditorOutput: {

@@ -123,9 +123,8 @@ fn build_cli_prompt(task_spec: String, iteration: Int) -> String {
 
   iter_context <> " Implement: " <> task_spec <> "
 
-Run tests with 'gleam test'. If tests pass, commit with 'git add . && git commit -m \"TCR: implemented\"'.
-If tests fail, revert with 'git reset --hard HEAD'.
-Commit only when all tests pass."
+Run tests with 'gleam test'. If tests pass, commit the changes.
+If tests fail, fix the issues and try again."
 }
 
 fn collect_artifacts(worktree_path: String) -> List(String) {

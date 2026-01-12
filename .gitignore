@@ -14,7 +14,7 @@ erl_crash.dump
 !.codanna/settings.toml
 !.codannaignore
 
-# TDD-TCR-Refactor artifacts
+# Development artifacts
 .tdd-history.md
 
 # Factory learnings (AI-generated, can be regenerated)
