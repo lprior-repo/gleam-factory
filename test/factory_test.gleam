@@ -601,7 +601,7 @@ pub fn parse_args_new_command_with_slug_test() {
 
   // Assert: should return a NewTask command with the correct slug
   result
-  |> should.equal(Ok(cli.NewTask("my-task")))
+  |> should.equal(Ok(cli.NewTask("my-task", option.None, False)))
 }
 
 /// Test flexible flag ordering: --contract before --slug should work
@@ -616,7 +616,9 @@ pub fn parse_args_new_command_with_flexible_flag_order_test() {
   // Assert: should return a NewTask command with slug
   // The order of flags should NOT matter
   result
-  |> should.equal(Ok(cli.NewTask("my-task")))
+  |> should.equal(
+    Ok(cli.NewTask("my-task", option.Some("path/to/contract.md"), False)),
+  )
 }
 
 /// Test that 'new' command without required --slug flag returns an error
@@ -651,7 +653,7 @@ pub fn parse_args_new_command_with_short_slug_flag_test() {
 
   // Assert: should return same result as using --slug
   result
-  |> should.equal(Ok(cli.NewTask("my-task")))
+  |> should.equal(Ok(cli.NewTask("my-task", option.None, False)))
 }
 
 /// Test that short flag -c is equivalent to --contract
@@ -666,7 +668,9 @@ pub fn parse_args_new_command_with_short_contract_flag_test() {
   // Assert: should return a NewTask command with both slug and contract
   // -c should be equivalent to --contract
   result
-  |> should.equal(Ok(cli.NewTask("my-task")))
+  |> should.equal(
+    Ok(cli.NewTask("my-task", option.Some("path/to/contract.md"), False)),
+  )
 }
 
 /// Test that 'stage' command requires both --slug and --stage flags

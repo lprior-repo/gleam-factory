@@ -34,7 +34,7 @@ pub fn format_error_details(context: ErrorContext) -> String {
 
 // format_user_message produces friendly output safe for end users
 pub fn format_user_message(error: Error) -> String {
-  case error.context.module {
+  let base_message = case error.context.module {
     "auth" -> "Authentication failed. Please check your credentials."
     "validation" ->
       case error.context.cause {
@@ -54,6 +54,8 @@ pub fn format_user_message(error: Error) -> String {
         None -> "Something went wrong. Please try again later."
       }
   }
+
+  base_message <> " (" <> error.reason <> ")"
 }
 
 // extract_cause gets the root cause from an error

@@ -351,15 +351,14 @@ fn go_coverage(cwd: String) -> Result(Nil, String) {
 }
 
 fn go_lint(cwd: String) -> Result(Nil, String) {
-  case process.run_command("gofmt", ["-l", "."], cwd) {
-    Ok(process.Success(stdout, _, _)) -> {
+  use cmd_result <- result.try(process.run_command("gofmt", ["-l", "."], cwd))
+  case cmd_result {
+    process.Success(stdout, _, _) ->
       case string.is_empty(string.trim(stdout)) {
         True -> Ok(Nil)
-        False -> Error("Unformatted files: " <> stdout)
+        False -> Error("Go: Unformatted files:\n" <> stdout)
       }
-    }
-    Ok(process.Failure(err, _)) -> Error(err)
-    Error(e) -> Error(e)
+    process.Failure(stderr, _) -> Error("Go: gofmt failed: " <> stderr)
   }
 }
 

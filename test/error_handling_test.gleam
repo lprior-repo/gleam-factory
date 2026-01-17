@@ -165,3 +165,18 @@ pub fn error_chain_preserves_cause_test() {
     }
   }
 }
+
+pub fn format_user_message_includes_actual_error_test() {
+  let context =
+    ErrorContext(
+      module: "database",
+      function: "query",
+      cause: Some("connection refused"),
+    )
+  let error = Error(reason: "Actual DB error", context: context)
+  let user_message = format_user_message(error)
+
+  user_message
+  |> string.contains("Actual DB error")
+  |> should.be_true()
+}

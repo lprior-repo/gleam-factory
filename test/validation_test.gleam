@@ -1,41 +1,72 @@
-// Unit tests for validation module - edge cases for validate_email
-// Tests malformed email formats that should be rejected
-
 import gleeunit/should
 import validation
 
-// Test @ alone fails
 pub fn validate_email_rejects_at_alone_test() {
   validation.validate_email("@")
   |> should.be_error
 }
 
-// Test @domain.com fails (no local part)
 pub fn validate_email_rejects_no_local_part_test() {
   validation.validate_email("@domain.com")
   |> should.be_error
 }
 
-// Test user@ fails (no domain)
 pub fn validate_email_rejects_no_domain_test() {
   validation.validate_email("user@")
   |> should.be_error
 }
 
-// Test user@@domain.com fails (double @)
 pub fn validate_email_rejects_double_at_test() {
   validation.validate_email("user@@domain.com")
   |> should.be_error
 }
 
-// Test user@domain.com passes
+pub fn validate_email_rejects_spaces_test() {
+  validation.validate_email("user name@domain.com")
+  |> should.be_error
+}
+
+pub fn validate_email_rejects_leading_dot_test() {
+  validation.validate_email(".user@domain.com")
+  |> should.be_error
+}
+
+pub fn validate_email_rejects_trailing_dot_test() {
+  validation.validate_email("user.@domain.com")
+  |> should.be_error
+}
+
+pub fn validate_email_rejects_consecutive_dots_test() {
+  validation.validate_email("user..name@domain.com")
+  |> should.be_error
+}
+
+pub fn validate_email_rejects_special_chars_test() {
+  validation.validate_email("user<>@domain.com")
+  |> should.be_error
+}
+
 pub fn validate_email_accepts_valid_test() {
   validation.validate_email("user@domain.com")
   |> should.be_ok
 }
 
-// Test simple user@domain passes (no dot required for basic validation)
-pub fn validate_email_accepts_simple_valid_test() {
-  validation.validate_email("user@domain")
+pub fn validate_email_accepts_with_dot_test() {
+  validation.validate_email("user.name@domain.com")
+  |> should.be_ok
+}
+
+pub fn validate_email_accepts_with_plus_test() {
+  validation.validate_email("user+tag@domain.com")
+  |> should.be_ok
+}
+
+pub fn validate_email_accepts_with_dash_test() {
+  validation.validate_email("user-name@domain.com")
+  |> should.be_ok
+}
+
+pub fn validate_email_accepts_with_underscore_test() {
+  validation.validate_email("user_name@domain.com")
   |> should.be_ok
 }

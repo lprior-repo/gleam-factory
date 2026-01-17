@@ -113,6 +113,12 @@ pub fn execute_python_unknown_stage_test() {
   |> should.be_error()
 }
 
+// Go lint test
+pub fn go_lint_detects_unformatted_code_test() {
+  stages.execute_stage("lint", domain.Go, "/tmp/go-lint-test")
+  |> should.be_error()
+}
+
 // Dry-run mode tests
 pub fn execute_stages_dry_run_gleam_single_stage_test() {
   let stage = domain.Stage("implement", "Code compiles", 5)

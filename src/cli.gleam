@@ -12,7 +12,7 @@ import stages
 import worktree
 
 pub type Command {
-  NewTask(slug: String)
+  NewTask(slug: String, contract: Option(String), interactive: Bool)
   RunStage(
     slug: String,
     stage_name: String,
@@ -60,7 +60,11 @@ fn has_flag(args: List(String), long: String, short: String) -> Bool {
 fn parse_new(args: List(String)) -> Result(Command, String) {
   case get_flag(args, "--slug", "-s") {
     None -> Error("--slug is required for new command")
-    Some(slug) -> Ok(NewTask(slug))
+    Some(slug) -> {
+      let contract = get_flag(args, "--contract", "-c")
+      let interactive = has_flag(args, "--interactive", "-i")
+      Ok(NewTask(slug, contract, interactive))
+    }
   }
 }
 
@@ -152,7 +156,8 @@ fn validate_status(s: String) -> Result(String, String) {
 /// Execute parsed command
 pub fn execute(cmd: Command) -> Result(Nil, String) {
   case cmd {
-    NewTask(slug) -> execute_new(slug)
+    NewTask(slug, contract, interactive) ->
+      execute_new(slug, contract, interactive)
 
     RunStage(slug, stage, dry_run, from, to) ->
       execute_stage(slug, stage, dry_run, from, to)
@@ -175,7 +180,11 @@ pub fn execute(cmd: Command) -> Result(Nil, String) {
   }
 }
 
-fn execute_new(slug: String) -> Result(Nil, String) {
+fn execute_new(
+  slug: String,
+  contract: Option(String),
+  interactive: Bool,
+) -> Result(Nil, String) {
   use _ <- result.try(domain.validate_slug(slug))
   use repo_root <- result.try(repo.detect_repo_root())
   use lang <- result.try(repo.detect_language(repo_root))
@@ -187,7 +196,13 @@ fn execute_new(slug: String) -> Result(Nil, String) {
     domain.Python -> "python"
   }
 
-  use message <- result.try(execute_new_impl(slug, lang_str, repo_root))
+  use message <- result.try(execute_new_impl(
+    slug,
+    lang_str,
+    repo_root,
+    contract,
+    interactive,
+  ))
   io.println(message)
   Ok(Nil)
 }
@@ -390,6 +405,8 @@ fn execute_new_impl(
   slug: String,
   lang_str: String,
   repo_root: String,
+  contract: Option(String),
+  interactive: Bool,
 ) -> Result(String, String) {
   use lang <- result.try(domain.parse_language(lang_str))
   use validated_slug <- result.try(domain.validate_slug(slug))
@@ -410,6 +427,15 @@ fn execute_new_impl(
   // Log task creation to audit trail
   let _ = audit.log_task_created(repo_root, slug, lang_str, wt.branch)
 
+  let contract_info = case contract {
+    Some(c) -> "\nContract: " <> c
+    None -> ""
+  }
+  let interactive_info = case interactive {
+    True -> "\nInteractive: enabled"
+    False -> ""
+  }
+
   Ok(
     "Created: "
     <> wt.path
@@ -418,7 +444,9 @@ fn execute_new_impl(
     <> wt.branch
     <> "\n"
     <> "Language: "
-    <> lang_str,
+    <> lang_str
+    <> contract_info
+    <> interactive_info,
   )
 }
 

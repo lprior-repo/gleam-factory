@@ -7,6 +7,7 @@ import gleam/int
 import gleam/json
 import gleam/list
 import gleam/result
+import gleam/string
 import llm
 import process as shell_process
 import types
@@ -118,7 +119,7 @@ fn call_anthropic(
   }
 }
 
-fn build_local_request_json(request: llm.LLMRequest) -> String {
+pub fn build_local_request_json(request: llm.LLMRequest) -> String {
   "{\"prompt\":\""
   <> escape_json(request.prompt)
   <> "\",\"n_predict\":"
@@ -246,12 +247,51 @@ fn escape_json(s: String) -> String {
   |> string_replace("\t", "\\t")
 }
 
-@external(erlang, "string", "replace")
-fn string_replace(s: String, from: String, to: String) -> String
+fn string_replace(s: String, from: String, to: String) -> String {
+  binary_replace(s, from, to, [Global])
+}
+
+type ReplaceOption {
+  Global
+}
+
+@external(erlang, "binary", "replace")
+fn binary_replace(
+  s: String,
+  from: String,
+  to: String,
+  opts: List(ReplaceOption),
+) -> String
 
 fn float_to_string(f: Float) -> String {
-  float_to_binary(f, [#(Decimals, 2)])
+  let s = float_to_binary(f, [#(Decimals, 2)])
+  case s {
+    "0.00" -> "0.0"
+    _ -> trim_trailing_zeros(s)
+  }
 }
+
+fn trim_trailing_zeros(s: String) -> String {
+  case string_ends_with_binary(s, "0") && !string_ends_with_binary(s, ".0") {
+    True -> trim_trailing_zeros(string.drop_end(s, 1))
+    False -> s
+  }
+}
+
+fn string_ends_with_binary(s: String, suffix: String) -> Bool {
+  let s_len = byte_size(s)
+  let suffix_len = byte_size(suffix)
+  case s_len >= suffix_len {
+    False -> False
+    True -> binary_part(s, s_len - suffix_len, suffix_len) == suffix
+  }
+}
+
+@external(erlang, "erlang", "byte_size")
+fn byte_size(s: String) -> Int
+
+@external(erlang, "binary", "part")
+fn binary_part(s: String, start: Int, len: Int) -> String
 
 type FloatOption =
   #(FloatOptionKey, Int)

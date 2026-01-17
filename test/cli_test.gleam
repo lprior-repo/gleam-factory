@@ -33,17 +33,49 @@ pub fn parse_args_version_test() {
 // parse_args: new command tests
 pub fn parse_args_new_with_slug_test() {
   cli.parse_args(["new", "--slug", "test-slug"])
-  |> should.equal(Ok(cli.NewTask("test-slug")))
+  |> should.equal(Ok(cli.NewTask("test-slug", None, False)))
 }
 
 pub fn parse_args_new_with_short_slug_test() {
   cli.parse_args(["new", "-s", "test-slug"])
-  |> should.equal(Ok(cli.NewTask("test-slug")))
+  |> should.equal(Ok(cli.NewTask("test-slug", None, False)))
 }
 
 pub fn parse_args_new_missing_slug_test() {
   cli.parse_args(["new"])
   |> should.equal(Error("--slug is required for new command"))
+}
+
+pub fn parse_args_new_with_contract_test() {
+  cli.parse_args(["new", "--slug", "test-slug", "--contract", "contract.cue"])
+  |> should.equal(Ok(cli.NewTask("test-slug", Some("contract.cue"), False)))
+}
+
+pub fn parse_args_new_with_contract_short_test() {
+  cli.parse_args(["new", "-s", "test-slug", "-c", "contract.cue"])
+  |> should.equal(Ok(cli.NewTask("test-slug", Some("contract.cue"), False)))
+}
+
+pub fn parse_args_new_with_interactive_test() {
+  cli.parse_args(["new", "--slug", "test-slug", "--interactive"])
+  |> should.equal(Ok(cli.NewTask("test-slug", None, True)))
+}
+
+pub fn parse_args_new_with_interactive_short_test() {
+  cli.parse_args(["new", "-s", "test-slug", "-i"])
+  |> should.equal(Ok(cli.NewTask("test-slug", None, True)))
+}
+
+pub fn parse_args_new_with_contract_and_interactive_test() {
+  cli.parse_args([
+    "new",
+    "-s",
+    "test-slug",
+    "-c",
+    "contract.cue",
+    "--interactive",
+  ])
+  |> should.equal(Ok(cli.NewTask("test-slug", Some("contract.cue"), True)))
 }
 
 // parse_args: stage command tests
@@ -442,7 +474,7 @@ pub fn parse_args_unknown_command_run_test() {
 
 pub fn parse_args_multiple_slugs_uses_first_test() {
   cli.parse_args(["new", "--slug", "slug1", "--slug", "slug2"])
-  |> should.equal(Ok(cli.NewTask("slug1")))
+  |> should.equal(Ok(cli.NewTask("slug1", None, False)))
 }
 
 pub fn parse_args_multiple_stages_uses_first_test() {
