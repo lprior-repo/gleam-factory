@@ -251,16 +251,14 @@ fn escape_json(s: String) -> String {
 fn string_replace(s: String, from: String, to: String) -> String
 
 fn float_to_string(f: Float) -> String {
-  float_to_binary(f, [#(decimals, 2)])
+  float_to_binary(f, [#(Decimals, 2)])
 }
 
-type FloatOption {
+type FloatOption =
   #(FloatOptionKey, Int)
-}
 
 type FloatOptionKey {
-  @external(erlang, "erlang", "binary_to_atom")
-  decimals
+  Decimals
 }
 
 @external(erlang, "erlang", "float_to_binary")

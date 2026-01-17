@@ -153,7 +153,7 @@ pub fn execute_stage(
   language: domain.Language,
   worktree_path: String,
 ) -> Result(Nil, String) {
-  let lang_str = domain.language_to_string(language)
+  let lang_str = domain.language_display_name(language)
   logging.log(
     logging.Info,
     "Stage starting",

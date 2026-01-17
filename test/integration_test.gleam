@@ -410,8 +410,8 @@ pub fn e2e_concurrent_loops_test() {
   factory_loop.advance(loop2, factory_loop.TestPassed)
   process.sleep(200)
 
-  let state1 = factory_loop.get_state(loop1)
-  let state2 = factory_loop.get_state(loop2)
+  let assert factory_loop.GotState(state1) = factory_loop.get_state(loop1)
+  let assert factory_loop.GotState(state2) = factory_loop.get_state(loop2)
 
   state1.phase
   |> should.equal(factory_loop.Reviewing)

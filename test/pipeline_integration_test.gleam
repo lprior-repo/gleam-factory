@@ -303,7 +303,7 @@ pub fn pipeline_dry_run_execution_test() {
 
 /// Test: Dry-run previews show estimated durations
 pub fn pipeline_dry_run_shows_duration_test() {
-  let single_stage = [domain.Stage("implement", "Build code", True)]
+  let single_stage = [domain.Stage("implement", "Build code", 0)]
   let previews = stages.execute_stages_dry_run(single_stage, domain.Gleam)
 
   case previews {
@@ -362,8 +362,8 @@ fn find_index_helper(
 
 /// Test: Language-specific commands for Gleam
 pub fn pipeline_gleam_stage_commands_test() {
-  let implement_stage = [domain.Stage("implement", "Build", True)]
-  let lint_stage = [domain.Stage("lint", "Format check", True)]
+  let implement_stage = [domain.Stage("implement", "Build", 0)]
+  let lint_stage = [domain.Stage("lint", "Format check", 0)]
 
   let impl_preview = stages.execute_stages_dry_run(implement_stage, domain.Gleam)
   let lint_preview = stages.execute_stages_dry_run(lint_stage, domain.Gleam)
@@ -384,8 +384,8 @@ pub fn pipeline_gleam_stage_commands_test() {
 
 /// Test: Language-specific commands for Go
 pub fn pipeline_go_stage_commands_test() {
-  let implement_stage = [domain.Stage("implement", "Build", True)]
-  let lint_stage = [domain.Stage("lint", "Format check", True)]
+  let implement_stage = [domain.Stage("implement", "Build", 0)]
+  let lint_stage = [domain.Stage("lint", "Format check", 0)]
 
   let impl_preview = stages.execute_stages_dry_run(implement_stage, domain.Go)
   let lint_preview = stages.execute_stages_dry_run(lint_stage, domain.Go)
@@ -406,8 +406,8 @@ pub fn pipeline_go_stage_commands_test() {
 
 /// Test: Language-specific commands for Rust
 pub fn pipeline_rust_stage_commands_test() {
-  let implement_stage = [domain.Stage("implement", "Build", True)]
-  let lint_stage = [domain.Stage("lint", "Format check", True)]
+  let implement_stage = [domain.Stage("implement", "Build", 0)]
+  let lint_stage = [domain.Stage("lint", "Format check", 0)]
 
   let impl_preview = stages.execute_stages_dry_run(implement_stage, domain.Rust)
   let lint_preview = stages.execute_stages_dry_run(lint_stage, domain.Rust)
@@ -428,8 +428,8 @@ pub fn pipeline_rust_stage_commands_test() {
 
 /// Test: Language-specific commands for Python
 pub fn pipeline_python_stage_commands_test() {
-  let implement_stage = [domain.Stage("implement", "Build", True)]
-  let lint_stage = [domain.Stage("lint", "Format check", True)]
+  let implement_stage = [domain.Stage("implement", "Build", 0)]
+  let lint_stage = [domain.Stage("lint", "Format check", 0)]
 
   let impl_preview = stages.execute_stages_dry_run(implement_stage, domain.Python)
   let lint_preview = stages.execute_stages_dry_run(lint_stage, domain.Python)
