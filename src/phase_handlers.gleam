@@ -74,7 +74,6 @@ pub fn handle_implementing_phase(
   }
 }
 
-
 pub fn handle_write_file(
   path: String,
   content: String,

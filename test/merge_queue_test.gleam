@@ -43,7 +43,11 @@ pub fn report_test_result_success_broadcasts_patch_accepted_test() {
       merged_at: signals.timestamp(0),
     )
   let assert Ok(Nil) =
-    signal_bus.subscribe(bus, signal_bus.PatchAccepted(test_patch), accepted_sub)
+    signal_bus.subscribe(
+      bus,
+      signal_bus.PatchAccepted(test_patch),
+      accepted_sub,
+    )
 
   let assert Ok(queue) = merge_queue.start_link(bus)
 
@@ -66,11 +70,7 @@ pub fn report_test_result_failure_broadcasts_patch_rejected_test() {
   // Subscribe with the expected rejection reason
   let expected_reason = "Tests failed for patch hash1"
   let assert Ok(Nil) =
-    signal_bus.subscribe(
-      bus,
-      signal_bus.PatchRejected(""),
-      rejected_sub,
-    )
+    signal_bus.subscribe(bus, signal_bus.PatchRejected(""), rejected_sub)
 
   let assert Ok(queue) = merge_queue.start_link(bus)
 
@@ -114,7 +114,11 @@ pub fn only_matching_patch_hash_accepts_test() {
       merged_at: signals.timestamp(0),
     )
   let assert Ok(Nil) =
-    signal_bus.subscribe(bus, signal_bus.PatchAccepted(test_patch), accepted_sub)
+    signal_bus.subscribe(
+      bus,
+      signal_bus.PatchAccepted(test_patch),
+      accepted_sub,
+    )
 
   let assert Ok(queue) = merge_queue.start_link(bus)
 

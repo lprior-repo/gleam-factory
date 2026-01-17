@@ -154,10 +154,11 @@ pub fn pipeline_multiple_subscriptions_test() {
 
       // Publish and verify both receive
       signal_bus.broadcast(bus, signal_bus.TestPassing)
-      let patch = signals.PatchAccepted(
-        hash: signals.hash("abc123"),
-        merged_at: signals.timestamp(0),
-      )
+      let patch =
+        signals.PatchAccepted(
+          hash: signals.hash("abc123"),
+          merged_at: signals.timestamp(0),
+        )
       signal_bus.broadcast(bus, signal_bus.PatchAccepted(patch))
       Nil
     }
@@ -208,10 +209,11 @@ pub fn pipeline_complete_workflow_test() {
 
       // Step 4: Signals broadcast
       signal_bus.broadcast(bus, signal_bus.TestPassing)
-      let patch = signals.PatchAccepted(
-        hash: signals.hash("def456"),
-        merged_at: signals.timestamp(0),
-      )
+      let patch =
+        signals.PatchAccepted(
+          hash: signals.hash("def456"),
+          merged_at: signals.timestamp(0),
+        )
       signal_bus.broadcast(bus, signal_bus.PatchAccepted(patch))
 
       Nil
@@ -365,7 +367,8 @@ pub fn pipeline_gleam_stage_commands_test() {
   let implement_stage = [domain.Stage("implement", "Build", 0)]
   let lint_stage = [domain.Stage("lint", "Format check", 0)]
 
-  let impl_preview = stages.execute_stages_dry_run(implement_stage, domain.Gleam)
+  let impl_preview =
+    stages.execute_stages_dry_run(implement_stage, domain.Gleam)
   let lint_preview = stages.execute_stages_dry_run(lint_stage, domain.Gleam)
 
   case impl_preview, lint_preview {
@@ -431,7 +434,8 @@ pub fn pipeline_python_stage_commands_test() {
   let implement_stage = [domain.Stage("implement", "Build", 0)]
   let lint_stage = [domain.Stage("lint", "Format check", 0)]
 
-  let impl_preview = stages.execute_stages_dry_run(implement_stage, domain.Python)
+  let impl_preview =
+    stages.execute_stages_dry_run(implement_stage, domain.Python)
   let lint_preview = stages.execute_stages_dry_run(lint_stage, domain.Python)
 
   case impl_preview, lint_preview {

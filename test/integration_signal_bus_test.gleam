@@ -45,10 +45,11 @@ pub fn signal_bus_broadcast_patch_accepted() {
     Error(_) -> should.fail()
     Ok(bus) -> {
       let subscriber = process.new_subject()
-      let patch = signals.PatchAccepted(
-        hash: signals.hash("abc123"),
-        merged_at: signals.timestamp(0),
-      )
+      let patch =
+        signals.PatchAccepted(
+          hash: signals.hash("abc123"),
+          merged_at: signals.timestamp(0),
+        )
       let _ =
         signal_bus.subscribe(bus, signal_bus.PatchAccepted(patch), subscriber)
 

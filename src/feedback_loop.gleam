@@ -76,7 +76,11 @@ pub fn spend_tokens(budget: TokenBudget, tokens: Int) -> TokenBudget {
 }
 
 /// Extract actionable error from test output
-pub fn extract_error(stdout: String, stderr: String, exit_code: Int) -> TestFeedback {
+pub fn extract_error(
+  stdout: String,
+  stderr: String,
+  exit_code: Int,
+) -> TestFeedback {
   let combined = stdout <> "\n" <> stderr
   let summary = extract_error_summary(combined)
 
@@ -136,10 +140,7 @@ pub fn format_for_llm(
   previous_attempt: Option(String),
 ) -> String {
   let base =
-    "Task: "
-    <> task_spec
-    <> "\n\nTest failed with:\n"
-    <> feedback.error_summary
+    "Task: " <> task_spec <> "\n\nTest failed with:\n" <> feedback.error_summary
 
   case previous_attempt {
     Some(prev) ->
@@ -165,7 +166,8 @@ pub fn iterate(
   let request =
     llm.new_request("default", prompt, config.context_window)
     |> llm.with_system_prompt(system)
-    |> llm.with_temperature(0.3)  // Lower temp for fixes
+    |> llm.with_temperature(0.3)
+  // Lower temp for fixes
 
   case llm_router.call(config.router_config, request, role) {
     Ok(response) -> {
@@ -181,7 +183,11 @@ pub fn iterate(
 }
 
 /// Run a test command and capture output
-pub fn run_test(command: String, args: List(String), cwd: String) -> TestFeedback {
+pub fn run_test(
+  command: String,
+  args: List(String),
+  cwd: String,
+) -> TestFeedback {
   case shell_process.run_command(command, args, cwd) {
     Ok(shell_process.Success(stdout, stderr, code)) ->
       case code {
@@ -258,11 +264,7 @@ fn run_loop_internal(
   // Check budget first
   case has_budget(budget) {
     False ->
-      Failure(
-        "Budget exhausted",
-        budget.current_iteration,
-        budget.used_tokens,
-      )
+      Failure("Budget exhausted", budget.current_iteration, budget.used_tokens)
     True -> {
       // Run tests
       let feedback = run_test(test_cmd, test_args, cwd)
@@ -271,7 +273,9 @@ fn run_loop_internal(
         True -> Success(budget.current_iteration, budget.used_tokens)
         False -> {
           // Get fix from LLM
-          case iterate(config, task_spec, feedback, last_attempt, llm.Implementer) {
+          case
+            iterate(config, task_spec, feedback, last_attempt, llm.Implementer)
+          {
             Fixed(response, tokens) -> {
               let new_budget = spend_tokens(budget, tokens)
               // Apply the fix

@@ -752,7 +752,7 @@ pub fn all_status_roundtrip_test() {
         created_at: "2026-01-09T10:00:00Z",
         updated_at: "2026-01-09T10:00:00Z",
         stages: [],
-      worktree_path: "",
+        worktree_path: "",
       )
 
     let json_str = persistence.record_to_json(record)

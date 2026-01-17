@@ -85,7 +85,10 @@ pub fn is_shm_mounted() -> Result(Bool, String) {
   }
 }
 
-pub fn verify(min_free_ram_mb: Int, _golden_master_path: String) -> Result(Nil, String) {
+pub fn verify(
+  min_free_ram_mb: Int,
+  _golden_master_path: String,
+) -> Result(Nil, String) {
   verify_startup(min_free_ram_mb, False)
 }
 

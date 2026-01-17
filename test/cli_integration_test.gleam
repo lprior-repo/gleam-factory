@@ -288,11 +288,7 @@ pub fn factory_new_creates_task_record_test() {
       // We test the CLI parsing logic rather than full execution
       // since full execution requires the full project context
       case
-        process.run_command(
-          "test",
-          ["-d", repo_path <> "/.factory"],
-          repo_path,
-        )
+        process.run_command("test", ["-d", repo_path <> "/.factory"], repo_path)
       {
         Ok(process.Failure(_, _)) -> {
           // .factory dir should not exist yet - expected

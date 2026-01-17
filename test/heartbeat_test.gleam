@@ -236,13 +236,10 @@ pub fn progress_buffer_bounded_test() {
   let assert Ok(hb) = heartbeat.start_link(config, bus)
 
   list.range(0, 2000)
-  |> list.fold(
-    Nil,
-    fn(_acc, i) {
-      heartbeat.stream_progress(hb, "task_" <> int.to_string(i), "chunk_data")
-      Nil
-    },
-  )
+  |> list.fold(Nil, fn(_acc, i) {
+    heartbeat.stream_progress(hb, "task_" <> int.to_string(i), "chunk_data")
+    Nil
+  })
   |> fn(_) { Nil }
 
   process.sleep(100)

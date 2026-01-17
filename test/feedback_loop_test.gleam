@@ -151,11 +151,7 @@ pub fn format_for_llm_with_previous_test() {
       error_summary: "wrong return type",
     )
   let prompt =
-    feedback_loop.format_for_llm(
-      feedback,
-      "fix types",
-      Some("fn foo() { 42 }"),
-    )
+    feedback_loop.format_for_llm(feedback, "fix types", Some("fn foo() { 42 }"))
   should.be_true(
     prompt
     |> contains("Previous attempt"),
@@ -205,12 +201,7 @@ fn contains(haystack: String, needle: String) -> Bool {
   }
 }
 
-fn check_contains(
-  haystack: String,
-  needle: String,
-  pos: Int,
-  max: Int,
-) -> Bool {
+fn check_contains(haystack: String, needle: String, pos: Int, max: Int) -> Bool {
   case pos >= max {
     True -> False
     False -> {

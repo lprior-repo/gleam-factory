@@ -77,7 +77,13 @@ pub fn start_link(
   workspace_path: String,
   bus: Subject(signal_bus.SignalBusMessage),
 ) -> Result(Subject(LoopMessage), LoopError) {
-  start_link_with_budget(loop_id, bead, workspace_path, bus, default_token_budget)
+  start_link_with_budget(
+    loop_id,
+    bead,
+    workspace_path,
+    bus,
+    default_token_budget,
+  )
 }
 
 pub fn start_link_with_budget(
@@ -176,9 +182,12 @@ fn handle_message(
         BudgetExhausted, _ -> {
           FactoryLoopState(..state, phase: Failed)
         }
-        PushSuccess, _ | PushConflict, _ | RebaseSuccess, _ | RebaseConflict, _
-        | MaxIterationsReached, _ ->
-          FactoryLoopState(..state, phase: new_phase)
+        PushSuccess, _
+        | PushConflict, _
+        | RebaseSuccess, _
+        | RebaseConflict, _
+        | MaxIterationsReached, _
+        -> FactoryLoopState(..state, phase: new_phase)
         _, _ -> {
           logging.log(
             logging.Debug,
@@ -267,8 +276,7 @@ pub fn get_state(loop: Subject(LoopMessage)) -> GetStateResult {
 pub fn unwrap_state(result: GetStateResult) -> FactoryLoopState {
   case result {
     GotState(state) -> state
-    GetStateTimeout ->
-      panic as "get_state timed out - loop unresponsive"
+    GetStateTimeout -> panic as "get_state timed out - loop unresponsive"
   }
 }
 

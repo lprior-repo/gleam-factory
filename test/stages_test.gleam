@@ -70,7 +70,8 @@ pub fn execute_gleam_integration_test() {
   let result = stages.execute_stage("integration", domain.Gleam, ".")
   case result {
     Ok(_) -> Nil
-    Error(_) -> Nil  // Either outcome is acceptable for integration tests
+    Error(_) -> Nil
+    // Either outcome is acceptable for integration tests
   }
 }
 

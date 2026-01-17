@@ -27,7 +27,14 @@ pub fn run_stage(
   case stages.execute_stage(stage_name, language, workspace) {
     Ok(_) -> StageSuccess(iterations: 0, tokens_used: 0)
     Error(reason) ->
-      run_with_feedback(stage_name, language, workspace, config, task_spec, reason)
+      run_with_feedback(
+        stage_name,
+        language,
+        workspace,
+        config,
+        task_spec,
+        reason,
+      )
   }
 }
 
@@ -46,9 +53,19 @@ fn run_with_feedback(
     apply_fix(response, workspace, language)
   }
 
-  case feedback_loop.run_loop(config, task_spec, test_cmd, test_args, workspace, apply) {
+  case
+    feedback_loop.run_loop(
+      config,
+      task_spec,
+      test_cmd,
+      test_args,
+      workspace,
+      apply,
+    )
+  {
     feedback_loop.Success(iters, tokens) -> StageSuccess(iters, tokens)
-    feedback_loop.Failure(reason, iters, tokens) -> StageFailed(reason, iters, tokens)
+    feedback_loop.Failure(reason, iters, tokens) ->
+      StageFailed(reason, iters, tokens)
   }
 }
 

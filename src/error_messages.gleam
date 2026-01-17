@@ -30,7 +30,9 @@ pub fn format(kind: ErrorKind) -> String {
       "Could not detect project repository.\n\nMake sure you're running this command from within a project directory with one of:\n  - gleam.toml (Gleam)\n  - go.mod (Go)\n  - Cargo.toml (Rust)\n  - pyproject.toml (Python)"
 
     TaskNotFound(slug) ->
-      "Task not found: " <> slug <> "\n\nRun 'factory list' to see available tasks."
+      "Task not found: "
+      <> slug
+      <> "\n\nRun 'factory list' to see available tasks."
 
     StageNotFound(stage) ->
       "Unknown stage: "
@@ -80,23 +82,16 @@ pub fn format_hint(kind: ErrorKind) -> String {
   case kind {
     InvalidSlug(_) ->
       "💡 Tip: Use lowercase letters, numbers, hyphens, and underscores only"
-    RepoNotFound ->
-      "💡 Tip: Run from the project root directory"
-    TaskNotFound(_) ->
-      "💡 Tip: Check task name with 'factory list'"
+    RepoNotFound -> "💡 Tip: Run from the project root directory"
+    TaskNotFound(_) -> "💡 Tip: Check task name with 'factory list'"
     StageNotFound(_) ->
       "💡 Tip: Use 'factory show -s <task>' to see available stages"
-    InvalidStage(_) ->
-      "💡 Tip: Stages must run in order"
-    CommandFailed(_, _, _) ->
-      "💡 Tip: Check that required tools are installed"
-    PermissionDenied(_) ->
-      "💡 Tip: Check directory permissions with 'ls -la'"
+    InvalidStage(_) -> "💡 Tip: Stages must run in order"
+    CommandFailed(_, _, _) -> "💡 Tip: Check that required tools are installed"
+    PermissionDenied(_) -> "💡 Tip: Check directory permissions with 'ls -la'"
     ResourceExhausted(_) ->
       "💡 Tip: Clean up old workspaces with 'factory cleanup'"
-    ConfigError(_) ->
-      "💡 Tip: Validate config syntax"
-    Timeout(_) ->
-      "💡 Tip: System may be overloaded"
+    ConfigError(_) -> "💡 Tip: Validate config syntax"
+    Timeout(_) -> "💡 Tip: System may be overloaded"
   }
 }

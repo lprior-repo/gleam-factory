@@ -16,11 +16,14 @@ fn valid_config() -> feature_flags.RolloutConfig {
     flag: "test_feature",
     initial_percentage: 1,
     error_threshold: 0.05,
-    monitoring_interval: 60000,
+    monitoring_interval: 60_000,
   )
 }
 
-fn valid_metrics(error_count: Int, request_count: Int) -> feature_flags.HealthMetrics {
+fn valid_metrics(
+  error_count: Int,
+  request_count: Int,
+) -> feature_flags.HealthMetrics {
   feature_flags.HealthMetrics(
     error_rate: 0.0,
     request_count: request_count,
@@ -37,7 +40,7 @@ pub fn validate_config_with_valid_percentage_test() {
       flag: "test",
       initial_percentage: 50,
       error_threshold: 0.1,
-      monitoring_interval: 60000,
+      monitoring_interval: 60_000,
     )
 
   feature_flags.validate_config(config)
@@ -50,7 +53,7 @@ pub fn validate_config_with_zero_percentage_test() {
       flag: "test",
       initial_percentage: 0,
       error_threshold: 0.1,
-      monitoring_interval: 60000,
+      monitoring_interval: 60_000,
     )
 
   feature_flags.validate_config(config)
@@ -63,7 +66,7 @@ pub fn validate_config_with_100_percentage_test() {
       flag: "test",
       initial_percentage: 100,
       error_threshold: 0.1,
-      monitoring_interval: 60000,
+      monitoring_interval: 60_000,
     )
 
   feature_flags.validate_config(config)
@@ -76,7 +79,7 @@ pub fn validate_config_with_negative_percentage_test() {
       flag: "test",
       initial_percentage: -1,
       error_threshold: 0.1,
-      monitoring_interval: 60000,
+      monitoring_interval: 60_000,
     )
 
   feature_flags.validate_config(config)
@@ -89,7 +92,7 @@ pub fn validate_config_with_over_100_percentage_test() {
       flag: "test",
       initial_percentage: 101,
       error_threshold: 0.1,
-      monitoring_interval: 60000,
+      monitoring_interval: 60_000,
     )
 
   feature_flags.validate_config(config)
@@ -102,7 +105,7 @@ pub fn validate_config_with_valid_error_threshold_test() {
       flag: "test",
       initial_percentage: 50,
       error_threshold: 0.0,
-      monitoring_interval: 60000,
+      monitoring_interval: 60_000,
     )
 
   feature_flags.validate_config(config)
@@ -113,7 +116,7 @@ pub fn validate_config_with_valid_error_threshold_test() {
       flag: "test",
       initial_percentage: 50,
       error_threshold: 1.0,
-      monitoring_interval: 60000,
+      monitoring_interval: 60_000,
     )
 
   feature_flags.validate_config(config2)
@@ -126,7 +129,7 @@ pub fn validate_config_with_negative_error_threshold_test() {
       flag: "test",
       initial_percentage: 50,
       error_threshold: -0.1,
-      monitoring_interval: 60000,
+      monitoring_interval: 60_000,
     )
 
   feature_flags.validate_config(config)
@@ -139,7 +142,7 @@ pub fn validate_config_with_over_100_error_threshold_test() {
       flag: "test",
       initial_percentage: 50,
       error_threshold: 1.1,
-      monitoring_interval: 60000,
+      monitoring_interval: 60_000,
     )
 
   feature_flags.validate_config(config)
@@ -172,7 +175,7 @@ pub fn rollout_feature_rejects_invalid_config_test() {
       flag: "test",
       initial_percentage: 150,
       error_threshold: 0.1,
-      monitoring_interval: 60000,
+      monitoring_interval: 60_000,
     )
 
   feature_flags.rollout_feature("test", config)
@@ -276,13 +279,15 @@ pub fn advance_rollout_succeeds_with_healthy_metrics_test() {
   let ctx = feature_flags.new_context("test", config)
   let healthy_metrics = valid_metrics(2, 100)
 
-  case feature_flags.advance_rollout(
-    ctx,
-    config,
-    10,
-    feature_flags.OnePercent,
-    healthy_metrics,
-  ) {
+  case
+    feature_flags.advance_rollout(
+      ctx,
+      config,
+      10,
+      feature_flags.OnePercent,
+      healthy_metrics,
+    )
+  {
     Ok(updated) -> {
       let state = feature_flags.get_state(updated)
       state.current_percentage
@@ -300,13 +305,15 @@ pub fn advance_rollout_fails_with_unhealthy_metrics_test() {
   let ctx = feature_flags.new_context("test", config)
   let unhealthy_metrics = valid_metrics(10, 100)
 
-  case feature_flags.advance_rollout(
-    ctx,
-    config,
-    10,
-    feature_flags.OnePercent,
-    unhealthy_metrics,
-  ) {
+  case
+    feature_flags.advance_rollout(
+      ctx,
+      config,
+      10,
+      feature_flags.OnePercent,
+      unhealthy_metrics,
+    )
+  {
     Ok(_) -> should.fail()
     Error(feature_flags.RollbackTriggered(_msg)) -> Nil
     Error(_) -> should.fail()
@@ -318,13 +325,15 @@ pub fn advance_rollout_updates_metrics_test() {
   let ctx = feature_flags.new_context("test", config)
   let healthy_metrics = valid_metrics(1, 200)
 
-  case feature_flags.advance_rollout(
-    ctx,
-    config,
-    10,
-    feature_flags.OnePercent,
-    healthy_metrics,
-  ) {
+  case
+    feature_flags.advance_rollout(
+      ctx,
+      config,
+      10,
+      feature_flags.OnePercent,
+      healthy_metrics,
+    )
+  {
     Ok(_updated) -> {
       // Metrics updated successfully, stage advanced
       Nil

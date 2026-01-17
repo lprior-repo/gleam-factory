@@ -117,10 +117,11 @@ pub fn multiple_signals_single_subscriber_test() {
 
   let assert Ok(Nil) =
     signal_bus.subscribe(bus, signal_bus.PatchProposed, subscriber)
-  let patch = signals.PatchAccepted(
-    hash: signals.hash("test"),
-    merged_at: signals.timestamp(0),
-  )
+  let patch =
+    signals.PatchAccepted(
+      hash: signals.hash("test"),
+      merged_at: signals.timestamp(0),
+    )
   let assert Ok(Nil) =
     signal_bus.subscribe(bus, signal_bus.PatchAccepted(patch), subscriber)
 

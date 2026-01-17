@@ -36,7 +36,8 @@ pub fn get_state_returns_ok_on_valid_response_test() {
 
 pub fn get_state_returns_timeout_on_dead_actor_test() {
   // Create a subject that no actor listens to - simulates dead/unresponsive actor
-  let dead_loop: process.Subject(factory_loop.LoopMessage) = process.new_subject()
+  let dead_loop: process.Subject(factory_loop.LoopMessage) =
+    process.new_subject()
 
   // Calling get_state on a dead subject should timeout (no orphaned Subject created)
   case factory_loop.get_state(dead_loop) {

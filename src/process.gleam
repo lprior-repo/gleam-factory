@@ -104,10 +104,11 @@ pub fn run_command_with_env(
   env: List(#(String, String)),
 ) -> Result(CommandResult, String) {
   let shell_cmd = build_shell_command(cmd, args, cwd)
-  let env_prefix = list.fold(env, "", fn(acc, pair) {
-    let #(key, val) = pair
-    acc <> key <> "='" <> string.replace(val, "'", "'\"'\"'") <> "' "
-  })
+  let env_prefix =
+    list.fold(env, "", fn(acc, pair) {
+      let #(key, val) = pair
+      acc <> key <> "='" <> string.replace(val, "'", "'\"'\"'") <> "' "
+    })
   let full_cmd = env_prefix <> shell_cmd
   let output = os_cmd(full_cmd)
   Ok(parse_command_output(output))

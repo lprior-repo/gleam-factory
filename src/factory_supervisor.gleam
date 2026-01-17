@@ -100,7 +100,9 @@ pub fn start_link(config: SupervisorConfig) -> Result(Started, InitFailed) {
 
   use _ <- result.try(
     golden_master.prepare(golden_master_subject)
-    |> result.map_error(fn(e) { InitFailed(reason: "golden_master prepare: " <> e) }),
+    |> result.map_error(fn(e) {
+      InitFailed(reason: "golden_master prepare: " <> e)
+    }),
   )
 
   use merge_queue_subject <- result.try(
@@ -165,7 +167,10 @@ fn wait_for_shutdown(started: Started) -> Nil {
         "Received " <> signal_name <> ", initiating shutdown",
         dict.new(),
       )
-      signal_bus.broadcast(started.signal_bus_subject, signal_bus.ShutdownRequested)
+      signal_bus.broadcast(
+        started.signal_bus_subject,
+        signal_bus.ShutdownRequested,
+      )
       graceful_shutdown(started)
     }
     Error(Nil) -> wait_for_shutdown(started)

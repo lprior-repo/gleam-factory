@@ -75,10 +75,11 @@ fn broadcast_removed_beads(
 ) -> Nil {
   bead_ids
   |> list.each(fn(id) {
-    let signal = signals.BeadRemoved(
-      task_id: signals.task_id(id),
-      removed_at: signals.timestamp(get_current_timestamp()),
-    )
+    let signal =
+      signals.BeadRemoved(
+        task_id: signals.task_id(id),
+        removed_at: signals.timestamp(get_current_timestamp()),
+      )
     signal_bus.broadcast(bus, signal_bus.BeadRemoved(signal))
   })
 }

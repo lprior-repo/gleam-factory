@@ -12,7 +12,7 @@ pub fn main() {
 
 // Helper: Create temp directory with unique name
 fn create_temp_dir() -> Result(String, String) {
-  let unique_id = int.random(1000000) |> int.to_string
+  let unique_id = int.random(1_000_000) |> int.to_string
   let temp_dir = "/tmp/factory-gleam-test-repo-" <> unique_id
   simplifile.create_directory_all(temp_dir)
   |> result.map(fn(_) { temp_dir })

@@ -246,9 +246,7 @@ pub fn load_task_record(
 
   use record <- result.try(
     json_to_record(content, slug)
-    |> result.map_error(fn(e) {
-      format_error(JsonParseFailed(e))
-    }),
+    |> result.map_error(fn(e) { format_error(JsonParseFailed(e)) }),
   )
 
   record_to_task(record)
@@ -336,24 +334,22 @@ pub fn update_stage_status(
   let task_record = task_to_record(task)
 
   let file_path = status_file_path(repo_root)
-  use existing_stages <- result.try(
-    case load_task_record(slug_str, repo_root) {
-      Ok(_loaded_task) -> {
-        use json_str <- result.try(
-          simplifile.read(file_path)
-          |> result.map_error(fn(e) {
-            format_error(FileReadFailed(file_path, simplifile_error_to_string(e)))
-          }),
-        )
-        use loaded_record <- result.try(
-          json_to_record(json_str, slug_str)
-          |> result.map_error(fn(e) { format_error(JsonParseFailed(e)) }),
-        )
-        Ok(loaded_record.stages)
-      }
-      Error(_) -> Ok([])
-    },
-  )
+  use existing_stages <- result.try(case load_task_record(slug_str, repo_root) {
+    Ok(_loaded_task) -> {
+      use json_str <- result.try(
+        simplifile.read(file_path)
+        |> result.map_error(fn(e) {
+          format_error(FileReadFailed(file_path, simplifile_error_to_string(e)))
+        }),
+      )
+      use loaded_record <- result.try(
+        json_to_record(json_str, slug_str)
+        |> result.map_error(fn(e) { format_error(JsonParseFailed(e)) }),
+      )
+      Ok(loaded_record.stages)
+    }
+    Error(_) -> Ok([])
+  })
 
   let new_stage = build_stage_record(stage_name, result, attempts, error)
   let updated_stages = update_or_append_stage(existing_stages, new_stage)

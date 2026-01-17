@@ -154,7 +154,6 @@ pub fn prop_int_to_string_matches_standard__test() {
   assert custom == standard
 }
 
-
 // FORMATTING CONSISTENCY - Property: all format functions follow same pattern
 pub fn prop_format_consistency__test() {
   let msg = "test"

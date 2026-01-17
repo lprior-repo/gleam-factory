@@ -138,7 +138,9 @@ fn build_anthropic_request_json(request: llm.LLMRequest) -> String {
   <> "\"}]}"
 }
 
-fn parse_local_response(json_str: String) -> Result(llm.LLMResponse, llm.LLMError) {
+fn parse_local_response(
+  json_str: String,
+) -> Result(llm.LLMResponse, llm.LLMError) {
   case extract_content_field(json_str) {
     Ok(content) -> {
       let usage = extract_local_usage(json_str)
@@ -210,10 +212,7 @@ fn extract_stop_reason(json_str: String) -> String {
 fn extract_content_field(json_str: String) -> Result(String, Nil) {
   // Try Anthropic format first: content array with text blocks
   let anthropic_decoder =
-    decode.at(
-      ["content"],
-      decode.list(decode.at(["text"], decode.string)),
-    )
+    decode.at(["content"], decode.list(decode.at(["text"], decode.string)))
   case json.parse(json_str, anthropic_decoder) {
     Ok(texts) ->
       case list.first(texts) {

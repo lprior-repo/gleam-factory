@@ -40,7 +40,11 @@ pub fn create_worktree(
   logging.log(
     logging.Info,
     "Creating worktree",
-    dict.from_list([#("slug", slug), #("path", worktree_path), #("branch", branch)]),
+    dict.from_list([
+      #("slug", slug),
+      #("path", worktree_path),
+      #("branch", branch),
+    ]),
   )
 
   use _ <- result.try(create_base_dir(workspaces_base, repo_root))

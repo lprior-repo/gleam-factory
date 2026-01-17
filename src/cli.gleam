@@ -216,12 +216,15 @@ fn execute_stage(
     Ok(stage_list) ->
       case dry_run {
         True -> {
-          let previews = stages.execute_stages_dry_run(stage_list, task.language)
+          let previews =
+            stages.execute_stages_dry_run(stage_list, task.language)
           list.each(previews, fn(preview) {
             io.println("DRY RUN: " <> preview.name)
             io.println("  Command: " <> preview.command)
             io.println(
-              "  Estimated: " <> string.inspect(preview.estimated_duration) <> "ms",
+              "  Estimated: "
+              <> string.inspect(preview.estimated_duration)
+              <> "ms",
             )
           })
           Ok(Nil)
@@ -240,9 +243,12 @@ fn execute_stage_range(
   case stage_list {
     [] -> Ok(Nil)
     [stage, ..rest] -> {
-      use message <- result.try(
-        execute_stage_impl(slug, stage.name, task, repo_root),
-      )
+      use message <- result.try(execute_stage_impl(
+        slug,
+        stage.name,
+        task,
+        repo_root,
+      ))
       io.println(message)
       execute_stage_range(slug, rest, task, repo_root)
     }
@@ -316,7 +322,8 @@ fn execute_list(
     ts ->
       ts
       |> list.map(fn(task: domain.Task) {
-        let priority_str = " [" <> domain.priority_to_string(task.priority) <> "]"
+        let priority_str =
+          " [" <> domain.priority_to_string(task.priority) <> "]"
         let status_str = " " <> status_to_string(task.status)
         domain.slug_to_string(task.slug)
         <> " ("

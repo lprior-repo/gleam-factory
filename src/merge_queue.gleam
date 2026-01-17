@@ -30,11 +30,7 @@ pub fn start_link(
   bus: Subject(signal_bus.SignalBusMessage),
 ) -> Result(Subject(MergeQueueMessage), MergeQueueError) {
   let initial =
-    MergeQueueState(
-      absorbing: False,
-      signal_bus: bus,
-      current_patch_hash: None,
-    )
+    MergeQueueState(absorbing: False, signal_bus: bus, current_patch_hash: None)
   let builder = actor.new(initial) |> actor.on_message(handle_message)
 
   case actor.start(builder) {
@@ -102,20 +98,17 @@ fn handle_message(
             "Patch accepted: " <> hash,
             dict.from_list([#("status", "passed")]),
           )
-          let patch_accepted = signals.PatchAccepted(
-            hash: signals.hash(hash),
-            merged_at: signals.timestamp(erlang_system_time_ms()),
-          )
+          let patch_accepted =
+            signals.PatchAccepted(
+              hash: signals.hash(hash),
+              merged_at: signals.timestamp(erlang_system_time_ms()),
+            )
           signal_bus.broadcast(
             state.signal_bus,
             signal_bus.PatchAccepted(patch_accepted),
           )
           actor.continue(
-            MergeQueueState(
-              ..state,
-              absorbing: False,
-              current_patch_hash: None,
-            ),
+            MergeQueueState(..state, absorbing: False, current_patch_hash: None),
           )
         }
         False, Some(current) if hash == current -> {
@@ -130,11 +123,7 @@ fn handle_message(
             signal_bus.PatchRejected(reason:),
           )
           actor.continue(
-            MergeQueueState(
-              ..state,
-              absorbing: False,
-              current_patch_hash: None,
-            ),
+            MergeQueueState(..state, absorbing: False, current_patch_hash: None),
           )
         }
         _, _ -> actor.continue(state)

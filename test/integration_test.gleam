@@ -699,7 +699,8 @@ pub fn full_pipeline_approval_gate_test() {
   factory_loop.advance(loop, factory_loop.TestPassed)
   process.sleep(100)
 
-  let state_at_reviewing = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let state_at_reviewing =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state_at_reviewing.phase
   |> should.equal(factory_loop.Reviewing)
 
@@ -707,7 +708,8 @@ pub fn full_pipeline_approval_gate_test() {
   factory_loop.advance(loop, factory_loop.TestPassed)
   process.sleep(100)
 
-  let state_after_approval = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let state_after_approval =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state_after_approval.phase
   |> should.equal(factory_loop.Pushing)
 
