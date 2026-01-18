@@ -188,20 +188,6 @@ fn handle_message(
         | RebaseConflict, _
         | MaxIterationsReached, _
         -> FactoryLoopState(..state, phase: new_phase)
-        _, _ -> {
-          logging.log(
-            logging.Error,
-            "Unhandled event/state combination in factory loop",
-            dict.from_list([
-              #("event", format_event(event)),
-              #("tests_were_green", case state.tests_were_green {
-                True -> "true"
-                False -> "false"
-              }),
-            ]),
-          )
-          FactoryLoopState(..state, phase: new_phase)
-        }
       }
       let final_state = case new_phase {
         Completed -> {
