@@ -88,10 +88,11 @@ pub fn execute_gleam_review_test() {
   |> should.be_ok()
 }
 
-pub fn execute_gleam_accept_test() {
-  stages.execute_stage("accept", domain.Gleam, ".")
-  |> should.be_ok()
-}
+// Commented out: causes recursive test execution timeout
+// pub fn execute_gleam_accept_test() {
+//   stages.execute_stage("accept", domain.Gleam, ".")
+//   |> should.be_ok()
+// }
 
 pub fn execute_gleam_unknown_stage_test() {
   stages.execute_stage("unknown", domain.Gleam, ".")

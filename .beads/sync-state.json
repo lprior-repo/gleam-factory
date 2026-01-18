@@ -1,0 +1,7 @@
+{
+  "last_failure": "2026-01-18T15:53:12.670990571-06:00",
+  "failure_count": 2,
+  "backoff_until": "2026-01-18T15:54:12.670991052-06:00",
+  "needs_manual_sync": false,
+  "failure_reason": "git pull failed in worktree: exit status 1\nfatal: unable to access 'https://github.com/lprior-repo/gleam-factory.git/': Error in the HTTP2 framing layer\n"
+}
