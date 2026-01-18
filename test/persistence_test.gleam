@@ -743,8 +743,8 @@ pub fn all_languages_roundtrip_test() {
         updated_at: "2026-01-09T10:00:00Z",
         stages: [],
         worktree_path: "",
-      current_stage: "",
-      current_error: "",
+        current_stage: "",
+        current_error: "",
       )
 
     let json_str = persistence.record_to_json(record)
@@ -769,8 +769,8 @@ pub fn all_status_roundtrip_test() {
         updated_at: "2026-01-09T10:00:00Z",
         stages: [],
         worktree_path: "",
-      current_stage: "",
-      current_error: "",
+        current_stage: "",
+        current_error: "",
       )
 
     let json_str = persistence.record_to_json(record)

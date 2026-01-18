@@ -85,11 +85,7 @@ fn get_jj_status(repo_path: String) -> Result(String, String) {
 
 // Get jj log as string
 fn get_jj_log(repo_path: String) -> Result(String, String) {
-  process.run_command(
-    "jj",
-    ["log", "-r", "::@", "-n", "10"],
-    repo_path,
-  )
+  process.run_command("jj", ["log", "-r", "::@", "-n", "10"], repo_path)
   |> result.map_error(fn(e) { "Command error: " <> string.inspect(e) })
   |> result.try(fn(result) {
     case result {

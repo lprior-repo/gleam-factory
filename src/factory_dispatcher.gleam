@@ -29,11 +29,7 @@ pub fn start(
   workspace_root: String,
 ) -> process.Pid {
   let state =
-    DispatcherState(
-      signal_bus: bus,
-      active_loops: dict.new(),
-      workspace_root:,
-    )
+    DispatcherState(signal_bus: bus, active_loops: dict.new(), workspace_root:)
 
   let builder = actor.new(state) |> actor.on_message(handle_message)
   case actor.start(builder) {

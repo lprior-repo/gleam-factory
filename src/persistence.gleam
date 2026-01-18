@@ -173,7 +173,11 @@ pub fn record_to_task(record: TaskRecord) -> Result(domain.Task, String) {
     "created" -> domain.Created
     "in_progress" -> domain.InProgress(record.current_stage)
     "passed" -> domain.PassedPipeline
-    "failed" -> domain.FailedPipeline(record.current_stage, decode_reason(record.current_error))
+    "failed" ->
+      domain.FailedPipeline(
+        record.current_stage,
+        decode_reason(record.current_error),
+      )
     "integrated" -> domain.Integrated
     _ -> domain.Created
   }
