@@ -1,0 +1,199 @@
+TEST FAILURE ANALYSIS - EXECUTIVE SUMMARY
+==========================================
+
+Total: 45 failures out of 931 tests (4.8% failure rate)
+
+CRITICAL BLOCKERS (25 tests blocked)
+====================================
+
+1. SUPERVISOR INITIALIZATION FAILS (15 tests)
+   File: factory_supervisor_test.gleam
+   Error: factory_supervisor.start_link() returns Error instead of Ok
+   Cause: One of the child actors failing to start
+   Impact: ALL integration tests blocked
+   
+   Tests failing:
+   - supervisor_starts_test
+   - signal_bus_accessible_test
+   - heartbeat_accessible_test
+   - multiple_supervisors_test
+   - heartbeat_tick_received_test
+   - signal_bus_publish_received_test
+   - supervisor_children_responsive_test
+   - accessor_functions_correct_test
+   - supervisor_config_flexibility_test
+   - start_link_all_actors_success_test
+   - supervisor_restarts_failed_child_test
+   - supervisor_returns_all_actor_subjects_test
+   - graceful_degradation_on_child_failure_test
+   - log_system_ready_outputs_message_test
+   - system_ready_after_all_services_started_test
+
+2. PIPELINE INTEGRATION CASCADES (10 tests)
+   File: pipeline_integration_test.gleam
+   Error: Same root cause as supervisor tests (start_link fails)
+   Cause: Depends on supervisor working
+   Impact: Blocked by issue #1
+   
+   Tests failing:
+   - pipeline_supervisor_startup_test
+   - pipeline_signal_broadcast_test
+   - pipeline_heartbeat_polling_test
+   - pipeline_merge_queue_patch_absorption_test
+   - pipeline_test_failure_signal_test
+   - pipeline_golden_master_preparation_test
+   - pipeline_multiple_subscriptions_test
+   - pipeline_error_handling_resilience_test
+   - pipeline_complete_workflow_test
+   - pipeline_shutdown_test
+
+HIGH PRIORITY (10 tests, depends on critical fix)
+==================================================
+
+3. SIGNAL BUS NOT DELIVERING (5 tests)
+   File: heartbeat_test.gleam, integration_test.gleam
+   Error: process.receive() on signal subscriber times out
+   Cause: signal_bus.subscribe()/broadcast() not working
+   Depends: On supervisor working first
+   
+   Tests failing:
+   - transition_from_green_to_red_broadcasts_test_failure_test
+   - no_signal_broadcast_when_status_unchanged_green_test
+   - no_signal_broadcast_when_status_unchanged_red_test
+   - multiple_transitions_test
+   - factory_loop_phase_transitions_test
+
+4. HEARTBEAT STATUS INIT MISMATCH (2 tests)
+   File: heartbeat_test.gleam
+   Error: Status is Red but tests expect Green
+   Cause: Code initialized as Red (line 63), tests expect Green
+   Fix: Update tests OR change initialization
+   
+   Tests failing:
+   - get_status_returns_current_state_test
+   - progress_buffer_bounded_test
+
+5. PHASE TRANSITION BLOCKED (1 test)
+   File: integration_test.gleam
+   Error: Reviewing→Pushing blocked; test gets Reviewing
+   Cause: Approval gate blocking transition
+   Fix: Approval gate logic or test expectation
+
+INDEPENDENT FAILURES (10 tests)
+===============================
+
+6. PERFORMANCE TEST ARITHMETIC (7 tests)
+   File: performance_test.gleam
+   Error: Badarith (division by zero)
+   Cause: monotonic_time_ms() returns 0, then 1000.0 /. 0.0 fails
+   Fix: Add guard case for duration_ms=0
+   
+   Tests failing:
+   - benchmark_implement_stage_test
+   - benchmark_unit_test_stage_test
+   - benchmark_lint_stage_test
+   - benchmark_static_stage_test
+   - benchmark_integration_stage_test
+   - benchmark_throughput_calculation_test
+   - benchmark_memory_measurement_test
+
+7. GRACEFUL SHUTDOWN NOT WORKING (3 tests)
+   File: graceful_shutdown_test.gleam
+   Error: shutdown_system() returns Error
+   Cause: Unknown (needs investigation)
+   
+   Tests failing:
+   - graceful_shutdown_test
+   - shutdown_idempotent_test
+   - shutdown_timeout_test
+
+8. SUBPROCESS TIMEOUT CASCADES (3 tests)
+   File: stages_test.gleam
+   Error: gleam_unit_test subprocess timeout + 2 module load errors
+   Cause: Nested test harness stdout not closing
+   Fix: Process cleanup or timeout handling
+   
+   Tests failing:
+   - ExecuteGleamUnitTestTest (timeout)
+   - (2 cascading module errors)
+
+FIX PRIORITY ORDER
+==================
+
+TIER 1 - FIX IMMEDIATELY (Critical blocker)
+---
+1. factory_supervisor.start_link() - identify which actor fails
+   Action: Add logging after each actor initialization
+   Files: src/factory_supervisor.gleam
+   Resolves: 15 + 10 = 25 tests
+
+TIER 2 - FIX AFTER TIER 1 (High priority)
+---
+2. signal_bus.subscribe()/broadcast() - verify signal delivery
+   Action: Add logging to signal_bus; verify subscriber tracking
+   Files: src/signal_bus.gleam
+   Resolves: 5 tests
+   
+3. heartbeat initialization Red vs Green - make decision
+   Action: Update tests to expect Red OR change code to Green
+   Files: test/heartbeat_test.gleam or src/heartbeat.gleam
+   Resolves: 2 tests
+
+TIER 3 - FIX ANYTIME (Independent)
+---
+4. performance_test timing - add guard for zero duration
+   Action: Add case duration_ms = 0 before throughput calc
+   Files: test/performance_test.gleam
+   Resolves: 7 tests
+   
+5. graceful_shutdown - add error logging and investigate
+   Action: Find why shutdown_system() returns Error
+   Files: src/graceful_shutdown.gleam or src/factory.gleam
+   Resolves: 3 tests
+   
+6. stages subprocess timeout - fix process cleanup
+   Action: Add timeout handling or fix stdout closing
+   Files: test/stages_test.gleam or src/process.gleam
+   Resolves: 3 tests
+
+KEY METRICS
+===========
+- Critical blocker: 1 issue (supervisor)
+- Cascading from critical: 10 tests
+- Dependent on critical: 5 tests
+- Independent failures: 22 tests
+- Total tests blocked: 25 (56% of failures)
+
+QUICK WINS
+==========
+- Performance test arithmetic: 7 failures, low effort fix
+- Heartbeat init decision: 2 failures, immediate decision needed
+- Graceful shutdown logging: 3 failures, low effort debug
+
+STATUS INDICATORS FROM LOGS
+===========================
+- Signal bus starting successfully ("Signal bus started" logs)
+- Heartbeat starting successfully ("Heartbeat started" logs)
+- Supervisor.start_link() failing (returns Error despite child success)
+- Signal transitions happening but subscribers not receiving (timeouts)
+- Phase state machine rejecting some events:
+  * "ERROR: Unexpected phase/event in transition {event=PushSuccess, phase=reviewing}"
+  * "ERROR: Unexpected phase/event in transition {event=TestPassed, phase=rebasing}"
+
+FILES TO INVESTIGATE
+====================
+Priority:
+1. src/factory_supervisor.gleam - start_link() implementation
+2. src/signal_bus.gleam - subscribe/broadcast mechanism
+3. test/performance_test.gleam - monotonic_time_ms() and throughput calc
+4. src/heartbeat.gleam - initialization and status logic
+5. src/graceful_shutdown.gleam - shutdown mechanism
+6. src/process.gleam - subprocess stdout handling
+
+NEXT STEPS
+==========
+1. Add detailed logging to factory_supervisor.start_link() to identify failure point
+2. Run gleam test and note which log appears last before failures
+3. Fix identified actor initialization
+4. Re-run tests to confirm 25-test improvement
+5. Proceed to Tier 2 fixes

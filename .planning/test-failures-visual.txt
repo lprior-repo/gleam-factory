@@ -1,0 +1,156 @@
+FAILURE DEPENDENCY TREE
+=======================
+
+                 SUPERVISOR INIT FAIL (15 tests)
+                          |
+           ________________|________________
+           |                                |
+      PIPELINE CASCADE (10)          SIGNAL BUS ISSUE (5)
+           +                              +
+      HEARTBEAT STATUS (2)          PHASE TRANSITION (1)
+           +                              +
+      = 28 tests blocked by supervisor  [depends on supervisor fix]
+
+
+INDEPENDENT FAILURES (not blocked)
+===================================
+
+PERFORMANCE ARITHMETIC (7)      GRACEFUL SHUTDOWN (3)      SUBPROCESS TIMEOUT (3)
+[Badarith division by 0]        [shutdown returns Error]   [process cleanup]
+Can fix anytime                 Can fix anytime             Can fix anytime
+
+
+FAILURE COUNT BY SEVERITY
+==========================
+
+TIER 1 - CRITICAL (Blocks 25 tests)
+[████████████████████████████] 25 tests (56%)
+  └─ Supervisor initialization
+
+TIER 2 - HIGH (Blocks 10 tests)
+[██████████] 10 tests (22%)
+  ├─ Signal bus delivery (5)
+  ├─ Heartbeat init (2)
+  └─ Phase transition (1)
+  └─ Unknown (2)
+
+TIER 3 - MEDIUM/LOW (Independent, 10 tests)
+[██████████] 10 tests (22%)
+  ├─ Performance arithmetic (7)
+  ├─ Graceful shutdown (3)
+  └─ Subprocess timeout (3)
+
+
+TEST OUTCOMES MATRIX
+====================
+
+PASSING: 886
+┌─────────────────────────────────────────────────────┐
+│ Domain tests: ✓✓✓✓✓✓✓✓✓ (working)                    │
+│ CLI tests: ✓✓✓✓✓✓✓✓✓ (mostly working)               │
+│ Merge queue: ✓✓✓✓✓ (working)                         │
+│ Repository: ✓✓✓✓✓ (working)                          │
+│ Golden master: ✓✓✓✓ (mostly working)                 │
+│ Basic heartbeat: ✓✓✓✓ (some working)                 │
+│ Signal behavior (basic): ✓✓✓ (mostly working)        │
+│ Stage execution: ✓✓✓ (mostly working)                │
+└─────────────────────────────────────────────────────┘
+
+FAILING: 45
+┌─────────────────────────────────────────────────────┐
+│ Supervisor integration: ✗✗✗✗✗✗✗✗✗✗✗✗✗✗✗ (15)        │
+│ Pipeline integration: ✗✗✗✗✗✗✗✗✗✗ (10)               │
+│ Signal delivery: ✗✗✗✗✗ (5)                         │
+│ Performance metrics: ✗✗✗✗✗✗✗ (7)                    │
+│ Graceful shutdown: ✗✗✗ (3)                          │
+│ Subprocess handling: ✗✗✗ (3)                        │
+│ Heartbeat status: ✗✗ (2)                            │
+│ Phase transitions: ✗ (1)                            │
+│ Module loading: ✗✗ (cascading)                      │
+└─────────────────────────────────────────────────────┘
+
+
+IMPACT ANALYSIS
+===============
+
+% of test suite that will pass after each fix:
+
+Start:              95.2% (886 passed)
+  ↓
+After Tier 1 fix:   97.9% (912 passed) → +26 tests (+2.8%)
+  ↓
+After Tier 2 fix:   98.8% (921 passed) → +9 tests (+1.0%)
+  ↓
+After Tier 3 fix:   100%  (931 passed) → +10 tests (+1.1%)
+
+
+EFFORT ESTIMATE
+===============
+
+Tier 1 (Critical): 2-3 hours
+  ├─ Debug supervisor.start_link() failures    [1.5 hrs]
+  ├─ Fix identified actor initialization       [0.5-1.5 hrs]
+  └─ Re-test                                    [0.5 hrs]
+
+Tier 2 (High): 2-4 hours
+  ├─ Debug signal_bus mechanism                [1 hr]
+  ├─ Fix subscribe/broadcast                   [0.5-1 hr]
+  ├─ Fix heartbeat Red/Green conflict          [0.5 hr]
+  └─ Re-test                                    [1 hr]
+
+Tier 3 (Independent): 1-2 hours
+  ├─ Performance test guard case               [0.25 hr]
+  ├─ Graceful shutdown debug                   [0.5 hr]
+  ├─ Subprocess timeout fix                    [0.5-1 hr]
+  └─ Re-test                                    [0.5 hr]
+
+TOTAL: 5-9 hours to 100% pass rate
+
+
+QUALITY ASSESSMENT
+==================
+
+Current state (95.2% passing):
+  ✓ Core domain logic working
+  ✓ CLI integration working
+  ✓ Repository operations working
+  ✗ Actor/supervisor initialization broken
+  ✗ Signal bus delivery broken
+  ✗ Performance metrics broken
+  ⚠ Graceful shutdown needs work
+  ⚠ Subprocess handling needs work
+
+After critical fix (97.9% passing):
+  ✓ All integration tests working
+  ✓ Pipeline flows complete
+  ✓ Actor supervision working
+  ✗ Signal delivery still broken
+  ✗ Performance metrics still broken
+  (Others remain same)
+
+After all fixes (100% passing):
+  ✓ All systems fully operational
+  ✓ All integration tests pass
+  ✓ All performance metrics captured
+  ✓ All actor supervision working
+  ✓ Graceful shutdown functional
+  ✓ Subprocess handling reliable
+
+
+BLOCKING ANALYSIS
+=================
+
+IF YOU FIX ONLY: Supervisor (Tier 1)
+  Result: 912/931 passing (97.9%)
+  Unblocks: 25 tests
+  Remaining: 19 failures (22 independent + 7 others)
+
+IF YOU FIX ONLY: Performance (Tier 3)
+  Result: 893/931 passing (95.8%)
+  Unblocks: 7 tests
+  Remaining: 38 failures (others blocked by supervisor)
+
+RECOMMENDED: Fix Tier 1 first (supervisor)
+  Impact: Immediate 2.8% improvement
+  Unblocks: All integration tests
+  Dependencies: Enables Tier 2 fixes

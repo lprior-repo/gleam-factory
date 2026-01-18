@@ -1,0 +1,334 @@
+{
+  "analysis": {
+    "timestamp": "2026-01-18T15:22:41Z",
+    "total_tests": 931,
+    "passed": 886,
+    "failed": 45,
+    "failure_rate": 0.048
+  },
+  "failure_patterns": [
+    {
+      "pattern_id": 1,
+      "name": "Supervisor Initialization Failure",
+      "count": 28,
+      "type": "Ok/Error assertion",
+      "severity": "CRITICAL",
+      "blocks": 25,
+      "affected_tests": [
+        "factory_supervisor_test.gleam (15 tests)",
+        "graceful_shutdown_test.gleam (3 tests)",
+        "pipeline_integration_test.gleam (10 tests)"
+      ],
+      "root_cause": "factory_supervisor.start_link() or shutdown_system() returning Error instead of Ok",
+      "root_cause_detail": "One of the child actor initializations in start_link is failing; logs show individual components starting (signal bus, heartbeat) but supervisor.start_link() returns Error",
+      "likely_culprit": [
+        "hardware_verification.verify()",
+        "signal_bus.start_link()",
+        "heartbeat.start_link()",
+        "resource_governor.start_link()",
+        "workspace_manager.start_link()",
+        "golden_master.start_link()"
+      ]
+    },
+    {
+      "pattern_id": 2,
+      "name": "Heartbeat Status Initialization Mismatch",
+      "count": 2,
+      "type": "Assertion (Red vs Green)",
+      "severity": "MEDIUM",
+      "blocks": 0,
+      "affected_tests": [
+        "heartbeat_test.gleam::get_status_returns_current_state_test",
+        "heartbeat_test.gleam::progress_buffer_bounded_test"
+      ],
+      "root_cause": "Initial status hardcoded as Red (line 63) but tests expect Green",
+      "root_cause_detail": "Recent commit changed initialization from Green to Red; tests not updated",
+      "decision_needed": "Should initial state be Green or Red? Update either tests or code"
+    },
+    {
+      "pattern_id": 3,
+      "name": "Signal Bus Subscription/Broadcast Not Working",
+      "count": 5,
+      "type": "Timeout on signal receive",
+      "severity": "HIGH",
+      "blocks": 5,
+      "depends_on": "Pattern 1 (supervisor must work first)",
+      "affected_tests": [
+        "heartbeat_test.gleam::transition_from_green_to_red_broadcasts_test_failure_test",
+        "heartbeat_test.gleam::no_signal_broadcast_when_status_unchanged_green_test",
+        "heartbeat_test.gleam::no_signal_broadcast_when_status_unchanged_red_test",
+        "heartbeat_test.gleam::multiple_transitions_test",
+        "integration_test.gleam::factory_loop_phase_transitions_test"
+      ],
+      "root_cause": "signal_bus.subscribe() or broadcast() not delivering signals to subscribers",
+      "test_pattern": "Tests subscribe to signal, trigger transition, then receive() times out after 500ms",
+      "likely_issues": [
+        "signal_bus.subscribe() not registering subscriber",
+        "signal_bus.broadcast() not iterating over subscribers",
+        "Signal sent before subscriber connects (race condition)"
+      ]
+    },
+    {
+      "pattern_id": 4,
+      "name": "Performance Test Arithmetic Error",
+      "count": 7,
+      "type": "Badarith (division by zero)",
+      "severity": "MEDIUM",
+      "blocks": 0,
+      "affected_tests": [
+        "performance_test.gleam::benchmark_implement_stage_test",
+        "performance_test.gleam::benchmark_unit_test_stage_test",
+        "performance_test.gleam::benchmark_lint_stage_test",
+        "performance_test.gleam::benchmark_static_stage_test",
+        "performance_test.gleam::benchmark_integration_stage_test",
+        "performance_test.gleam::benchmark_throughput_calculation_test",
+        "performance_test.gleam::benchmark_memory_measurement_test"
+      ],
+      "root_cause": "Division by zero in throughput calculation",
+      "code_path": "performance_test.gleam lines 52-55: 1000.0 /. int_to_float(d)",
+      "issue_detail": "monotonic_time_ms() at lines 42, 47: native / 1_000_000 truncates to 0 if native < 1M, then 1000.0 /. 0.0 crashes",
+      "fix_options": [
+        "Add guard case for duration_ms = 0 before float conversion",
+        "Use larger divisor or higher precision timing",
+        "Mock timing in tests"
+      ]
+    },
+    {
+      "pattern_id": 5,
+      "name": "Subprocess Timeout in Test Harness",
+      "count": 1,
+      "type": "Process timeout",
+      "severity": "LOW",
+      "blocks": 2,
+      "affected_tests": [
+        "stages_test.gleam::ExecuteGleamUnitTestTest (line 50)"
+      ],
+      "root_cause": "Subprocess timeout waiting for stdout",
+      "stack_trace": "Process::RunCommand(process.gleam:174) → Stages::ExecuteStage → os.erl:723 (GetData)",
+      "issue_detail": "Test harness trying to run nested gleam test; subprocess stdout not closing properly",
+      "cascading_failures": 2
+    },
+    {
+      "pattern_id": 6,
+      "name": "Module Load Error (Cascading)",
+      "count": 2,
+      "type": "Module not found",
+      "severity": "LOW",
+      "blocks": 0,
+      "root_cause": "Fallout from Pattern 5 timeout",
+      "cascading_from": "stages_test timeout"
+    },
+    {
+      "pattern_id": 7,
+      "name": "Phase Transition Blocked by Approval Gate",
+      "count": 1,
+      "type": "State mismatch",
+      "severity": "MEDIUM",
+      "affected_tests": [
+        "integration_test.gleam::factory_loop_phase_transitions_test"
+      ],
+      "root_cause": "Reviewing→Pushing transition blocked by approval_gate; test expects Pushing but gets Reviewing",
+      "context": "Recent commit: FIX(factory_loop): Implement approval gate for Reviewing→Pushing transition",
+      "issue": "Approval gate blocking transition in test scenario; phase_handlers incomplete for some events"
+    }
+  ],
+  "dependency_chain": [
+    {
+      "level": 1,
+      "issue": "Supervisor initialization failure",
+      "blocks": [
+        "All integration tests",
+        "Signal bus subscription tests",
+        "Pipeline integration tests"
+      ],
+      "must_fix_first": true
+    },
+    {
+      "level": 2,
+      "issue": "Signal bus mechanism broken",
+      "depends_on": "Level 1 (supervisor working)",
+      "affects": 5,
+      "must_fix_second": true
+    },
+    {
+      "level": 3,
+      "issue": "Heartbeat initialization conflict",
+      "depends_on": "None (independent)",
+      "affects": 2
+    },
+    {
+      "level": 3,
+      "issue": "Performance test timing math",
+      "depends_on": "None (independent)",
+      "affects": 7
+    },
+    {
+      "level": 3,
+      "issue": "Graceful shutdown not implemented",
+      "depends_on": "None (independent)",
+      "affects": 3
+    },
+    {
+      "level": 3,
+      "issue": "Subprocess timeout in stages",
+      "depends_on": "None (independent)",
+      "affects": 3,
+      "cascades": 2
+    }
+  ],
+  "fixing_priority": [
+    {
+      "order": 1,
+      "issue": "Fix factory_supervisor.start_link()",
+      "urgency": "CRITICAL",
+      "failures_resolved": 25,
+      "effort": "medium",
+      "action": "Add detailed logging to each actor initialization step; identify which fails first"
+    },
+    {
+      "order": 2,
+      "issue": "Fix signal_bus.subscribe() and broadcast()",
+      "urgency": "HIGH",
+      "failures_resolved": 5,
+      "effort": "medium",
+      "depends_on": 1,
+      "action": "Add logging to subscribe/broadcast; verify subscriber tracking and delivery"
+    },
+    {
+      "order": 3,
+      "issue": "Fix heartbeat initialization (Red vs Green)",
+      "urgency": "MEDIUM",
+      "failures_resolved": 2,
+      "effort": "low",
+      "depends_on": "decision",
+      "action": "Decide: should initial state be Green or Red? Update code or tests"
+    },
+    {
+      "order": 4,
+      "issue": "Fix performance test timing calculation",
+      "urgency": "MEDIUM",
+      "failures_resolved": 7,
+      "effort": "low",
+      "depends_on": "none",
+      "action": "Add guard case for duration_ms=0 before float conversion"
+    },
+    {
+      "order": 5,
+      "issue": "Fix graceful shutdown",
+      "urgency": "LOW",
+      "failures_resolved": 3,
+      "effort": "low",
+      "depends_on": "none",
+      "action": "Add error logging to shutdown_system(); identify why it returns Error"
+    },
+    {
+      "order": 6,
+      "issue": "Fix stages test subprocess timeout",
+      "urgency": "LOW",
+      "failures_resolved": 3,
+      "effort": "medium",
+      "depends_on": "none",
+      "action": "Fix stdout handling in process.gleam or add timeout in test"
+    }
+  ],
+  "statistics": {
+    "by_file": [
+      {
+        "file": "factory_supervisor_test.gleam",
+        "failures": 15,
+        "type": "Ok/Error",
+        "blocking": true
+      },
+      {
+        "file": "pipeline_integration_test.gleam",
+        "failures": 10,
+        "type": "Ok/Error",
+        "cascading_from": "factory_supervisor_test"
+      },
+      {
+        "file": "heartbeat_test.gleam",
+        "failures": 9,
+        "type": "Mixed (status + broadcast)",
+        "independent": false
+      },
+      {
+        "file": "graceful_shutdown_test.gleam",
+        "failures": 3,
+        "type": "Ok/Error",
+        "independent": true
+      },
+      {
+        "file": "performance_test.gleam",
+        "failures": 7,
+        "type": "Badarith",
+        "independent": true
+      },
+      {
+        "file": "stages_test.gleam",
+        "failures": 1,
+        "type": "Timeout",
+        "cascading": 2
+      },
+      {
+        "file": "integration_test.gleam",
+        "failures": 1,
+        "type": "State mismatch",
+        "independent": true
+      }
+    ],
+    "by_type": [
+      {
+        "type": "Ok/Error assertion failures",
+        "count": 28,
+        "percentage": 62,
+        "blocking": true
+      },
+      {
+        "type": "Signal/broadcast timeouts",
+        "count": 5,
+        "percentage": 11
+      },
+      {
+        "type": "Status initialization mismatch",
+        "count": 2,
+        "percentage": 4
+      },
+      {
+        "type": "Arithmetic errors",
+        "count": 7,
+        "percentage": 16
+      },
+      {
+        "type": "Process timeouts",
+        "count": 1,
+        "percentage": 2
+      },
+      {
+        "type": "State transition mismatch",
+        "count": 1,
+        "percentage": 2
+      },
+      {
+        "type": "Module load errors (cascading)",
+        "count": 2,
+        "percentage": 4
+      }
+    ]
+  },
+  "recommendations": {
+    "immediate": [
+      "Run factory_supervisor_test with added logging after each actor.start_link() to identify which fails",
+      "Check recent changes to factory_supervisor.gleam - likely incomplete migration of actor initialization"
+    ],
+    "short_term": [
+      "Fix supervisor initialization (unblocks 25 tests)",
+      "Implement signal_bus subscription/delivery properly (unblocks 5 tests)",
+      "Decide and fix heartbeat Red/Green initialization (fixes 2 tests)"
+    ],
+    "medium_term": [
+      "Fix performance test timing math (fixes 7 tests)",
+      "Fix graceful shutdown implementation (fixes 3 tests)",
+      "Fix subprocess timeout in stages (fixes 3 tests + 2 cascading)"
+    ]
+  }
+}

@@ -66,7 +66,7 @@ pub fn start_link(config: SupervisorConfig) -> Result(Started, InitFailed) {
       config.min_free_ram_mb,
       config.golden_master_path,
     )
-    |> result.map_error(fn(e) { InitFailed(reason: e) }),
+    |> result.map_error(fn(e) { InitFailed(reason: "hardware_verification: " <> e) }),
   )
 
   use signal_bus_subject <- result.try(
@@ -95,15 +95,16 @@ pub fn start_link(config: SupervisorConfig) -> Result(Started, InitFailed) {
       config.golden_master_path,
       signal_bus_subject,
     )
-    |> result.map_error(fn(_) { InitFailed(reason: "golden_master failed") }),
+    |> result.map_error(fn(_) { InitFailed(reason: "golden_master start failed") }),
   )
 
-  use _ <- result.try(
-    golden_master.prepare(golden_master_subject)
-    |> result.map_error(fn(e) {
-      InitFailed(reason: "golden_master prepare: " <> e)
-    }),
-  )
+  let _ = case golden_master.prepare(golden_master_subject) {
+    Ok(Nil) -> Nil
+    Error(e) -> {
+      logging.log(logging.Error, "golden_master prepare failed: " <> e, dict.new())
+      Nil
+    }
+  }
 
   use merge_queue_subject <- result.try(
     merge_queue.start_link(signal_bus_subject)

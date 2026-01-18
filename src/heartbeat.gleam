@@ -60,7 +60,7 @@ pub fn start_link(
   let initial =
     HeartbeatState(
       config:,
-      last_status: Red,
+      last_status: Green,
       last_hash: "",
       signal_bus: bus,
       progress_buffer: [],
@@ -122,11 +122,6 @@ fn update_status(
 ) -> HeartbeatState {
   case state.last_status, new_status {
     Green, Red -> {
-      logging.log(
-        logging.Error,
-        "Tests transitioned from Green to Red",
-        dict.new(),
-      )
       signal_bus.broadcast(state.signal_bus, signal_bus.TestFailure)
       HeartbeatState(..state, last_status: Red)
     }

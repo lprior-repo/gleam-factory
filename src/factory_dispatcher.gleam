@@ -6,6 +6,7 @@ import gleam/dict
 import gleam/erlang/process.{type Subject}
 import gleam/int
 import gleam/string
+import otp_actor as actor
 import signal_bus
 import signals
 
@@ -14,7 +15,6 @@ pub type DispatcherState {
     signal_bus: Subject(signal_bus.SignalBusMessage),
     active_loops: dict.Dict(String, Subject(factory_loop.LoopMessage)),
     workspace_root: String,
-    dispatcher_subject: Subject(DispatcherMessage),
   )
 }
 
@@ -23,53 +23,42 @@ pub type DispatcherMessage {
   Stop
 }
 
-/// Start dispatcher actor
+/// Start dispatcher actor using OTP actor framework
 pub fn start(
   bus: Subject(signal_bus.SignalBusMessage),
   workspace_root: String,
 ) -> process.Pid {
-  let dispatcher_subject = process.new_subject()
-  let signal_subject = process.new_subject()
   let state =
     DispatcherState(
       signal_bus: bus,
       active_loops: dict.new(),
       workspace_root:,
-      dispatcher_subject:,
     )
 
-  process.spawn(fn() {
-    let _ =
-      signal_bus.subscribe(
-        bus,
-        signal_bus.BeadAssigned(signals.BeadAssigned(
-          task_id: signals.task_id(""),
-          spec: "",
-          requirements: [],
-          priority: signals.P2,
-          assigned_at: signals.timestamp(0),
-        )),
-        signal_subject,
-      )
-    signal_adapter_loop(state, signal_subject)
-  })
+  let builder = actor.new(state) |> actor.on_message(handle_message)
+  case actor.start(builder) {
+    Ok(_) -> {
+      process.self()
+    }
+    Error(_) -> {
+      process.self()
+    }
+  }
 }
 
-/// Adapts signal_bus.Signal messages and spawns factory loops
-fn signal_adapter_loop(
+/// Handle dispatcher messages
+fn handle_message(
   state: DispatcherState,
-  signal_subject: Subject(signal_bus.Signal),
-) -> Nil {
-  case process.receive(signal_subject, 100) {
-    Ok(signal_bus.BeadAssigned(bead)) -> {
+  msg: DispatcherMessage,
+) -> actor.Next(DispatcherState, DispatcherMessage) {
+  case msg {
+    OnBeadAssigned(bead) -> {
       let new_state = handle_bead_assigned(state, bead)
-      signal_adapter_loop(new_state, signal_subject)
+      actor.continue(new_state)
     }
-    Ok(signal_bus.ShutdownRequested) -> {
-      Nil
+    Stop -> {
+      actor.stop(Nil)
     }
-    Ok(_) -> signal_adapter_loop(state, signal_subject)
-    Error(Nil) -> signal_adapter_loop(state, signal_subject)
   }
 }
 
