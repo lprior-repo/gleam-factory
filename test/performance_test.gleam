@@ -5,6 +5,7 @@ import domain
 import gleam/int
 import gleeunit
 import gleeunit/should
+import birl
 
 pub fn main() {
   gleeunit.main()
@@ -21,13 +22,10 @@ pub type BenchmarkResult {
   )
 }
 
-/// Get system time in milliseconds using Erlang system time
-@external(erlang, "erlang", "system_time")
-fn erlang_system_time_millisecond() -> Int
-
+/// Get monotonic time for benchmarking (milliseconds)
 fn monotonic_time_ms() -> Int {
-  // Erlang system_time() returns microseconds, convert to milliseconds
-  erlang_system_time_millisecond() / 1000
+  birl.now()
+  |> birl.to_unix_milli
 }
 
 /// Get process memory usage in bytes
