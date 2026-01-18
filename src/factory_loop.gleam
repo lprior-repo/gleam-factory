@@ -154,9 +154,9 @@ fn handle_message(
       let new_state = case event, state.tests_were_green {
         TestPassed, _ -> {
           let new_green_count = state.green_count + 1
-          // Approval gate: move from Reviewing to Pushing after 2nd consecutive TestPassed
+          // Approval gate: move from Reviewing to Pushing after 3rd consecutive TestPassed
           let approval_phase = case state.phase {
-            Reviewing if new_green_count >= 2 -> Pushing
+            Reviewing if new_green_count > 2 -> Pushing
             _ -> new_phase
           }
           FactoryLoopState(
