@@ -35,13 +35,11 @@ fn test_config() -> factory_supervisor.SupervisorConfig {
 /// Test: Supervisor starts successfully with all children
 pub fn supervisor_starts_test() {
   let config = test_config()
-  process.sleep(10)
-
-  case factory_supervisor.start_link(config) {
-    Ok(_) -> Nil
-    Error(_) -> should.fail()
+  let result = factory_supervisor.start_link(config)
+  case result {
+    Ok(_) -> should.equal(Nil, Nil)
+    Error(err) -> should.fail()
   }
-  |> should.equal(Nil)
 }
 
 /// Test: Signal bus is accessible after startup
