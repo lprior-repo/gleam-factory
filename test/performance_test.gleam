@@ -21,18 +21,13 @@ pub type BenchmarkResult {
   )
 }
 
-/// Get system time in milliseconds using Erlang monotonic time
-@external(erlang, "erlang", "monotonic_time")
-fn monotonic_time_native() -> Int
+/// Get system time in milliseconds using Erlang system time
+@external(erlang, "erlang", "system_time")
+fn erlang_system_time_millisecond() -> Int
 
 fn monotonic_time_ms() -> Int {
-  let native = monotonic_time_native()
-  // Erlang monotonic_time returns nanoseconds; ensure minimum 1ms
-  let ms = native / 1_000_000
-  case ms {
-    n if n < 0 -> 0
-    n -> n
-  }
+  // Erlang system_time() returns microseconds, convert to milliseconds
+  erlang_system_time_millisecond() / 1000
 }
 
 /// Get process memory usage in bytes
