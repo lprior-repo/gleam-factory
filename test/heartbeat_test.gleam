@@ -73,6 +73,8 @@ pub fn transition_from_red_to_green_broadcasts_test_passing_test() {
   let assert Ok(Nil) =
     signal_bus.subscribe(bus, signal_bus.TestPassing, passing_sub)
 
+  process.sleep(50)
+
   // Use a command that starts failing, then passes
   let config =
     heartbeat.HeartbeatConfig(
