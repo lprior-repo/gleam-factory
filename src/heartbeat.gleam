@@ -74,7 +74,7 @@ pub fn start_link(
         "Heartbeat started with test_cmd: " <> config.test_cmd,
         dict.from_list([#("interval_ms", int.to_string(config.interval_ms))]),
       )
-      process.send(started.data, SetSelf(started.data))
+      process.send(started.data, SetSelf(subject: started.data))
       Ok(started.data)
     }
     Error(_) -> {
@@ -94,12 +94,12 @@ fn handle_message(
   msg: HeartbeatMessage,
 ) -> actor.Next(HeartbeatState, HeartbeatMessage) {
   case msg {
-    SetSelf(subject) -> {
+    SetSelf(subject:) -> {
       process.send(subject, Tick)
       actor.continue(HeartbeatState(..state, self_subject: subject))
     }
-    GetStatus(reply) -> {
-      process.send(reply, state.last_status)
+    GetStatus(reply_with:) -> {
+      process.send(reply_with, state.last_status)
       actor.continue(state)
     }
     Tick -> {
@@ -108,7 +108,7 @@ fn handle_message(
       schedule_tick(state.self_subject, state.config.interval_ms)
       actor.continue(new_state)
     }
-    StreamProgress(task_id, chunk) -> {
+    StreamProgress(task_id:, chunk:) -> {
       let new_buffer = [#(task_id, chunk), ..state.progress_buffer]
       let trimmed_buffer = list.take(new_buffer, max_buffer_size)
       actor.continue(HeartbeatState(..state, progress_buffer: trimmed_buffer))
@@ -160,5 +160,5 @@ pub fn stream_progress(
   task_id: String,
   chunk: String,
 ) -> Nil {
-  process.send(hb, StreamProgress(task_id, chunk))
+  process.send(hb, StreamProgress(task_id:, chunk:))
 }
