@@ -213,8 +213,10 @@ pub fn transition(from: Phase, event: Event) -> Phase {
     Implementing, BudgetExhausted -> Failed
     Reviewing, TestPassed -> Pushing
     Reviewing, TestFailed -> Failed
+    Pushing, TestFailed -> Failed
     Pushing, PushSuccess -> Completed
     Pushing, PushConflict -> Rebasing
+    Rebasing, TestFailed -> Failed
     Rebasing, RebaseSuccess -> Pushing
     Rebasing, RebaseConflict -> Failed
     _, BudgetExhausted -> Failed
