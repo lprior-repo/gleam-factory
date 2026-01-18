@@ -8,7 +8,6 @@ import factory_dispatcher
 import gleam/dict
 import gleam/erlang/process.{type Subject}
 import gleam/int
-import gleam/result
 import golden_master
 import hardware_verification
 import heartbeat
@@ -61,110 +60,124 @@ pub type InitFailed {
 /// workspace_manager, golden_master, merge_queue, factory_dispatcher, beads_watcher
 /// Gracefully handles child failures without cascading
 pub fn start_link(config: SupervisorConfig) -> Result(Started, InitFailed) {
-  // Wrap use chain to avoid CaseClause(Ok) compiler bug with 8+ nested use
-  start_link_impl(config)
+  do_start_link(config)
 }
 
-fn start_link_impl(config: SupervisorConfig) -> Result(Started, InitFailed) {
-  use _ <- result.try(
+fn do_start_link(config: SupervisorConfig) -> Result(Started, InitFailed) {
+  case
     hardware_verification.verify(
       config.min_free_ram_mb,
       config.golden_master_path,
     )
-    |> result.map_error(fn(e) {
-      InitFailed(reason: "hardware_verification: " <> e)
-    }),
-  )
-
-  use signal_bus_subject <- result.try(
-    signal_bus.start_link()
-    |> result.map_error(fn(_) { InitFailed(reason: "signal_bus failed") }),
-  )
-
-  use resource_governor_subject <- result.try(
-    resource_governor.start_link(resource_governor.ResourceLimits(
-      max_mutators: config.max_mutators,
-      max_loops: config.max_loops,
-      max_workspaces: config.max_workspaces,
-      min_free_ram_mb: config.min_free_ram_mb,
-      gpu_tickets: config.gpu_tickets,
-    ))
-    |> result.map_error(fn(_) { InitFailed(reason: "resource_governor failed") }),
-  )
-
-  use workspace_manager_subject <- result.try(
-    workspace_manager.start_link()
-    |> result.map_error(fn(_) { InitFailed(reason: "workspace_manager failed") }),
-  )
-
-  use golden_master_subject <- result.try(
-    golden_master.start_link_with_bus(
-      config.golden_master_path,
-      signal_bus_subject,
-    )
-    |> result.map_error(fn(_) {
-      InitFailed(reason: "golden_master start failed")
-    }),
-  )
-
-  let _ = case golden_master.prepare(golden_master_subject) {
-    Ok(Nil) -> Nil
-    Error(e) -> {
-      logging.log(
-        logging.Error,
-        "golden_master prepare failed: " <> e,
-        dict.new(),
-      )
-      Nil
+  {
+    Error(e) -> Error(InitFailed(reason: "hardware_verification: " <> e))
+    Ok(_) -> {
+      case signal_bus.start_link() {
+        Error(_) -> Error(InitFailed(reason: "signal_bus failed"))
+        Ok(signal_bus_subject) -> {
+          case
+            resource_governor.start_link(resource_governor.ResourceLimits(
+              max_mutators: config.max_mutators,
+              max_loops: config.max_loops,
+              max_workspaces: config.max_workspaces,
+              min_free_ram_mb: config.min_free_ram_mb,
+              gpu_tickets: config.gpu_tickets,
+            ))
+          {
+            Error(_) -> Error(InitFailed(reason: "resource_governor failed"))
+            Ok(resource_governor_subject) -> {
+              case workspace_manager.start_link() {
+                Error(_) ->
+                  Error(InitFailed(reason: "workspace_manager failed"))
+                Ok(workspace_manager_subject) -> {
+                  case
+                    golden_master.start_link_with_bus(
+                      config.golden_master_path,
+                      signal_bus_subject,
+                    )
+                  {
+                    Error(_) ->
+                      Error(InitFailed(reason: "golden_master start failed"))
+                    Ok(golden_master_subject) -> {
+                      let _ = case
+                        golden_master.prepare(golden_master_subject)
+                      {
+                        Ok(Nil) -> Nil
+                        Error(e) -> {
+                          logging.log(
+                            logging.Error,
+                            "golden_master prepare failed: " <> e,
+                            dict.new(),
+                          )
+                          Nil
+                        }
+                      }
+                      case merge_queue.start_link(signal_bus_subject) {
+                        Error(_) ->
+                          Error(InitFailed(reason: "merge_queue failed"))
+                        Ok(merge_queue_subject) -> {
+                          let hb_config =
+                            heartbeat.HeartbeatConfig(
+                              interval_ms: config.test_interval_ms,
+                              test_cmd: config.test_cmd,
+                              golden_master_path: config.golden_master_path,
+                            )
+                          case
+                            heartbeat.start_link(hb_config, signal_bus_subject)
+                          {
+                            Error(_) ->
+                              Error(InitFailed(reason: "heartbeat failed"))
+                            Ok(heartbeat_subject) -> {
+                              let factory_dispatcher_pid =
+                                factory_dispatcher.start(
+                                  signal_bus_subject,
+                                  config.workspace_root,
+                                )
+                              let beads_watcher_pid =
+                                beads_watcher.start(
+                                  config.beads_path,
+                                  config.beads_poll_interval_ms,
+                                )
+                              let signal_handler_subject = process.new_subject()
+                              let _ =
+                                signal_handler.setup(signal_handler_subject)
+                              log_system_ready(config)
+                              Ok(Started(
+                                signal_bus_subject:,
+                                heartbeat_subject:,
+                                resource_governor_subject:,
+                                workspace_manager_subject:,
+                                golden_master_subject:,
+                                merge_queue_subject:,
+                                factory_dispatcher_pid:,
+                                beads_watcher_pid:,
+                                signal_handler_subject:,
+                              ))
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
-
-  use merge_queue_subject <- result.try(
-    merge_queue.start_link(signal_bus_subject)
-    |> result.map_error(fn(_) { InitFailed(reason: "merge_queue failed") }),
-  )
-
-  let hb_config =
-    heartbeat.HeartbeatConfig(
-      interval_ms: config.test_interval_ms,
-      test_cmd: config.test_cmd,
-      golden_master_path: config.golden_master_path,
-    )
-
-  use heartbeat_subject <- result.try(
-    heartbeat.start_link(hb_config, signal_bus_subject)
-    |> result.map_error(fn(_) { InitFailed(reason: "heartbeat failed") }),
-  )
-
-  let factory_dispatcher_pid =
-    factory_dispatcher.start(signal_bus_subject, config.workspace_root)
-
-  let beads_watcher_pid =
-    beads_watcher.start(config.beads_path, config.beads_poll_interval_ms)
-
-  let signal_handler_subject = process.new_subject()
-  let _ = signal_handler.setup(signal_handler_subject)
-
-  log_system_ready(config)
-
-  Ok(Started(
-    signal_bus_subject:,
-    heartbeat_subject:,
-    resource_governor_subject:,
-    workspace_manager_subject:,
-    golden_master_subject:,
-    merge_queue_subject:,
-    factory_dispatcher_pid:,
-    beads_watcher_pid:,
-    signal_handler_subject:,
-  ))
 }
 
 /// Start supervisor and wait for shutdown signal
 pub fn start_and_wait(config: SupervisorConfig) -> Result(Nil, InitFailed) {
-  use started <- result.try(start_link(config))
-  wait_for_shutdown(started)
-  Ok(Nil)
+  case start_link(config) {
+    Error(e) -> Error(e)
+    Ok(started) -> {
+      wait_for_shutdown(started)
+      Ok(Nil)
+    }
+  }
 }
 
 /// Wait for shutdown signal and perform graceful shutdown

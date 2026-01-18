@@ -6,6 +6,7 @@
 //// factory_dispatcher, beads_watcher
 
 import factory_supervisor
+import gleam/erlang/process
 import gleeunit
 import gleeunit/should
 import heartbeat
@@ -34,6 +35,7 @@ fn test_config() -> factory_supervisor.SupervisorConfig {
 /// Test: Supervisor starts successfully with all children
 pub fn supervisor_starts_test() {
   let config = test_config()
+  process.sleep(10)
 
   case factory_supervisor.start_link(config) {
     Ok(_) -> Nil
