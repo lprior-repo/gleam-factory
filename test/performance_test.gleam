@@ -2,6 +2,7 @@
 //// Measures duration, memory usage, and throughput for each stage.
 
 import domain
+import gleam/int
 import gleeunit
 import gleeunit/should
 
@@ -34,9 +35,6 @@ fn monotonic_time_ms() -> Int {
 @external(erlang, "erlang", "memory")
 fn memory_total() -> Int
 
-@external(erlang, "erlang", "float")
-fn int_to_float(i: Int) -> Float
-
 /// Benchmark a single stage with mocked execution
 fn benchmark_stage(stage: domain.Stage) -> BenchmarkResult {
   let start_time = monotonic_time_ms()
@@ -51,7 +49,7 @@ fn benchmark_stage(stage: domain.Stage) -> BenchmarkResult {
   let memory_usage = end_memory - start_memory
   let throughput = case duration_ms {
     0 -> 0.0
-    d -> 1000.0 /. int_to_float(d)
+    d -> 1000.0 /. int.to_float(d)
   }
 
   BenchmarkResult(

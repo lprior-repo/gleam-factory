@@ -61,12 +61,19 @@ pub type InitFailed {
 /// workspace_manager, golden_master, merge_queue, factory_dispatcher, beads_watcher
 /// Gracefully handles child failures without cascading
 pub fn start_link(config: SupervisorConfig) -> Result(Started, InitFailed) {
+  // Wrap use chain to avoid CaseClause(Ok) compiler bug with 8+ nested use
+  start_link_impl(config)
+}
+
+fn start_link_impl(config: SupervisorConfig) -> Result(Started, InitFailed) {
   use _ <- result.try(
     hardware_verification.verify(
       config.min_free_ram_mb,
       config.golden_master_path,
     )
-    |> result.map_error(fn(e) { InitFailed(reason: "hardware_verification: " <> e) }),
+    |> result.map_error(fn(e) {
+      InitFailed(reason: "hardware_verification: " <> e)
+    }),
   )
 
   use signal_bus_subject <- result.try(
@@ -95,13 +102,19 @@ pub fn start_link(config: SupervisorConfig) -> Result(Started, InitFailed) {
       config.golden_master_path,
       signal_bus_subject,
     )
-    |> result.map_error(fn(_) { InitFailed(reason: "golden_master start failed") }),
+    |> result.map_error(fn(_) {
+      InitFailed(reason: "golden_master start failed")
+    }),
   )
 
   let _ = case golden_master.prepare(golden_master_subject) {
     Ok(Nil) -> Nil
     Error(e) -> {
-      logging.log(logging.Error, "golden_master prepare failed: " <> e, dict.new())
+      logging.log(
+        logging.Error,
+        "golden_master prepare failed: " <> e,
+        dict.new(),
+      )
       Nil
     }
   }
