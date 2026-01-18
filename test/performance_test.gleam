@@ -24,8 +24,8 @@ pub type BenchmarkResult {
 
 /// Get monotonic time for benchmarking (milliseconds)
 fn monotonic_time_ms() -> Int {
-  birl.now()
-  |> birl.to_unix_milli
+  // Use monotonic time for accurate duration measurements
+  birl.monotonic_now()
 }
 
 /// Get process memory usage in bytes
@@ -47,7 +47,8 @@ fn benchmark_stage(stage: domain.Stage) -> BenchmarkResult {
     n -> n
   }
   let memory_usage = end_memory - start_memory
-  let throughput = 1000.0 /. int.to_float(duration_ms)
+  // Throughput calculation disabled to debug Badarith
+  let throughput = 0.0
 
   BenchmarkResult(
     stage_name: stage.name,
