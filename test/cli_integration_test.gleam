@@ -87,7 +87,7 @@ fn get_jj_status(repo_path: String) -> Result(String, String) {
 fn get_jj_log(repo_path: String) -> Result(String, String) {
   process.run_command(
     "jj",
-    ["log", "-r", "::@", "--oneline", "-n", "10"],
+    ["log", "-r", "::@", "-n", "10"],
     repo_path,
   )
   |> result.map_error(fn(e) { "Command error: " <> string.inspect(e) })

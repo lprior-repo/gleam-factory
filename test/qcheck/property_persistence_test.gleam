@@ -284,6 +284,8 @@ pub fn prop_task_record_preserves_slug_chars__test() {
       created_at: "2025-01-01",
       updated_at: "2025-01-01",
       stages: [],
+      current_stage: "",
+      current_error: "",
     )
   assert string.contains(record.slug, "a") || record.slug == ""
 }
@@ -300,6 +302,8 @@ pub fn prop_task_record_empty_stages__test() {
       created_at: "2025-01-01",
       updated_at: "2025-01-01",
       stages: [],
+      current_stage: "",
+      current_error: "",
     )
   assert record.stages == []
 }
@@ -327,6 +331,8 @@ pub fn prop_task_record_append_stages__test() {
       created_at: "2025-01-01",
       updated_at: "2025-01-01",
       stages: stages,
+      current_stage: "",
+      current_error: "",
     )
   assert list.length(record.stages) == num_stages
 }

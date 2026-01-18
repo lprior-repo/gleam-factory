@@ -49,17 +49,12 @@ fn decode_reason(encoded: String) -> String {
 }
 
 fn parse_status(status_str: String) -> domain.TaskStatus {
-  case string.split(status_str, ":") {
-    ["created"] -> domain.Created
-    ["passed"] -> domain.PassedPipeline
-    ["integrated"] -> domain.Integrated
-    ["in_progress", stage] -> domain.InProgress(stage)
-    ["in_progress"] -> domain.InProgress("")
-    ["failed", stage, ..rest] -> {
-      let reason = rest |> string.join(":") |> decode_reason
-      domain.FailedPipeline(stage, reason)
-    }
-    ["failed"] -> domain.FailedPipeline("", "")
+  case status_str {
+    "created" -> domain.Created
+    "passed" -> domain.PassedPipeline
+    "integrated" -> domain.Integrated
+    "in_progress" -> domain.InProgress("")
+    "failed" -> domain.FailedPipeline("", "")
     _ -> domain.Created
   }
 }
@@ -90,6 +85,8 @@ pub type TaskRecord {
     updated_at: String,
     stages: List(StageRecord),
     worktree_path: String,
+    current_stage: String,
+    current_error: String,
   )
 }
 
@@ -136,13 +133,12 @@ pub fn task_to_record(task: domain.Task) -> TaskRecord {
     domain.Python -> "python"
   }
 
-  let status_str = case task.status {
-    domain.Created -> "created"
-    domain.InProgress(stage) -> "in_progress:" <> stage
-    domain.PassedPipeline -> "passed"
-    domain.FailedPipeline(stage, reason) ->
-      "failed:" <> stage <> ":" <> encode_reason(reason)
-    domain.Integrated -> "integrated"
+  let #(status_str, current_stage, current_error) = case task.status {
+    domain.Created -> #("created", "", "")
+    domain.InProgress(stage) -> #("in_progress", stage, "")
+    domain.PassedPipeline -> #("passed", "", "")
+    domain.FailedPipeline(stage, reason) -> #("failed", stage, reason)
+    domain.Integrated -> #("integrated", "", "")
   }
 
   let priority_str = domain.priority_to_string(task.priority)
@@ -158,6 +154,8 @@ pub fn task_to_record(task: domain.Task) -> TaskRecord {
     updated_at: timestamp,
     stages: [],
     worktree_path: task.worktree_path,
+    current_stage: current_stage,
+    current_error: current_error,
   )
 }
 
@@ -171,7 +169,14 @@ pub fn record_to_task(record: TaskRecord) -> Result(domain.Task, String) {
     other -> Error("Unknown language: " <> other)
   })
 
-  let status = parse_status(record.status)
+  let status = case record.status {
+    "created" -> domain.Created
+    "in_progress" -> domain.InProgress(record.current_stage)
+    "passed" -> domain.PassedPipeline
+    "failed" -> domain.FailedPipeline(record.current_stage, decode_reason(record.current_error))
+    "integrated" -> domain.Integrated
+    _ -> domain.Created
+  }
 
   let priority = case domain.parse_priority(record.priority) {
     Ok(p) -> p
@@ -418,6 +423,8 @@ pub fn record_to_json(record: TaskRecord) -> String {
     #("updated_at", json.string(record.updated_at)),
     #("stages", stages_json),
     #("worktree_path", json.string(record.worktree_path)),
+    #("current_stage", json.string(record.current_stage)),
+    #("current_error", json.string(record.current_error)),
   ])
   |> json.to_string
 }
@@ -446,6 +453,8 @@ fn task_record_decoder() -> decode.Decoder(TaskRecord) {
   use updated_at <- decode.field("updated_at", decode.string)
   use stages <- decode.field("stages", decode.list(stage_decoder()))
   use worktree_path <- decode.optional_field("worktree_path", "", decode.string)
+  use current_stage <- decode.optional_field("current_stage", "", decode.string)
+  use current_error <- decode.optional_field("current_error", "", decode.string)
   decode.success(TaskRecord(
     slug: slug,
     language: language,
@@ -455,6 +464,8 @@ fn task_record_decoder() -> decode.Decoder(TaskRecord) {
     updated_at: updated_at,
     stages: stages,
     worktree_path: worktree_path,
+    current_stage: current_stage,
+    current_error: current_error,
   ))
 }
 

@@ -155,6 +155,8 @@ pub fn record_to_task_preserves_language_test() {
       updated_at: "2025-01-04T00:00:00Z",
       stages: [],
       worktree_path: "",
+      current_stage: "",
+      current_error: "",
     )
 
   case persistence.record_to_task(record) {
@@ -174,6 +176,8 @@ pub fn record_to_task_invalid_language_test() {
       updated_at: "2025-01-04T00:00:00Z",
       stages: [],
       worktree_path: "",
+      current_stage: "",
+      current_error: "",
     )
 
   persistence.record_to_task(record)
