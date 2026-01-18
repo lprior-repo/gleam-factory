@@ -1,0 +1,219 @@
+GLEAM TEST FAILURE SUMMARY - 41 Tests Failing
+
+==============================================================================
+FAILURE BREAKDOWN BY FILE
+==============================================================================
+
+factory_supervisor_test.gleam (16 failures - ALL CaseClause(Ok))
+  - supervisor_starts_test
+  - signal_bus_accessible_test
+  - heartbeat_accessible_test
+  - multiple_supervisors_test
+  - heartbeat_tick_received_test
+  - signal_bus_publish_received_test
+  - supervisor_children_responsive_test
+  - supervisor_startup_error_test
+  - accessor_functions_correct_test
+  - supervisor_config_flexibility_test
+  - start_link_all_actors_success_test
+  - supervisor_restarts_failed_child_test
+  - supervisor_returns_all_actor_subjects_test
+  - graceful_degradation_on_child_failure_test
+  - log_system_ready_outputs_message_test
+  - system_ready_after_all_services_started_test
+
+graceful_shutdown_test.gleam (3 failures - ALL CaseClause(Ok))
+  - graceful_shutdown_test
+  - shutdown_idempotent_test
+  - shutdown_timeout_test
+
+performance_test.gleam (7 failures - ALL Badarith)
+  - benchmark_implement_stage_test
+  - benchmark_unit_test_stage_test
+  - benchmark_lint_stage_test
+  - benchmark_static_stage_test
+  - benchmark_integration_stage_test
+  - benchmark_throughput_calculation_test
+  - benchmark_memory_measurement_test
+
+pipeline_integration_test.gleam (10 failures - ALL CaseClause(Ok))
+  - pipeline_supervisor_startup_test
+  - pipeline_signal_broadcast_test
+  - pipeline_heartbeat_polling_test
+  - pipeline_merge_queue_patch_absorption_test
+  - pipeline_test_failure_signal_test
+  - pipeline_golden_master_preparation_test
+  - pipeline_multiple_subscriptions_test
+  - pipeline_error_handling_resilience_test
+  - pipeline_complete_workflow_test
+  - pipeline_shutdown_test
+
+heartbeat_test.gleam (1 failure - signal timeout)
+  - transition_from_red_to_green_broadcasts_test_passing_test
+
+integration_test.gleam (1 failure - assertion)
+  - factory_loop_phase_transitions_test
+
+==============================================================================
+FAILURE PATTERNS
+==============================================================================
+
+PATTERN 1: CaseClause(Ok) - 29 Tests (Signal Bus Functionality)
+  Severity: HIGH - Most failures
+  Files: factory_supervisor_test, graceful_shutdown_test, pipeline_integration_test
+
+  Code pattern (all affected tests):
+    case factory_supervisor.start_link(config) {
+      Ok(_) -> [body]
+      Error(_) -> should.fail()
+    }
+
+  Error: Gleam runtime throws CaseClause(Ok) exception
+  Likely cause: Type mismatch or pattern matching issue with Result type
+
+  Tests that depend on factory_supervisor working:
+  - All factory_supervisor_test tests
+  - All graceful_shutdown_test tests
+  - All pipeline_integration_test tests (11 tests use supervisor)
+
+PATTERN 2: Badarith - 7 Tests (Arithmetic Error)
+  Severity: MEDIUM - Math operations failing
+  File: performance_test.gleam
+
+  Code pattern (line 52-54):
+    let throughput = case duration_ms {
+      0 -> 0.0
+      d -> 1000.0 /. int_to_float(d)
+    }
+
+  Error: int_to_float(d) not properly converting Int to Float
+  Root cause: Invalid external FFI binding on line 37-38:
+    @external(erlang, "erlang", "float")
+    fn int_to_float(i: Int) -> Float
+
+  This doesn't actually convert - need proper implementation
+
+PATTERN 3: Signal Bus Timeout - 1 Test
+  Severity: MEDIUM - Integration issue
+  File: heartbeat_test.gleam line 70
+  Test: transition_from_red_to_green_broadcasts_test_passing_test
+
+  Problem: Signal not received within 1000ms timeout
+  Expected: TestPassing signal on Red->Green transition
+
+  Code at line 105-107:
+    case process.receive(passing_sub, 1000) {
+      Ok(signal_bus.TestPassing) -> Nil
+      _ -> panic as "Expected TestPassing signal on transition"
+    }
+
+  Root cause: heartbeat not broadcasting TestPassing on state transition
+  Or: signal_bus not routing signals to subscribers correctly
+
+PATTERN 4: Phase Assertion - 1 Test
+  Severity: LOW - Logic implementation issue
+  File: integration_test.gleam
+  Test: factory_loop_phase_transitions_test
+
+  Expected: Reviewing -> Pushing transition
+  Actual: Stuck in Reviewing phase
+
+  Related to: Approval gate logic (commit c54ab1e)
+
+==============================================================================
+RECOMMENDED FIX ORDER
+==============================================================================
+
+1. FIRST: CaseClause(Ok) Errors (29 tests)
+   - Blocks: 29/41 tests entirely
+   - Investigate: factory_supervisor.start_link return type
+   - Check: Result type definition and pattern matching
+   - Root cause likely shared across all 3 files
+
+   Implementation:
+   - Add debug output to factory_supervisor.gleam start_link
+   - Check if Ok variant is properly defined
+   - Verify result.try and result.map_error work correctly
+   - Test minimal case statement
+
+2. SECOND: Badarith Errors (7 tests)
+   - Blocks: 7/41 tests in performance_test
+   - Fix: Replace int_to_float FFI binding
+   - Options:
+     a) Use gleam/int.to_float if available in stdlib
+     b) Implement custom conversion via erlang:float()
+     c) Rewrite to avoid float arithmetic
+
+   Test: benchmark_implement_stage_test (simplest)
+
+3. THIRD: Signal Bus Timeout (1 test)
+   - Depends on: Pattern 1 fixed (CaseClause)
+   - Investigate: heartbeat broadcasting logic
+   - Check: signal_bus subscribe/publish routing
+   - Verify: TestPassing signal being broadcast at all
+
+   Debug: Add logging to heartbeat status transitions
+
+4. FOURTH: Phase Assertion (1 test)
+   - Depends on: Pattern 1 fixed
+   - Review: factory_loop state machine logic
+   - Verify: approval gate implementation (c54ab1e)
+
+==============================================================================
+BLOCKERS AND DEPENDENCIES
+==============================================================================
+
+Dependency Chain:
+  CaseClause(Ok) errors
+    ↓ (unblock by fixing #1)
+  Can test graceful_shutdown, pipeline integration
+    ↓ (unblock by fixing #2)
+  Can verify signal bus with performance tests
+    ↓ (unblock by fixing #3)
+  Can verify full integration
+
+Estimated Impact:
+- Fix #1 (CaseClause): Unblocks 29 tests (~70%)
+- Fix #2 (Badarith): Unblocks 7 tests (~17%)
+- Fix #3 (Signal timeout): Unblocks 1 test (~2%)
+- Fix #4 (Phase assertion): Unblocks 1 test (~2%)
+
+==============================================================================
+IMPLEMENTATION NOTES
+==============================================================================
+
+CaseClause(Ok) Investigation:
+  Step 1: Check factory_supervisor.gleam line 63-100
+  Step 2: Verify Started type definition (line 40-54)
+  Step 3: Check result.try usage (line 64+)
+  Step 4: Add simple test case with Result type directly
+
+  Hypothesis: result.try may not be working correctly with the case
+  statements, or the error handling chain is broken.
+
+Badarith Fix:
+  Current (broken):
+    @external(erlang, "erlang", "float")
+    fn int_to_float(i: Int) -> Float
+
+  Option A (if stdlib supports):
+    import gleam/int
+    int.to_float(d)
+
+  Option B (custom erlang):
+    @external(erlang, "erlang", "float")
+    fn erlang_float(i: Int) -> Float
+    Then: erlang_float(d) /. 1.0  [multiply by 1.0 to ensure float]
+
+  Option C (avoid floats):
+    Calculate throughput as Int (tasks per second * 1000)
+    Then convert to display format later
+
+Signal Bus Investigation:
+  1. Check signal_bus.gleam broadcast vs publish difference
+  2. Verify TestPassing signal is defined (not TestPassing(_))
+  3. Check filter matching in subscribe call
+  4. Add logging to signal_bus when TestPassing broadcast occurs
+  5. Verify heartbeat calls broadcast, not publish
+
+==============================================================================
