@@ -1,6 +1,7 @@
 // Errors module - Error extraction utilities
 // Provides functions to extract error information from command output
 
+import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
 
@@ -82,23 +83,12 @@ fn find_error_lines(
   acc: List(String),
 ) -> List(String) {
   case remaining, lines {
-    0, _ -> list_reverse(acc)
-    _, [] -> list_reverse(acc)
+    0, _ -> list.reverse(acc)
+    _, [] -> list.reverse(acc)
     _, [line, ..rest] ->
       case string.contains(line, "Error") || string.contains(line, "error") {
         True -> find_error_lines(rest, remaining - 1, [line, ..acc])
         False -> find_error_lines(rest, remaining, acc)
       }
-  }
-}
-
-fn list_reverse(list: List(a)) -> List(a) {
-  do_reverse(list, [])
-}
-
-fn do_reverse(list: List(a), acc: List(a)) -> List(a) {
-  case list {
-    [] -> acc
-    [x, ..rest] -> do_reverse(rest, [x, ..acc])
   }
 }
