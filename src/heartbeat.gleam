@@ -60,7 +60,7 @@ pub fn start_link(
   let initial =
     HeartbeatState(
       config:,
-      last_status: Green,
+      last_status: Red,
       last_hash: "",
       signal_bus: bus,
       progress_buffer: [],
