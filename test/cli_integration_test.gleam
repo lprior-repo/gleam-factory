@@ -179,7 +179,7 @@ pub fn cli_status_shows_clean_repo_test() {
         Ok(status) -> {
           let _ = teardown_jj_repo(repo_path)
           status
-          |> string.contains("working directory")
+          |> string.contains("Working copy")
           |> should.be_true()
         }
       }

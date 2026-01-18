@@ -513,7 +513,7 @@ COMMANDS:
            factory stage -s bd-52.1 --stage implement [-d] [--from X] [--to Y]
 
   approve  Approve for deployment
-           factory approve -s bd-52.1 [--strategy gradual] [-f]
+           factory approve -s bd-52.1 [--strategy immediate|gradual|canary] [-f]
 
   show     Show task details
            factory show -s bd-52.1 [--detailed]
