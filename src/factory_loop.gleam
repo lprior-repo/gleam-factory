@@ -190,7 +190,7 @@ fn handle_message(
         -> FactoryLoopState(..state, phase: new_phase)
         _, _ -> {
           logging.log(
-            logging.Debug,
+            logging.Error,
             "Unhandled event/state combination in factory loop",
             dict.from_list([
               #("event", format_event(event)),
@@ -234,7 +234,7 @@ pub fn transition(from: Phase, event: Event) -> Phase {
     _, BudgetExhausted -> Failed
     _, _ -> {
       logging.log(
-        logging.Debug,
+        logging.Error,
         "Unexpected phase/event in transition",
         dict.from_list([
           #("phase", format_phase(from)),
