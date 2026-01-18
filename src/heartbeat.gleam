@@ -131,11 +131,6 @@ fn update_status(
       HeartbeatState(..state, last_status: Red)
     }
     Red, Green -> {
-      logging.log(
-        logging.Info,
-        "Tests transitioned from Red to Green",
-        dict.new(),
-      )
       signal_bus.broadcast(state.signal_bus, signal_bus.TestPassing)
       HeartbeatState(..state, last_status: Green)
     }
