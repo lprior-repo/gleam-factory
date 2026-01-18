@@ -49,12 +49,12 @@ fn benchmark_stage(stage: domain.Stage) -> BenchmarkResult {
   let end_time = monotonic_time_ms()
   let end_memory = memory_total()
 
-  let duration_ms = end_time - start_time
-  let memory_usage = end_memory - start_memory
-  let throughput = case duration_ms {
-    0 -> 0.0
-    d -> 1000.0 /. int.to_float(d)
+  let duration_ms = case end_time - start_time {
+    n if n <= 0 -> 1
+    n -> n
   }
+  let memory_usage = end_memory - start_memory
+  let throughput = 1000.0 /. int.to_float(duration_ms)
 
   BenchmarkResult(
     stage_name: stage.name,
