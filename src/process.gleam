@@ -69,10 +69,9 @@ fn parse_command_output(output: String) -> CommandResult {
             Ok(exit_code) -> {
               let stdout_lines = reverse_list(rest_reversed)
               let combined = string.join(stdout_lines, "\n")
-              case exit_code {
-                c if c == exit_success -> Success(combined, "", exit_success)
-                code -> Failure(combined, code)
-              }
+              // Always return Success with actual exit code
+              // Callers must check exit_code explicitly
+              Success(combined, "", exit_code)
             }
             Error(_) -> Success(output, "", exit_success)
           }

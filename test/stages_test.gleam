@@ -2,6 +2,7 @@ import domain
 import gleeunit
 import gleeunit/should
 import stages
+import simplifile
 
 pub fn main() {
   gleeunit.main()
@@ -193,4 +194,90 @@ pub fn execute_stages_dry_run_all_gleam_stages_test() {
   let pipeline = domain.standard_pipeline()
   let previews = stages.execute_stages_dry_run(pipeline, domain.Gleam)
   previews |> should.not_equal([])
+}
+
+// Review stage tests - grep exit semantics
+// grep exit 0 = matches found (TODO/FIXME present) -> should Error
+// grep exit 1 = no matches (clean code) -> should Ok
+// grep exit 2+ = actual error -> should Error
+
+pub fn gleam_review_with_markers_should_error_test() {
+  // Create temp dir with TODO marker
+  let test_dir = "/tmp/review-test-markers-gleam"
+  let _ = simplifile.delete_all([test_dir])
+  let assert Ok(_) = simplifile.create_directory(test_dir)
+  let assert Ok(_) =
+    simplifile.write(test_dir <> "/app.gleam", "// TODO: fix this later\n")
+
+  let result = stages.execute_stage("review", domain.Gleam, test_dir)
+
+  // Cleanup
+  let _ = simplifile.delete_all([test_dir])
+
+  // Should error because markers found
+  result
+  |> should.be_error()
+}
+
+pub fn gleam_review_without_markers_should_pass_test() {
+  // Create temp dir with clean code
+  let test_dir = "/tmp/review-test-clean-gleam"
+  let _ = simplifile.delete_all([test_dir])
+  let assert Ok(_) = simplifile.create_directory(test_dir)
+  let assert Ok(_) =
+    simplifile.write(test_dir <> "/app.gleam", "// Clean code\n")
+
+  let result = stages.execute_stage("review", domain.Gleam, test_dir)
+
+  // Cleanup
+  let _ = simplifile.delete_all([test_dir])
+
+  // Should pass because no markers
+  result
+  |> should.be_ok()
+}
+
+pub fn go_review_with_markers_should_error_test() {
+  let test_dir = "/tmp/review-test-markers-go"
+  let _ = simplifile.delete_all([test_dir])
+  let assert Ok(_) = simplifile.create_directory(test_dir)
+  let assert Ok(_) =
+    simplifile.write(test_dir <> "/main.go", "// FIXME: bad code\n")
+
+  let result = stages.execute_stage("review", domain.Go, test_dir)
+
+  let _ = simplifile.delete_all([test_dir])
+
+  result
+  |> should.be_error()
+}
+
+pub fn rust_review_with_markers_should_error_test() {
+  let test_dir = "/tmp/review-test-markers-rust"
+  let _ = simplifile.delete_all([test_dir])
+  let assert Ok(_) = simplifile.create_directory(test_dir)
+  let assert Ok(_) =
+    simplifile.write(test_dir <> "/main.rs", "// XXX: hack\n")
+
+  let result = stages.execute_stage("review", domain.Rust, test_dir)
+
+  let _ = simplifile.delete_all([test_dir])
+
+  result
+  |> should.be_error()
+}
+
+pub fn python_review_with_markers_should_error_test() {
+  let test_dir = "/tmp/review-test-markers-python"
+  let _ = simplifile.delete_all([test_dir])
+  let assert Ok(_) = simplifile.create_directory(test_dir)
+  let assert Ok(_) =
+    simplifile.write(test_dir <> "/main.py", "# HACK: workaround\n")
+
+  let result = stages.execute_stage("review", domain.Python, test_dir)
+
+  let _ = simplifile.delete_all([test_dir])
+
+  result
+  |> should.be_error()
 }

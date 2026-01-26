@@ -3,6 +3,7 @@
 
 import domain
 import gleam/dict
+import gleam/int
 import gleam/list
 import gleam/result
 import gleam/string
@@ -313,11 +314,12 @@ fn gleam_review(cwd: String) -> Result(Nil, String) {
       cwd,
     )
   {
-    Ok(process.Success(_, _, _)) ->
+    Ok(process.Success(_, _, 0)) ->
       Error("Gleam: TODO/FIXME/XXX/HACK markers found")
-    Ok(process.Failure(_, 1)) -> Ok(Nil)
-    Ok(process.Failure(_, code)) ->
-      Error("Grep failed with code: " <> string.inspect(code))
+    Ok(process.Success(_, _, 1)) -> Ok(Nil)
+    Ok(process.Success(_, _, code)) ->
+      Error("Grep failed with code: " <> int.to_string(code))
+    Ok(process.Failure(err, _)) -> Error(err)
     Error(e) -> Error(e)
   }
 }
@@ -422,11 +424,12 @@ fn go_review(cwd: String) -> Result(Nil, String) {
       cwd,
     )
   {
-    Ok(process.Success(_, _, _)) ->
+    Ok(process.Success(_, _, 0)) ->
       Error("Go: TODO/FIXME/XXX/HACK markers found")
-    Ok(process.Failure(_, 1)) -> Ok(Nil)
-    Ok(process.Failure(_, code)) ->
-      Error("Grep failed with code: " <> string.inspect(code))
+    Ok(process.Success(_, _, 1)) -> Ok(Nil)
+    Ok(process.Success(_, _, code)) ->
+      Error("Grep failed with code: " <> int.to_string(code))
+    Ok(process.Failure(err, _)) -> Error(err)
     Error(e) -> Error(e)
   }
 }
@@ -524,11 +527,12 @@ fn rust_review(cwd: String) -> Result(Nil, String) {
       cwd,
     )
   {
-    Ok(process.Success(_, _, _)) ->
+    Ok(process.Success(_, _, 0)) ->
       Error("Rust: TODO/FIXME/XXX/HACK markers found")
-    Ok(process.Failure(_, 1)) -> Ok(Nil)
-    Ok(process.Failure(_, code)) ->
-      Error("Grep failed with code: " <> string.inspect(code))
+    Ok(process.Success(_, _, 1)) -> Ok(Nil)
+    Ok(process.Success(_, _, code)) ->
+      Error("Grep failed with code: " <> int.to_string(code))
+    Ok(process.Failure(err, _)) -> Error(err)
     Error(e) -> Error(e)
   }
 }
@@ -630,11 +634,12 @@ fn python_review(cwd: String) -> Result(Nil, String) {
       cwd,
     )
   {
-    Ok(process.Success(_, _, _)) ->
+    Ok(process.Success(_, _, 0)) ->
       Error("Python: TODO/FIXME/XXX/HACK markers found")
-    Ok(process.Failure(_, 1)) -> Ok(Nil)
-    Ok(process.Failure(_, code)) ->
-      Error("Grep failed with code: " <> string.inspect(code))
+    Ok(process.Success(_, _, 1)) -> Ok(Nil)
+    Ok(process.Success(_, _, code)) ->
+      Error("Grep failed with code: " <> int.to_string(code))
+    Ok(process.Failure(err, _)) -> Error(err)
     Error(e) -> Error(e)
   }
 }
