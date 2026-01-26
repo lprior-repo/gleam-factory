@@ -1,11 +1,10 @@
 //// Performance benchmark tests for factory-gleam pipeline stages.
 //// Measures duration, memory usage, and throughput for each stage.
 
+import birl
 import domain
-import gleam/int
 import gleeunit
 import gleeunit/should
-import birl
 
 pub fn main() {
   gleeunit.main()

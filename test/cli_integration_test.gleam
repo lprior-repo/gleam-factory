@@ -262,14 +262,6 @@ fn setup_gleam_project(path: String) -> Result(Nil, String) {
   |> result.map_error(fn(_) { "Failed to write source file" })
 }
 
-// Run factory CLI command and get output
-fn run_factory_cli(
-  args: List(String),
-  cwd: String,
-) -> Result(process.CommandResult, String) {
-  process.run_command("gleam", ["run", "--", ..args], cwd)
-}
-
 // TEST: factory_new_creates_task_record_test
 pub fn factory_new_creates_task_record_test() {
   let repo_path = get_temp_dir() <> "/test_factory_new"

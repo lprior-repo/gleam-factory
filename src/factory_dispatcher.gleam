@@ -5,8 +5,8 @@ import factory_loop
 import gleam/dict
 import gleam/erlang/process.{type Subject}
 import gleam/int
+import gleam/otp/actor
 import gleam/string
-import otp_actor as actor
 import signal_bus
 import signals
 
@@ -53,7 +53,7 @@ fn handle_message(
       actor.continue(new_state)
     }
     Stop -> {
-      actor.stop(Nil)
+      actor.stop()
     }
   }
 }

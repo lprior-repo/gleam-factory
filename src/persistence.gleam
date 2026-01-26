@@ -40,23 +40,8 @@ const branch_prefix = "feat/"
 
 const colon_escape = "\\c"
 
-fn encode_reason(reason: String) -> String {
-  string.replace(reason, ":", colon_escape)
-}
-
 fn decode_reason(encoded: String) -> String {
   string.replace(encoded, colon_escape, ":")
-}
-
-fn parse_status(status_str: String) -> domain.TaskStatus {
-  case status_str {
-    "created" -> domain.Created
-    "passed" -> domain.PassedPipeline
-    "integrated" -> domain.Integrated
-    "in_progress" -> domain.InProgress("")
-    "failed" -> domain.FailedPipeline("", "")
-    _ -> domain.Created
-  }
 }
 
 pub type StageResult {

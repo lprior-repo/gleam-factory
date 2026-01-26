@@ -5,7 +5,6 @@
 
 import gleam/int
 import gleam/option.{type Option, None, Some}
-import gleam/result
 import gleam/string
 import llm
 import llm_router

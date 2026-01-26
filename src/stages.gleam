@@ -95,7 +95,7 @@ fn stage_command(stage_name: String, language: domain.Language) -> String {
     domain.Gleam, "lint" -> "gleam format --check ."
     domain.Gleam, "static" -> "gleam check"
     domain.Gleam, "integration" -> "gleam test"
-    domain.Gleam, "security" -> "gleam get"
+    domain.Gleam, "security" -> "gleam deps download"
     domain.Gleam, "review" -> "grep -r TODO|FIXME|XXX|HACK"
     domain.Gleam, "accept" ->
       "gleam build && gleam test && gleam format --check ."
@@ -267,11 +267,14 @@ fn gleam_integration(cwd: String) -> Result(Nil, String) {
 }
 
 fn gleam_security(cwd: String) -> Result(Nil, String) {
-  // Check for dependency vulnerabilities using gleam get
-  // which will validate the manifest
-  use cmd_result <- result.try(process.run_command("gleam", ["get"], cwd))
+  // Validate dependencies by downloading/verifying manifest
+  use cmd_result <- result.try(process.run_command(
+    "gleam",
+    ["deps", "download"],
+    cwd,
+  ))
   process.check_success(cmd_result)
-  |> result.map_error(fn(_) { "Gleam: Dependency resolution failed" })
+  |> result.map_error(fn(_) { "Gleam: Dependency validation failed" })
 }
 
 fn gleam_review(cwd: String) -> Result(Nil, String) {

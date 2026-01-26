@@ -111,12 +111,21 @@ pub fn factory_loop_phase_transitions_test() {
 
   let assert Ok(loop) = factory_loop.start_link("loop-2", bead, "/tmp/ws2", bus)
 
+  // First TestPassed: Implementing -> Reviewing (green_count = 1)
   factory_loop.advance(loop, factory_loop.TestPassed)
   process.sleep(100)
   let state1 = factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state1.phase
   |> should.equal(factory_loop.Reviewing)
 
+  // Second TestPassed: stay in Reviewing (green_count = 2)
+  factory_loop.advance(loop, factory_loop.TestPassed)
+  process.sleep(100)
+  let state2 = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  state2.phase
+  |> should.equal(factory_loop.Reviewing)
+
+  // Third TestPassed: Reviewing -> Pushing (green_count = 3, triggers approval gate)
   factory_loop.advance(loop, factory_loop.TestPassed)
   process.sleep(100)
   let state3 = factory_loop.get_state(loop) |> factory_loop.unwrap_state

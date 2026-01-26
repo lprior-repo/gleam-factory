@@ -1,8 +1,8 @@
 import gleam/erlang/process.{type Subject}
 import gleam/option.{type Option, None, Some}
+import gleam/otp/actor
 import gleam/result
 import gleam/string
-import otp_actor as actor
 import process as shell_process
 import signal_bus
 import types
@@ -64,7 +64,7 @@ fn handle_message(
   msg: GoldenMasterMessage,
 ) -> actor.Next(GoldenMasterState, GoldenMasterMessage) {
   case msg {
-    Shutdown -> actor.stop(process.Normal)
+    Shutdown -> actor.stop()
     GetHash(reply) -> {
       let result = get_hash_from_jj(state.path)
       process.send(reply, result)
@@ -191,14 +191,6 @@ fn build_dependencies(path: String) -> Result(Nil, String) {
     Ok(shell_process.Success(_, _, _)) -> Ok(Nil)
     Ok(shell_process.Failure(e, _)) -> Error("build failed: " <> e)
     Error(e) -> Error("build error: " <> e)
-  }
-}
-
-fn verify_tests_pass(path: String) -> Result(Nil, String) {
-  case shell_process.run_command("gleam", ["test"], path) {
-    Ok(shell_process.Success(_, _, _)) -> Ok(Nil)
-    Ok(shell_process.Failure(e, _)) -> Error("tests failed: " <> e)
-    Error(e) -> Error("tests error: " <> e)
   }
 }
 

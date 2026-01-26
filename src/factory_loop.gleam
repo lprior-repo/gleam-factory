@@ -3,7 +3,6 @@
 //// Integrates with feedback_loop for auto-heal on test failures.
 //// Tracks token usage for budget management.
 
-import feedback_loop
 import gleam/dict
 import gleam/erlang/process.{type Subject}
 import gleam/int

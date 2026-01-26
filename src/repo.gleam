@@ -63,7 +63,10 @@ pub fn detect_language(repo_root: String) -> Result(domain.Language, String) {
 
 /// Check if file exists
 fn file_exists(path: String) -> Bool {
-  simplifile.is_file(path)
+  case simplifile.verify_is_file(path) {
+    Ok(True) -> True
+    _ -> False
+  }
 }
 
 /// Get the main/master branch of the repository

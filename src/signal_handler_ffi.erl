@@ -12,7 +12,10 @@ setup_signal_handlers(Callback) ->
         {error, module_not_found} -> ok
     end,
     %% Add our custom handler
-    gen_event:add_handler(erl_signal_server, ?MODULE, Callback).
+    case gen_event:add_handler(erl_signal_server, ?MODULE, Callback) of
+        ok -> signal_ok;
+        {error, _} -> signal_error
+    end.
 
 %% Remove signal handlers - restores default behavior
 remove_signal_handlers() ->

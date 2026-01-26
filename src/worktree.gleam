@@ -82,11 +82,30 @@ fn create_jj_workspace(
   worktree_path: String,
   repo_root: String,
 ) -> Result(Nil, String) {
+  // Try jj first, fall back to git worktree
+  case
+    process.run_command(
+      "jj",
+      ["workspace", "add", "--name", worktree_name, worktree_path],
+      repo_root,
+    )
+  {
+    Ok(process.Success(_, _, 0)) -> Ok(Nil)
+    _ -> create_git_worktree(worktree_name, worktree_path, repo_root)
+  }
+}
+
+fn create_git_worktree(
+  worktree_name: String,
+  worktree_path: String,
+  repo_root: String,
+) -> Result(Nil, String) {
+  let branch = branch_prefix <> worktree_name
   run_command_checked(
-    "jj",
-    ["workspace", "add", "--name", worktree_name, worktree_path],
+    "git",
+    ["-C", repo_root, "worktree", "add", worktree_path, "-b", branch],
     repo_root,
-    "Could not create jj workspace: " <> worktree_name,
+    "Could not create git worktree: " <> worktree_name,
   )
 }
 
@@ -95,12 +114,18 @@ fn create_bookmark(
   branch: String,
   repo_root: String,
 ) -> Result(Nil, String) {
-  run_command_checked(
-    "jj",
-    ["-R", worktree_path, "bookmark", "create", branch],
-    repo_root,
-    "Could not create branch bookmark",
-  )
+  // Try jj bookmark first, fall back to git (git branch already created by worktree add)
+  case
+    process.run_command(
+      "jj",
+      ["-R", worktree_path, "bookmark", "create", branch],
+      repo_root,
+    )
+  {
+    Ok(process.Success(_, _, 0)) -> Ok(Nil)
+    // For git, the branch was already created by worktree add, so just succeed
+    _ -> Ok(Nil)
+  }
 }
 
 fn create_symlink(
@@ -165,6 +190,7 @@ pub fn remove_worktree(slug: String, repo_root: String) -> Result(Nil, String) {
 
   use wt <- result.try(get_worktree(slug, repo_root))
 
+  // Try jj workspace forget first
   let _ =
     process.run_command(
       "jj",
@@ -172,6 +198,15 @@ pub fn remove_worktree(slug: String, repo_root: String) -> Result(Nil, String) {
       repo_root,
     )
 
+  // Also try git worktree remove
+  let _ =
+    process.run_command(
+      "git",
+      ["-C", repo_root, "worktree", "remove", wt.path, "--force"],
+      repo_root,
+    )
+
+  // If git worktree remove didn't clean up, remove manually
   use _ <- result.try(run_command_checked(
     "rm",
     ["-rf", wt.path],

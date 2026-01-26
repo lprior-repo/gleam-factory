@@ -1,8 +1,8 @@
 import gleam/dict
 import gleam/erlang/process.{type Subject}
 import gleam/option.{type Option, None, Some}
+import gleam/otp/actor
 import logging
-import otp_actor as actor
 import signal_bus
 import signals
 
@@ -50,7 +50,7 @@ fn handle_message(
   msg: MergeQueueMessage,
 ) -> actor.Next(MergeQueueState, MergeQueueMessage) {
   case msg {
-    Shutdown -> actor.stop(process.Normal)
+    Shutdown -> actor.stop()
     GetAbsorbing(reply) -> {
       process.send(reply, state.absorbing)
       actor.continue(state)

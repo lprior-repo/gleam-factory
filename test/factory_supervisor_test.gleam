@@ -6,7 +6,6 @@
 //// factory_dispatcher, beads_watcher
 
 import factory_supervisor
-import gleam/erlang/process
 import gleeunit
 import gleeunit/should
 import heartbeat
@@ -38,7 +37,7 @@ pub fn supervisor_starts_test() {
   let result = factory_supervisor.start_link(config)
   case result {
     Ok(_) -> should.equal(Nil, Nil)
-    Error(err) -> should.fail()
+    Error(_) -> should.fail()
   }
 }
 
