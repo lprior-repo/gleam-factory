@@ -8,13 +8,13 @@ PROJECT: Factory - contract-driven multi-language CI/CD orchestration in Gleam.
 Human approval gates before deployment. OTP actor supervision. Beads task integration.
 
 STRUCTURE:
-src/ - 56 modules: domain(types) cli(commands) stages(pipeline) persistence(json) repo(detect-lang)
+src/ - 51 modules: domain(types) cli(commands) stages(pipeline) persistence(json) repo(detect-lang)
        worktree(jj-workspaces) process(shell) audit(events) factory(main) factory_loop(actor)
        factory_supervisor(otp-tree) agent_runners(claude) feedback_loop(auto-heal) llm_router(local/anthropic)
        signal_bus(pubsub) signals(12-event-types) types(opaque-wrappers) validation(input) config(defaults)
        bead_manager/beads_watcher/beads_broadcaster(task-system) resource_governor(gpu/mem)
        workspace_manager merge_queue golden_master verification_gauntlet phase_handlers stage_runner
-test/ - 38 files: *_test.gleam(unit) qcheck/(property-based) integration/performance/golden_master tests
+test/ - 39 files: *_test.gleam(unit) qcheck/(property-based) integration/performance/golden_master tests
 .factory/ - cue/schemas.cue(validation) tasks.json(state) audit/(logs)
 .beads/ - config.yaml issues.jsonl(tasks) release-plan.jsonl
 docs/ - ARCHITECTURE.md(603-lines) .ai-learnings.md
