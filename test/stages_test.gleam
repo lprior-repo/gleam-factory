@@ -1,8 +1,8 @@
 import domain
 import gleeunit
 import gleeunit/should
-import stages
 import simplifile
+import stages
 
 pub fn main() {
   gleeunit.main()
@@ -256,8 +256,7 @@ pub fn rust_review_with_markers_should_error_test() {
   let test_dir = "/tmp/review-test-markers-rust"
   let _ = simplifile.delete_all([test_dir])
   let assert Ok(_) = simplifile.create_directory(test_dir)
-  let assert Ok(_) =
-    simplifile.write(test_dir <> "/main.rs", "// XXX: hack\n")
+  let assert Ok(_) = simplifile.write(test_dir <> "/main.rs", "// XXX: hack\n")
 
   let result = stages.execute_stage("review", domain.Rust, test_dir)
 

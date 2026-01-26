@@ -1,0 +1,24 @@
+{
+  "phase": 4,
+  "bead_id": "factory-kvk",
+  "title": "Fix inverted grep review logic - blocks all *_review stages",
+  "complexity": "SIMPLE",
+  "gates": {
+    "complexity_assessed": true,
+    "sufficient_context": false,
+    "plan_verified": false,
+    "plan_verified_llm": false,
+    "tests_fail": false,
+    "tests_pass": false,
+    "tests_green": false,
+    "martin_fowler_1": false,
+    "implementation_complete": false,
+    "criteria_met": false,
+    "no_critical_issues": false,
+    "qa_pass": false,
+    "martin_fowler_2": false,
+    "standards_met": false,
+    "minimized": false,
+    "push_succeeded": false
+  }
+}

@@ -103,10 +103,7 @@ fn parse_show(args: List(String)) -> Result(Command, String) {
 }
 
 fn parse_list(args: List(String)) -> Result(Command, String) {
-  case
-    get_flag(args, "--priority", "-p"),
-    get_flag(args, "--status", "-st")
-  {
+  case get_flag(args, "--priority", "-p"), get_flag(args, "--status", "-st") {
     None, None -> Ok(ListTasks(None, None))
     Some(p), None ->
       validate_priority(p) |> result.map(fn(v) { ListTasks(Some(v), None) })

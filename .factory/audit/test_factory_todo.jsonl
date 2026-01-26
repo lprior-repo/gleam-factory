@@ -1,0 +1,5 @@
+{"timestamp":"2026-01-26T21:07:17.437Z","event_type":"task_created","task_slug":"test_factory_todo","actor":"lewis","details":"Task created","metadata":{"language":"gleam","branch":"feat/test_factory_todo"}}
+{"timestamp":"2026-01-26T21:07:28.961Z","event_type":"stage_started","task_slug":"test_factory_todo","actor":"lewis","details":"Stage started: review","metadata":{"stage":"review","attempt":"1"}}
+{"timestamp":"2026-01-26T21:07:29.008Z","event_type":"stage_failed","task_slug":"test_factory_todo","actor":"lewis","details":"Stage failed: review","metadata":{"stage":"review","error":"Gleam: TODO/FIXME/XXX/HACK markers found"}}
+{"timestamp":"2026-01-26T21:07:35.003Z","event_type":"stage_started","task_slug":"test_factory_todo","actor":"lewis","details":"Stage started: review","metadata":{"stage":"review","attempt":"1"}}
+{"timestamp":"2026-01-26T21:07:35.042Z","event_type":"stage_failed","task_slug":"test_factory_todo","actor":"lewis","details":"Stage failed: review","metadata":{"stage":"review","error":"Gleam: TODO/FIXME/XXX/HACK markers found"}}
