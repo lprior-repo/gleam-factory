@@ -258,13 +258,18 @@ fn gleam_unit_test(cwd: String) -> Result(Nil, String) {
 }
 
 fn gleam_coverage(cwd: String) -> Result(Nil, String) {
-  process.run_command(
+  use cmd_result <- result.try(process.run_command(
     "find",
     [".", "-name", "*_test.gleam", "-o", "-name", "test_*.gleam"],
     cwd,
-  )
-  |> result.map_error(fn(_) { "Gleam: No test files for coverage check" })
-  |> result.map(fn(_) { Nil })
+  ))
+  case cmd_result {
+    process.Success(_, _, 0) -> Ok(Nil)
+    process.Success(_, _, 1) -> Error("Gleam: No test files found")
+    process.Success(_, _, code) ->
+      Error("Gleam: find failed with code: " <> int.to_string(code))
+    process.Failure(err, _) -> Error(err)
+  }
 }
 
 fn gleam_lint(cwd: String) -> Result(Nil, String) {
@@ -375,11 +380,19 @@ fn go_unit_test(cwd: String) -> Result(Nil, String) {
 fn go_coverage(cwd: String) -> Result(Nil, String) {
   use cmd_result <- result.try(process.run_command(
     "go",
-    ["test", "-coverprofile=coverage.out", "./..."],
+    ["test", "-coverprofile=/tmp/coverage.out", "./..."],
     cwd,
   ))
-  process.check_success(cmd_result)
-  |> result.map_error(fn(_) { "Go: Coverage tests failed" })
+  case cmd_result {
+    process.Success(_, _, 0) -> {
+      // TODO: Parse coverage.out and verify coverage >= 80%
+      // For now, just check that tests pass
+      Ok(Nil)
+    }
+    process.Success(_, _, code) ->
+      Error("Go: Tests failed with exit code: " <> int.to_string(code))
+    process.Failure(err, _) -> Error(err)
+  }
 }
 
 fn go_lint(cwd: String) -> Result(Nil, String) {
@@ -479,8 +492,15 @@ fn rust_coverage(cwd: String) -> Result(Nil, String) {
     ["tarpaulin", "--out", "Xml"],
     cwd,
   ))
-  process.check_success(cmd_result)
-  |> result.map_error(fn(_) { "Rust: Coverage generation failed" })
+  case cmd_result {
+    process.Success(_, _, 0) -> {
+      // TODO: Parse XML output and verify coverage >= 80%
+      Ok(Nil)
+    }
+    process.Success(_, _, code) ->
+      Error("Rust: Coverage check failed with code: " <> int.to_string(code))
+    process.Failure(err, _) -> Error(err)
+  }
 }
 
 fn rust_lint(cwd: String) -> Result(Nil, String) {
@@ -590,8 +610,15 @@ fn python_coverage(cwd: String) -> Result(Nil, String) {
     ["-m", "coverage", "run", "-m", "pytest"],
     cwd,
   ))
-  process.check_success(cmd_result)
-  |> result.map_error(fn(_) { "Python: Coverage generation failed" })
+  case cmd_result {
+    process.Success(_, _, 0) -> {
+      // TODO: Run 'coverage report' and verify coverage >= 80%
+      Ok(Nil)
+    }
+    process.Success(_, _, code) ->
+      Error("Python: Coverage tests failed with code: " <> int.to_string(code))
+    process.Failure(err, _) -> Error(err)
+  }
 }
 
 fn python_lint(cwd: String) -> Result(Nil, String) {

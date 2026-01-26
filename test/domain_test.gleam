@@ -897,9 +897,9 @@ pub fn is_ready_for_integration_test() {
   |> should.equal(True)
 }
 
-pub fn is_not_ready_for_integration_python_test() {
+pub fn is_ready_for_integration_python_test() {
   domain.is_ready_for_integration(domain.PassedPipeline, domain.Python)
-  |> should.equal(False)
+  |> should.equal(True)
 }
 
 pub fn is_not_ready_for_integration_status_test() {

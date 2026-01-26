@@ -69,13 +69,13 @@ fn parse_new(args: List(String)) -> Result(Command, String) {
 }
 
 fn parse_stage(args: List(String)) -> Result(Command, String) {
-  case get_flag(args, "--slug", "-s"), get_flag(args, "--stage", "--stage") {
+  case get_flag(args, "--slug", "-s"), get_flag(args, "--stage", "-st") {
     None, _ -> Error("--slug is required for stage command")
     _, None -> Error("--stage is required for stage command")
     Some(slug), Some(stage) -> {
       let dry_run = has_flag(args, "--dry-run", "-d")
-      let from = get_flag(args, "--from", "--from")
-      let to = get_flag(args, "--to", "--to")
+      let from = get_flag(args, "--from", "-fr")
+      let to = get_flag(args, "--to", "-t")
       Ok(RunStage(slug, stage, dry_run, from, to))
     }
   }
@@ -86,7 +86,7 @@ fn parse_approve(args: List(String)) -> Result(Command, String) {
     None -> Error("--slug is required for approve command")
     Some(slug) -> {
       let force = has_flag(args, "--force", "-f")
-      case get_flag(args, "--strategy", "--strategy") {
+      case get_flag(args, "--strategy", "-str") {
         None -> Ok(ApproveTask(slug, None, force))
         Some(s) ->
           validate_strategy(s)
@@ -99,14 +99,14 @@ fn parse_approve(args: List(String)) -> Result(Command, String) {
 fn parse_show(args: List(String)) -> Result(Command, String) {
   case get_flag(args, "--slug", "-s") {
     None -> Error("--slug is required for show command")
-    Some(slug) -> Ok(ShowTask(slug, has_flag(args, "--detailed", "--detailed")))
+    Some(slug) -> Ok(ShowTask(slug, has_flag(args, "--detailed", "-d")))
   }
 }
 
 fn parse_list(args: List(String)) -> Result(Command, String) {
   case
-    get_flag(args, "--priority", "--priority"),
-    get_flag(args, "--status", "--status")
+    get_flag(args, "--priority", "-p"),
+    get_flag(args, "--status", "-st")
   {
     None, None -> Ok(ListTasks(None, None))
     Some(p), None ->
