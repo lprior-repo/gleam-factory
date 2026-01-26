@@ -834,12 +834,6 @@ pub fn get_stage_retries_test() {
 }
 
 // Slug property tests
-pub fn is_slug_lowercase_test() {
-  let assert Ok(slug) = domain.validate_slug("lowercase")
-  domain.is_slug_lowercase(slug)
-  |> should.equal(True)
-}
-
 pub fn has_separators_hyphen_test() {
   let assert Ok(slug) = domain.validate_slug("has-separator")
   domain.has_separators(slug)

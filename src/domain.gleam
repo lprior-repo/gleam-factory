@@ -282,12 +282,6 @@ pub fn language_display_name(lang: Language) -> String {
   }
 }
 
-// BEAD 14: Validate slug is lowercase
-pub fn is_slug_lowercase(slug: Slug) -> Bool {
-  let Slug(s) = slug
-  s == string.lowercase(s)
-}
-
 // BEAD 15: Get max stage retries in pipeline
 pub fn max_pipeline_retries(pipeline: List(Stage)) -> Int {
   pipeline

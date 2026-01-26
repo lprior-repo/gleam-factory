@@ -268,12 +268,6 @@ pub fn task_status_created_not_completed_test() {
 }
 
 // VALIDATION TESTS
-pub fn validate_slug_lowercase_test() {
-  let assert Ok(slug) = domain.validate_slug("valid-slug")
-  domain.is_slug_lowercase(slug)
-  |> should.be_true
-}
-
 pub fn validate_slug_with_numbers_test() {
   let assert Ok(_) = domain.validate_slug("task-123")
   Nil

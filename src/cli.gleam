@@ -20,7 +20,7 @@ pub type Command {
     from: Option(String),
     to: Option(String),
   )
-  ApproveTask(slug: String, strategy: Option(String), force: Bool)
+  ApproveTask(slug: String, strategy: Option(String))
   ShowTask(slug: String, detailed: Bool)
   ListTasks(priority: Option(String), status: Option(String))
   Help(topic: Option(String))
@@ -85,12 +85,11 @@ fn parse_approve(args: List(String)) -> Result(Command, String) {
   case get_flag(args, "--slug", "-s") {
     None -> Error("--slug is required for approve command")
     Some(slug) -> {
-      let force = has_flag(args, "--force", "-f")
       case get_flag(args, "--strategy", "-str") {
-        None -> Ok(ApproveTask(slug, None, force))
+        None -> Ok(ApproveTask(slug, None))
         Some(s) ->
           validate_strategy(s)
-          |> result.map(fn(v) { ApproveTask(slug, Some(v), force) })
+          |> result.map(fn(v) { ApproveTask(slug, Some(v)) })
       }
     }
   }
@@ -162,7 +161,7 @@ pub fn execute(cmd: Command) -> Result(Nil, String) {
     RunStage(slug, stage, dry_run, from, to) ->
       execute_stage(slug, stage, dry_run, from, to)
 
-    ApproveTask(slug, strategy, force) -> execute_approve(slug, strategy, force)
+    ApproveTask(slug, strategy) -> execute_approve(slug, strategy)
 
     ShowTask(slug, detailed) -> execute_show(slug, detailed)
 
@@ -273,7 +272,6 @@ fn execute_stage_range(
 fn execute_approve(
   slug: String,
   strategy: Option(String),
-  _force: Bool,
 ) -> Result(Nil, String) {
   use _ <- result.try(domain.validate_slug(slug))
   use repo_root <- result.try(repo.detect_repo_root())
