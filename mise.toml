@@ -1,2 +1,3 @@
 [tools]
-erlang = "28.3"
+erlang = "latest"
+gleam = "latest"

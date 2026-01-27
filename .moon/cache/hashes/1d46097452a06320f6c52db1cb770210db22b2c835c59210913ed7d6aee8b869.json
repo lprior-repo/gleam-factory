@@ -1,0 +1,1 @@
+[{"projects":{"gleam-factory":{"source":"."}},"configs":{".moon/workspace.yml":"7fe19e556c092f5a96e38d138e245e1c21c1eb7e","moon.yml":"6f9f9fb19971b691b3d55ca4ec644373d7e45a41"},"env":{"MOON_OUTPUT_STYLE":"","MOON_RETRY_COUNT":""},"inDocker":false,"version":"1.41.8"}]

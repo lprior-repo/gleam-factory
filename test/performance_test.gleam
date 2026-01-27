@@ -1,7 +1,6 @@
 //// Performance benchmark tests for factory-gleam pipeline stages.
 //// Measures duration, memory usage, and throughput for each stage.
 
-import birl
 import domain
 import gleeunit
 import gleeunit/should
@@ -22,9 +21,12 @@ pub type BenchmarkResult {
 }
 
 /// Get monotonic time for benchmarking (milliseconds)
+@external(erlang, "erlang", "monotonic_time")
+fn monotonic_time_raw() -> Int
+
 fn monotonic_time_ms() -> Int {
-  // Use monotonic time for accurate duration measurements
-  birl.monotonic_now()
+  // erlang:monotonic_time returns nanoseconds, convert to milliseconds
+  monotonic_time_raw() / 1_000_000
 }
 
 /// Get process memory usage in bytes
