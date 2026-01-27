@@ -90,7 +90,7 @@ pub fn start_link(
 }
 
 fn schedule_tick(subject: Subject(HeartbeatMessage), interval_ms: Int) -> Int {
-  erlang_send_after(subject, interval_ms, Tick)
+  erlang_send_after(interval_ms, subject, Tick)
 }
 
 fn handle_message(
@@ -186,8 +186,8 @@ pub fn shutdown(hb: Subject(HeartbeatMessage)) -> Nil {
 
 @external(erlang, "erlang", "send_after")
 fn erlang_send_after(
-  to: process.Subject(HeartbeatMessage),
   time: Int,
+  to: process.Subject(HeartbeatMessage),
   msg: HeartbeatMessage,
 ) -> Int
 
