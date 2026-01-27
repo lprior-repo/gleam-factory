@@ -5,16 +5,16 @@ import golden_master
 import types
 
 pub fn start_link_returns_ok_subject_test() {
-  golden_master.start_link("/tmp/golden")
-  |> should.be_ok
+  let assert Ok(master) = golden_master.start_link("/tmp/golden")
+  golden_master.shutdown(master)
 }
 
 pub fn accepts_git_hash_in_constructor_test() {
   let assert Ok(hash) =
     types.git_hash_parse("a1b2c3d4e5f6789012345678901234567890abcd")
 
-  golden_master.new_with_hash("/tmp/golden", hash)
-  |> should.be_ok
+  let assert Ok(master) = golden_master.new_with_hash("/tmp/golden", hash)
+  golden_master.shutdown(master)
 }
 
 pub fn prepare_golden_master_message_added_test() {
@@ -43,9 +43,12 @@ pub fn prepare_golden_master_returns_reply_on_success_test() {
       |> should.equal(True)
     }
     Error(Nil) -> {
+      golden_master.shutdown(master)
       panic as "timeout waiting for prepare response"
     }
   }
+
+  golden_master.shutdown(master)
 }
 
 pub fn prepare_golden_master_message_handling_test() {
@@ -64,9 +67,17 @@ pub fn prepare_golden_master_message_handling_test() {
 
   case r1, r2 {
     Ok(_), Ok(_) -> True |> should.equal(True)
-    Error(Nil), _ -> panic as "reply1 timeout"
-    _, Error(Nil) -> panic as "reply2 timeout"
+    Error(Nil), _ -> {
+      golden_master.shutdown(master)
+      panic as "reply1 timeout"
+    }
+    _, Error(Nil) -> {
+      golden_master.shutdown(master)
+      panic as "reply2 timeout"
+    }
   }
+
+  golden_master.shutdown(master)
 }
 
 pub fn prepare_golden_master_blocks_until_ready_test() {
@@ -79,8 +90,13 @@ pub fn prepare_golden_master_blocks_until_ready_test() {
   // Should receive response within timeout
   case process.receive(reply, 10_000) {
     Ok(_) -> True |> should.equal(True)
-    Error(Nil) -> panic as "timeout: not blocked until ready"
+    Error(Nil) -> {
+      golden_master.shutdown(master)
+      panic as "timeout: not blocked until ready"
+    }
   }
+
+  golden_master.shutdown(master)
 }
 
 pub fn prepare_golden_master_sequence_ensure_repo_test() {
@@ -101,8 +117,13 @@ pub fn prepare_golden_master_sequence_ensure_repo_test() {
         }
       }
     }
-    Error(Nil) -> panic as "timeout"
+    Error(Nil) -> {
+      golden_master.shutdown(master)
+      panic as "timeout"
+    }
   }
+
+  golden_master.shutdown(master)
 }
 
 pub fn prepare_golden_master_returns_nil_on_success_test() {
@@ -115,8 +136,13 @@ pub fn prepare_golden_master_returns_nil_on_success_test() {
   case process.receive(reply, 10_000) {
     Ok(Ok(Nil)) -> True |> should.equal(True)
     Ok(Error(_)) -> True |> should.equal(True)
-    Error(Nil) -> panic as "timeout"
+    Error(Nil) -> {
+      golden_master.shutdown(master)
+      panic as "timeout"
+    }
   }
+
+  golden_master.shutdown(master)
 }
 
 pub fn prepare_golden_master_returns_error_reason_test() {
@@ -134,8 +160,13 @@ pub fn prepare_golden_master_returns_error_reason_test() {
       len
       |> should.not_equal(0)
     }
-    Error(Nil) -> panic as "timeout"
+    Error(Nil) -> {
+      golden_master.shutdown(master)
+      panic as "timeout"
+    }
   }
+
+  golden_master.shutdown(master)
 }
 
 pub fn prepare_golden_master_does_not_block_other_messages_test() {
@@ -159,4 +190,6 @@ pub fn prepare_golden_master_does_not_block_other_messages_test() {
     Ok(_), Ok(_) -> True |> should.equal(True)
     _, _ -> True |> should.equal(True)
   }
+
+  golden_master.shutdown(master)
 }

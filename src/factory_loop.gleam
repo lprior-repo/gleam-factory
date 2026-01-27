@@ -57,6 +57,7 @@ pub type FactoryLoopState {
 }
 
 pub type LoopMessage {
+  Shutdown
   Advance(event: Event)
   GetState(reply_with: Subject(FactoryLoopState))
   RecordTokens(tokens: Int)
@@ -125,6 +126,7 @@ fn handle_message(
   msg: LoopMessage,
 ) -> actor.Next(FactoryLoopState, LoopMessage) {
   case msg {
+    Shutdown -> actor.stop()
     GetState(reply) -> {
       process.send(reply, state)
       actor.continue(state)
@@ -324,4 +326,8 @@ fn format_phase(phase: Phase) -> String {
     Completed -> "completed"
     Failed -> "failed"
   }
+}
+
+pub fn shutdown(loop: Subject(LoopMessage)) -> Nil {
+  process.send(loop, Shutdown)
 }

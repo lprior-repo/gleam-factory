@@ -26,6 +26,8 @@ pub fn signal_bus_subscribe_and_broadcast_test() {
     Ok(signal_bus.TestPassing) -> Nil
     _ -> should.fail()
   }
+
+  signal_bus.shutdown(bus)
 }
 
 pub fn signal_bus_multiple_subscribers_test() {
@@ -51,6 +53,8 @@ pub fn signal_bus_multiple_subscribers_test() {
     -> Nil
     _, _, _ -> should.fail()
   }
+
+  signal_bus.shutdown(bus)
 }
 
 pub fn signal_bus_different_signal_types_test() {
@@ -70,6 +74,8 @@ pub fn signal_bus_different_signal_types_test() {
     Ok(signal_bus.TestPassing), Ok(signal_bus.LoopSpawned) -> Nil
     _, _ -> should.fail()
   }
+
+  signal_bus.shutdown(bus)
 }
 
 // ============================================================================
@@ -96,6 +102,9 @@ pub fn factory_loop_starts_in_implementing_phase_test() {
   |> should.equal("test-1")
   state.iteration
   |> should.equal(1)
+
+  factory_loop.shutdown(loop)
+  signal_bus.shutdown(bus)
 }
 
 pub fn factory_loop_phase_transitions_test() {
@@ -137,6 +146,9 @@ pub fn factory_loop_phase_transitions_test() {
   let state4 = factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state4.phase
   |> should.equal(factory_loop.Completed)
+
+  factory_loop.shutdown(loop)
+  signal_bus.shutdown(bus)
 }
 
 pub fn factory_loop_failure_transitions_test() {
@@ -159,6 +171,9 @@ pub fn factory_loop_failure_transitions_test() {
   let state = factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state.phase
   |> should.equal(factory_loop.Failed)
+
+  factory_loop.shutdown(loop)
+  signal_bus.shutdown(bus)
 }
 
 pub fn factory_loop_rebase_flow_test() {
@@ -188,6 +203,9 @@ pub fn factory_loop_rebase_flow_test() {
   let state2 = factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state2.phase
   |> should.equal(factory_loop.Pushing)
+
+  factory_loop.shutdown(loop)
+  signal_bus.shutdown(bus)
 }
 
 pub fn factory_loop_broadcasts_spawned_signal_test() {
@@ -205,13 +223,15 @@ pub fn factory_loop_broadcasts_spawned_signal_test() {
       assigned_at: signals.timestamp(0),
     )
 
-  let assert Ok(_loop) =
-    factory_loop.start_link("loop-5", bead, "/tmp/ws5", bus)
+  let assert Ok(loop) = factory_loop.start_link("loop-5", bead, "/tmp/ws5", bus)
 
   case process.receive(subscriber, 1000) {
     Ok(signal_bus.LoopSpawned) -> Nil
     _ -> should.fail()
   }
+
+  factory_loop.shutdown(loop)
+  signal_bus.shutdown(bus)
 }
 
 pub fn factory_loop_broadcasts_completion_signals_test() {
@@ -240,6 +260,9 @@ pub fn factory_loop_broadcasts_completion_signals_test() {
     Ok(signal_bus.LoopComplete) -> Nil
     _ -> should.fail()
   }
+
+  factory_loop.shutdown(loop)
+  signal_bus.shutdown(bus)
 }
 
 pub fn factory_loop_broadcasts_failure_signals_test() {
@@ -267,6 +290,9 @@ pub fn factory_loop_broadcasts_failure_signals_test() {
     Ok(signal_bus.LoopFailed) -> Nil
     _ -> should.fail()
   }
+
+  factory_loop.shutdown(loop)
+  signal_bus.shutdown(bus)
 }
 
 // ============================================================================
@@ -304,6 +330,9 @@ pub fn dispatcher_spawns_loop_on_bead_assigned_test() {
   let state = factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state.task_id
   |> should.equal("disp-1")
+
+  factory_loop.shutdown(loop)
+  signal_bus.shutdown(bus)
 }
 
 pub fn dispatcher_handles_multiple_beads_test() {
@@ -337,11 +366,11 @@ pub fn dispatcher_handles_multiple_beads_test() {
       assigned_at: signals.timestamp(0),
     )
 
-  let assert Ok(_loop1) =
+  let assert Ok(loop1) =
     factory_loop.start_link("disp-2a", bead1, "/tmp/disp-ws2a", bus)
-  let assert Ok(_loop2) =
+  let assert Ok(loop2) =
     factory_loop.start_link("disp-2b", bead2, "/tmp/disp-ws2b", bus)
-  let assert Ok(_loop3) =
+  let assert Ok(loop3) =
     factory_loop.start_link("disp-2c", bead3, "/tmp/disp-ws2c", bus)
 
   let received1 = process.receive(loop_subscriber, 2000)
@@ -355,6 +384,11 @@ pub fn dispatcher_handles_multiple_beads_test() {
     -> Nil
     _, _, _ -> should.fail()
   }
+
+  factory_loop.shutdown(loop1)
+  factory_loop.shutdown(loop2)
+  factory_loop.shutdown(loop3)
+  signal_bus.shutdown(bus)
 }
 
 // ============================================================================
@@ -388,6 +422,9 @@ pub fn e2e_single_bead_full_lifecycle_test() {
   |> should.equal(factory_loop.Completed)
   final_state.task_id
   |> should.equal("e2e-1")
+
+  factory_loop.shutdown(loop)
+  signal_bus.shutdown(bus)
 }
 
 pub fn e2e_concurrent_loops_test() {
@@ -430,6 +467,10 @@ pub fn e2e_concurrent_loops_test() {
   |> should.equal("e2e-2a")
   state2.task_id
   |> should.equal("e2e-2b")
+
+  factory_loop.shutdown(loop1)
+  factory_loop.shutdown(loop2)
+  signal_bus.shutdown(bus)
 }
 
 pub fn e2e_error_recovery_test() {
@@ -460,6 +501,9 @@ pub fn e2e_error_recovery_test() {
   let final_state = factory_loop.get_state(loop) |> factory_loop.unwrap_state
   final_state.phase
   |> should.equal(factory_loop.Failed)
+
+  factory_loop.shutdown(loop)
+  signal_bus.shutdown(bus)
 }
 
 pub fn e2e_rebase_recovery_test() {
@@ -500,6 +544,9 @@ pub fn e2e_rebase_recovery_test() {
   let state3 = factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state3.phase
   |> should.equal(factory_loop.Completed)
+
+  factory_loop.shutdown(loop)
+  signal_bus.shutdown(bus)
 }
 
 // ============================================================================
@@ -609,6 +656,9 @@ pub fn full_pipeline_execution_test() {
   final_state.green_count
   |> fn(x) { x >= 0 }
   |> should.be_true
+
+  factory_loop.shutdown(loop)
+  signal_bus.shutdown(bus)
 }
 
 pub fn full_pipeline_with_stage_transitions_test() {
@@ -675,6 +725,9 @@ pub fn full_pipeline_with_stage_transitions_test() {
   |> should.equal(factory_loop.Completed)
   final_state.task_id
   |> should.equal("pipeline-stages-1")
+
+  factory_loop.shutdown(loop)
+  signal_bus.shutdown(bus)
 }
 
 pub fn full_pipeline_approval_gate_test() {
@@ -729,6 +782,9 @@ pub fn full_pipeline_approval_gate_test() {
   let final_state = factory_loop.get_state(loop) |> factory_loop.unwrap_state
   final_state.phase
   |> should.equal(factory_loop.Completed)
+
+  factory_loop.shutdown(loop)
+  signal_bus.shutdown(bus)
 }
 
 pub fn full_pipeline_signal_broadcast_test() {
@@ -798,6 +854,9 @@ pub fn full_pipeline_signal_broadcast_test() {
   let final_state = factory_loop.get_state(loop) |> factory_loop.unwrap_state
   final_state.phase
   |> should.equal(factory_loop.Completed)
+
+  factory_loop.shutdown(loop)
+  signal_bus.shutdown(bus)
 }
 
 pub fn full_pipeline_deployment_tracking_test() {
@@ -856,4 +915,7 @@ pub fn full_pipeline_deployment_tracking_test() {
   // Workspace configured
   final_state.workspace_path
   |> should.equal("/tmp/pipeline-deploy-ws")
+
+  factory_loop.shutdown(loop)
+  signal_bus.shutdown(bus)
 }

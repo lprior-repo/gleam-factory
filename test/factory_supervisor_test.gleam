@@ -36,7 +36,10 @@ pub fn supervisor_starts_test() {
   let config = test_config()
   let result = factory_supervisor.start_link(config)
   case result {
-    Ok(_) -> should.equal(Nil, Nil)
+    Ok(started) -> {
+      factory_supervisor.shutdown(started)
+      should.equal(Nil, Nil)
+    }
     Error(_) -> should.fail()
   }
 }
@@ -49,6 +52,7 @@ pub fn signal_bus_accessible_test() {
     Ok(started) -> {
       let bus = factory_supervisor.get_signal_bus(started)
       signal_bus.publish(bus, signal_bus.TestPassing)
+      factory_supervisor.shutdown(started)
       Nil
     }
     Error(_) -> should.fail()
@@ -64,6 +68,7 @@ pub fn heartbeat_accessible_test() {
     Ok(started) -> {
       let hb = factory_supervisor.get_heartbeat(started)
       heartbeat.tick(hb)
+      factory_supervisor.shutdown(started)
       Nil
     }
     Error(_) -> should.fail()
@@ -123,6 +128,7 @@ pub fn heartbeat_tick_received_test() {
     Ok(started) -> {
       let hb = factory_supervisor.get_heartbeat(started)
       heartbeat.tick(hb)
+      factory_supervisor.shutdown(started)
       Nil
     }
     Error(_) -> should.fail()
@@ -138,6 +144,7 @@ pub fn signal_bus_publish_received_test() {
     Ok(started) -> {
       let bus = factory_supervisor.get_signal_bus(started)
       signal_bus.broadcast(bus, signal_bus.PatchProposed)
+      factory_supervisor.shutdown(started)
       Nil
     }
     Error(_) -> should.fail()
@@ -155,6 +162,7 @@ pub fn supervisor_children_responsive_test() {
       let hb = factory_supervisor.get_heartbeat(started)
       signal_bus.broadcast(bus, signal_bus.TestPassing)
       heartbeat.tick(hb)
+      factory_supervisor.shutdown(started)
       Nil
     }
     Error(_) -> should.fail()
@@ -194,6 +202,7 @@ pub fn accessor_functions_correct_test() {
     Ok(started) -> {
       let _bus = factory_supervisor.get_signal_bus(started)
       let _hb = factory_supervisor.get_heartbeat(started)
+      factory_supervisor.shutdown(started)
       Nil
     }
     Error(_) -> should.fail()
@@ -259,6 +268,7 @@ pub fn start_link_all_actors_success_test() {
       let hb = factory_supervisor.get_heartbeat(started)
       signal_bus.publish(bus, signal_bus.TestPassing)
       heartbeat.tick(hb)
+      factory_supervisor.shutdown(started)
       Nil
     }
     Error(_) -> should.fail()
@@ -275,6 +285,7 @@ pub fn supervisor_restarts_failed_child_test() {
     Ok(started) -> {
       let bus = factory_supervisor.get_signal_bus(started)
       signal_bus.publish(bus, signal_bus.TestPassing)
+      factory_supervisor.shutdown(started)
       Nil
     }
     Error(_) -> should.fail()
@@ -292,6 +303,7 @@ pub fn supervisor_returns_all_actor_subjects_test() {
       let hb = factory_supervisor.get_heartbeat(started)
       signal_bus.publish(bus, signal_bus.TestPassing)
       heartbeat.tick(hb)
+      factory_supervisor.shutdown(started)
       1
     }
     Error(_) -> {
@@ -314,6 +326,7 @@ pub fn graceful_degradation_on_child_failure_test() {
       signal_bus.publish(bus, signal_bus.TestPassing)
       heartbeat.tick(hb)
       signal_bus.broadcast(bus, signal_bus.PatchProposed)
+      factory_supervisor.shutdown(started)
       Nil
     }
     Error(_) -> should.fail()
@@ -327,8 +340,9 @@ pub fn log_system_ready_outputs_message_test() {
   let config = test_config()
 
   case factory_supervisor.start_link(config) {
-    Ok(_started) -> {
+    Ok(started) -> {
       let _ = factory_supervisor.log_system_ready(config)
+      factory_supervisor.shutdown(started)
       Nil
     }
     Error(_) -> should.fail()
@@ -348,6 +362,7 @@ pub fn system_ready_after_all_services_started_test() {
       signal_bus.publish(bus, signal_bus.TestPassing)
       heartbeat.tick(hb)
       let _ = factory_supervisor.log_system_ready(config)
+      factory_supervisor.shutdown(started)
       Nil
     }
     Error(_) -> should.fail()

@@ -257,12 +257,28 @@ fn graceful_shutdown(started: Started) -> Nil {
   process.send_exit(started.factory_dispatcher_pid)
   process.sleep(100)
 
+  logging.log(logging.Info, "Stopping heartbeat", dict.new())
+  heartbeat.shutdown(started.heartbeat_subject)
+  process.sleep(100)
+
   logging.log(logging.Info, "Stopping merge queue", dict.new())
   merge_queue.shutdown(started.merge_queue_subject)
   process.sleep(100)
 
+  logging.log(logging.Info, "Stopping workspace manager", dict.new())
+  workspace_manager.shutdown(started.workspace_manager_subject)
+  process.sleep(100)
+
+  logging.log(logging.Info, "Stopping resource governor", dict.new())
+  resource_governor.shutdown(started.resource_governor_subject)
+  process.sleep(100)
+
   logging.log(logging.Info, "Stopping golden master", dict.new())
   process.send(started.golden_master_subject, golden_master.Shutdown)
+  process.sleep(100)
+
+  logging.log(logging.Info, "Stopping signal bus", dict.new())
+  signal_bus.shutdown(started.signal_bus_subject)
   process.sleep(100)
 
   signal_handler.teardown()

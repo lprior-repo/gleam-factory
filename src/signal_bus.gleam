@@ -59,6 +59,7 @@ pub type SignalBusMessage {
   ListSubscriptions(
     reply_with: Subject(dict.Dict(SignalType, List(Subject(Signal)))),
   )
+  Shutdown
 }
 
 /// Error type for signal bus initialization.
@@ -117,6 +118,11 @@ pub fn broadcast(bus: Subject(SignalBusMessage), signal: Signal) -> Nil {
   publish(bus, signal)
 }
 
+/// Shutdown the signal bus actor.
+pub fn shutdown(bus: Subject(SignalBusMessage)) -> Nil {
+  process.send(bus, Shutdown)
+}
+
 fn bus_loop(
   state: SignalBusState,
   selector: process.Selector(SignalBusMessage),
@@ -149,6 +155,10 @@ fn bus_loop(
     ListSubscriptions(reply_with) -> {
       process.send(reply_with, state.subscriptions)
       bus_loop(state, selector)
+    }
+    Shutdown -> {
+      logging.log(logging.Info, "Signal bus shutting down", dict.new())
+      Nil
     }
   }
 }

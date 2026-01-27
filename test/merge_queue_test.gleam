@@ -13,6 +13,11 @@ pub fn start_link_returns_ok_subject_test() {
   let assert Ok(bus) = signal_bus.start_link()
   let result = merge_queue.start_link(bus)
   result |> should.be_ok()
+  case result {
+    Ok(queue) -> merge_queue.shutdown(queue)
+    Error(_) -> Nil
+  }
+  signal_bus.shutdown(bus)
 }
 
 pub fn initial_state_not_absorbing_test() {
@@ -21,6 +26,9 @@ pub fn initial_state_not_absorbing_test() {
 
   let absorbing = merge_queue.is_absorbing(queue)
   absorbing |> should.equal(False)
+
+  merge_queue.shutdown(queue)
+  signal_bus.shutdown(bus)
 }
 
 pub fn propose_patch_changes_absorbing_to_true_test() {
@@ -32,6 +40,9 @@ pub fn propose_patch_changes_absorbing_to_true_test() {
 
   let absorbing = merge_queue.is_absorbing(queue)
   absorbing |> should.equal(True)
+
+  merge_queue.shutdown(queue)
+  signal_bus.shutdown(bus)
 }
 
 pub fn report_test_result_success_broadcasts_patch_accepted_test() {
@@ -61,6 +72,9 @@ pub fn report_test_result_success_broadcasts_patch_accepted_test() {
     Ok(signal_bus.PatchAccepted(_)) -> Nil
     _ -> panic as "Expected PatchAccepted signal"
   }
+
+  merge_queue.shutdown(queue)
+  signal_bus.shutdown(bus)
 }
 
 pub fn report_test_result_failure_broadcasts_patch_rejected_test() {
@@ -86,6 +100,9 @@ pub fn report_test_result_failure_broadcasts_patch_rejected_test() {
     }
     _ -> panic as "Expected PatchRejected signal"
   }
+
+  merge_queue.shutdown(queue)
+  signal_bus.shutdown(bus)
 }
 
 pub fn patch_accepted_changes_absorbing_to_false_test() {
@@ -103,6 +120,9 @@ pub fn patch_accepted_changes_absorbing_to_false_test() {
 
   let absorbing_after = merge_queue.is_absorbing(queue)
   absorbing_after |> should.equal(False)
+
+  merge_queue.shutdown(queue)
+  signal_bus.shutdown(bus)
 }
 
 pub fn only_matching_patch_hash_accepts_test() {
@@ -137,6 +157,9 @@ pub fn only_matching_patch_hash_accepts_test() {
     Ok(_) -> panic as "Should not have sent PatchAccepted for different hash"
     Error(Nil) -> Nil
   }
+
+  merge_queue.shutdown(queue)
+  signal_bus.shutdown(bus)
 }
 
 pub fn first_wins_ignores_subsequent_patches_test() {
@@ -164,4 +187,7 @@ pub fn first_wins_ignores_subsequent_patches_test() {
 
   let absorbing_after_complete = merge_queue.is_absorbing(queue)
   absorbing_after_complete |> should.equal(False)
+
+  merge_queue.shutdown(queue)
+  signal_bus.shutdown(bus)
 }

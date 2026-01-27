@@ -35,6 +35,8 @@ pub fn signal_bus_broadcast_test_failure() {
         Ok(signal_bus.TestFailure) -> Nil
         _ -> should.fail()
       }
+
+      signal_bus.shutdown(bus)
     }
   }
 }
@@ -59,6 +61,8 @@ pub fn signal_bus_broadcast_patch_accepted() {
         Ok(signal_bus.PatchAccepted(_)) -> Nil
         _ -> should.fail()
       }
+
+      signal_bus.shutdown(bus)
     }
   }
 }
@@ -82,6 +86,8 @@ pub fn signal_bus_broadcast_patch_rejected() {
         Ok(signal_bus.PatchRejected(_)) -> Nil
         _ -> should.fail()
       }
+
+      signal_bus.shutdown(bus)
     }
   }
 }
@@ -114,7 +120,10 @@ pub fn supervisor_signal_bus_isolated() {
       signal_bus.broadcast(bus, signal_bus.TestFailure)
 
       case process.receive(subscriber, 1000) {
-        Ok(signal_bus.TestFailure) -> Nil
+        Ok(signal_bus.TestFailure) -> {
+          factory_supervisor.shutdown(started)
+          Nil
+        }
         _ -> should.fail()
       }
     }
@@ -150,6 +159,8 @@ pub fn signal_bus_multiple_subscribers() {
         }
         _ -> should.fail()
       }
+
+      signal_bus.shutdown(bus)
     }
   }
 }
@@ -176,6 +187,8 @@ pub fn signal_bus_type_isolation() {
         Ok(signal_bus.TestPassing) -> Nil
         _ -> should.fail()
       }
+
+      signal_bus.shutdown(bus)
     }
   }
 }

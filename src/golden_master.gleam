@@ -222,3 +222,8 @@ pub fn prepare(master: Subject(GoldenMasterMessage)) -> Result(Nil, String) {
     Error(Nil) -> Error("timeout")
   }
 }
+
+/// Shutdown the golden master actor.
+pub fn shutdown(master: Subject(GoldenMasterMessage)) -> Nil {
+  process.send(master, Shutdown)
+}

@@ -42,7 +42,10 @@ pub fn pipeline_supervisor_startup_test() {
   let config = supervisor_config()
 
   case factory_supervisor.start_link(config) {
-    Ok(_supervisor) -> Nil
+    Ok(supervisor) -> {
+      factory_supervisor.shutdown(supervisor)
+      Nil
+    }
     Error(_e) -> should.fail()
   }
   |> should.equal(Nil)
@@ -58,6 +61,7 @@ pub fn pipeline_signal_broadcast_test() {
       signal_bus.broadcast(bus, signal_bus.TestPassing)
       signal_bus.broadcast(bus, signal_bus.TestFailure)
       signal_bus.broadcast(bus, signal_bus.PatchProposed)
+      factory_supervisor.shutdown(supervisor)
       Nil
     }
     Error(_e) -> should.fail()
@@ -74,6 +78,7 @@ pub fn pipeline_heartbeat_polling_test() {
       let hb = factory_supervisor.get_heartbeat(supervisor)
       heartbeat.tick(hb)
       heartbeat.tick(hb)
+      factory_supervisor.shutdown(supervisor)
       Nil
     }
     Error(_e) -> should.fail()
@@ -96,7 +101,10 @@ pub fn pipeline_merge_queue_patch_absorption_test() {
       // Verify absorbing state
       let is_absorbing = merge_queue.is_absorbing(queue)
       case is_absorbing {
-        True -> Nil
+        True -> {
+          factory_supervisor.shutdown(supervisor)
+          Nil
+        }
         False -> should.fail()
       }
     }
@@ -117,6 +125,7 @@ pub fn pipeline_test_failure_signal_test() {
       // Trigger test and verify signal broadcasts
       heartbeat.tick(hb)
       signal_bus.broadcast(bus, signal_bus.TestFailure)
+      factory_supervisor.shutdown(supervisor)
       Nil
     }
     Error(_e) -> should.fail()
@@ -131,6 +140,7 @@ pub fn pipeline_golden_master_preparation_test() {
   case factory_supervisor.start_link(config) {
     Ok(supervisor) -> {
       let _gm = factory_supervisor.get_golden_master(supervisor)
+      factory_supervisor.shutdown(supervisor)
       Nil
     }
     Error(_e) -> should.fail()
@@ -160,6 +170,7 @@ pub fn pipeline_multiple_subscriptions_test() {
           merged_at: signals.timestamp(0),
         )
       signal_bus.broadcast(bus, signal_bus.PatchAccepted(patch))
+      factory_supervisor.shutdown(supervisor)
       Nil
     }
     Error(_e) -> should.fail()
@@ -181,6 +192,7 @@ pub fn pipeline_error_handling_resilience_test() {
       // Verify system still responsive
       let hb = factory_supervisor.get_heartbeat(supervisor)
       heartbeat.tick(hb)
+      factory_supervisor.shutdown(supervisor)
       Nil
     }
     Error(_e) -> should.fail()
@@ -216,6 +228,7 @@ pub fn pipeline_complete_workflow_test() {
         )
       signal_bus.broadcast(bus, signal_bus.PatchAccepted(patch))
 
+      factory_supervisor.shutdown(supervisor)
       Nil
     }
     Error(_e) -> should.fail()
@@ -231,6 +244,7 @@ pub fn pipeline_shutdown_test() {
     Ok(supervisor) -> {
       let queue = factory_supervisor.get_merge_queue(supervisor)
       merge_queue.shutdown(queue)
+      factory_supervisor.shutdown(supervisor)
       Nil
     }
     Error(_e) -> should.fail()

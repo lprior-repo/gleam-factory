@@ -4,7 +4,7 @@
 //// including actor initialization and message routing.
 
 import gleam/dict
-import gleam/erlang/process.{type Subject}
+import gleam/erlang/process.{type Subject, new_subject, receive, self, send}
 import gleam/otp/actor
 import gleam/result
 import process as shell_process
@@ -21,6 +21,7 @@ const jj_parent_dir = "../"
 
 /// Message type for workspace manager actor.
 pub type WorkspaceManagerMessage {
+  Shutdown
   RegisterWorkspace(workspace: Workspace)
   GetWorkspace(id: WorkspaceId, reply_with: Subject(Result(Workspace, String)))
   ListWorkspaces(reply_with: Subject(Result(List(Workspace), String)))
@@ -63,6 +64,7 @@ fn handle_message(
   message: WorkspaceManagerMessage,
 ) -> actor.Next(WorkspaceManagerState, WorkspaceManagerMessage) {
   case message {
+    Shutdown -> actor.stop()
     RegisterWorkspace(workspace) -> {
       let new_workspaces =
         dict.insert(state.workspaces, workspace.id, workspace)
@@ -73,13 +75,13 @@ fn handle_message(
         Ok(workspace) -> Ok(workspace)
         Error(Nil) -> Error("Workspace not found")
       }
-      process.send(reply_with, result)
+      send(reply_with, result)
       actor.continue(state)
     }
     ListWorkspaces(reply_with) -> {
       let workspaces = dict.values(state.workspaces)
       let result = Ok(workspaces)
-      process.send(reply_with, result)
+      send(reply_with, result)
       actor.continue(state)
     }
     DestroyWorkspace(id, reply_with) -> {
@@ -88,20 +90,17 @@ fn handle_message(
           case simplifile.delete_all([workspace.path]) {
             Ok(Nil) -> {
               let new_workspaces = dict.delete(state.workspaces, id)
-              process.send(reply_with, Ok(Nil))
+              send(reply_with, Ok(Nil))
               actor.continue(WorkspaceManagerState(workspaces: new_workspaces))
             }
             Error(_) -> {
-              process.send(
-                reply_with,
-                Error("Failed to delete workspace directory"),
-              )
+              send(reply_with, Error("Failed to delete workspace directory"))
               actor.continue(state)
             }
           }
         }
         Error(Nil) -> {
-          process.send(reply_with, Error("Workspace not found"))
+          send(reply_with, Error("Workspace not found"))
           actor.continue(state)
         }
       }
@@ -115,9 +114,9 @@ fn handle_message(
 pub fn query_workspaces(
   manager_subject: Subject(WorkspaceManagerMessage),
 ) -> Result(List(Workspace), String) {
-  let reply_subject = process.new_subject()
-  process.send(manager_subject, ListWorkspaces(reply_with: reply_subject))
-  case process.receive(reply_subject, timeout_ms) {
+  let reply_subject = new_subject()
+  send(manager_subject, ListWorkspaces(reply_with: reply_subject))
+  case receive(reply_subject, timeout_ms) {
     Ok(response) -> response
     Error(Nil) -> Error("Query timeout")
   }
@@ -130,12 +129,12 @@ pub fn query_workspace(
   manager_subject: Subject(WorkspaceManagerMessage),
   workspace_id: WorkspaceId,
 ) -> Result(Workspace, String) {
-  let reply_subject = process.new_subject()
-  process.send(
+  let reply_subject = new_subject()
+  send(
     manager_subject,
     GetWorkspace(id: workspace_id, reply_with: reply_subject),
   )
-  case process.receive(reply_subject, timeout_ms) {
+  case receive(reply_subject, timeout_ms) {
     Ok(response) -> response
     Error(Nil) -> Error("Query timeout")
   }
@@ -149,12 +148,12 @@ pub fn destroy_workspace(
   manager_subject: Subject(WorkspaceManagerMessage),
   workspace_id: WorkspaceId,
 ) -> Result(Nil, String) {
-  let reply_subject = process.new_subject()
-  process.send(
+  let reply_subject = new_subject()
+  send(
     manager_subject,
     DestroyWorkspace(id: workspace_id, reply_with: reply_subject),
   )
-  case process.receive(reply_subject, timeout_ms) {
+  case receive(reply_subject, timeout_ms) {
     Ok(response) -> response
     Error(Nil) -> Error("Destroy timeout")
   }
@@ -186,7 +185,7 @@ fn build_workspace(
     id: workspace_id,
     path: workspace_path,
     workspace_type: workspace_type,
-    owner_pid: types.from_pid(process.self()),
+    owner_pid: types.from_pid(self()),
     created_at: "0",
   )
 }
@@ -287,4 +286,8 @@ pub fn create_workspace_jj(
 
   actor.send(manager_subject, RegisterWorkspace(workspace))
   Ok(workspace)
+}
+
+pub fn shutdown(manager: Subject(WorkspaceManagerMessage)) -> Nil {
+  send(manager, Shutdown)
 }

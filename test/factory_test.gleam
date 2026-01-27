@@ -47,6 +47,8 @@ pub fn governor_releasing_never_acquired_ticket_stays_non_negative_test() {
   let assert Ok(_) = resource_governor.acquire_mutator(gov)
   resource_governor.acquire_mutator(gov)
   |> should.be_error
+
+  resource_governor.shutdown(gov)
 }
 
 // ============================================================================
@@ -1407,11 +1409,11 @@ pub fn workspace_manager_start_link_returns_ok_subject_test() {
 
   // Assert: Should return Ok with a Subject we can work with
   case result {
-    Ok(_subject) -> {
+    Ok(manager_subject) -> {
       // The actor started successfully
       // We don't need to do anything with the subject in this test,
       // but proving we can pattern match on Ok(_) validates the return type
-      Nil
+      workspace_manager.shutdown(manager_subject)
     }
     Error(_err) -> {
       // If we get here, the actor failed to start
@@ -1505,6 +1507,8 @@ pub fn workspace_manager_can_list_all_registered_workspaces_test() {
       should.fail()
     }
   }
+
+  workspace_manager.shutdown(manager_subject)
 }
 
 /// Test that workspace_manager accepts RegisterWorkspace messages.
@@ -1543,7 +1547,7 @@ pub fn workspace_manager_can_send_register_workspace_message_test() {
 
   // Assert: If we got here without panicking, the message was accepted
   // The actor is still running and responsive to messages
-  Nil
+  workspace_manager.shutdown(manager_subject)
 }
 
 /// Test that workspace_manager.query_workspaces() returns an empty list initially.
@@ -1570,6 +1574,8 @@ pub fn workspace_manager_query_workspaces_returns_empty_list_initially_test() {
   // Assert: Should return Ok with an empty list
   result
   |> should.equal(Ok([]))
+
+  workspace_manager.shutdown(manager_subject)
 }
 
 /// Test that workspace_manager can retrieve a specific workspace by WorkspaceId.
@@ -1618,6 +1624,8 @@ pub fn workspace_manager_can_retrieve_workspace_by_id_test() {
     }
     Error(_) -> should.fail()
   }
+
+  workspace_manager.shutdown(manager_subject)
 }
 
 /// Test that querying for a non-existent workspace returns Error.
@@ -1648,6 +1656,8 @@ pub fn workspace_manager_query_workspace_returns_error_when_not_found_test() {
     Error(_msg) -> Nil
     // Graceful error handling
   }
+
+  workspace_manager.shutdown(manager_subject)
 }
 
 // ============================================================================
@@ -2795,6 +2805,8 @@ pub fn governor_composes_with_two_resource_types_test() {
 
   resource_governor.acquire_loop(gov)
   |> should.be_error
+
+  resource_governor.shutdown(gov)
 }
 
 pub fn governor_release_enables_reacquisition_test() {
@@ -2815,6 +2827,8 @@ pub fn governor_release_enables_reacquisition_test() {
   resource_governor.release(gov, ticket1)
 
   resource_governor.acquire_mutator(gov) |> should.be_ok
+
+  resource_governor.shutdown(gov)
 }
 
 pub fn governor_release_correct_resource_type_test() {
@@ -2837,6 +2851,8 @@ pub fn governor_release_correct_resource_type_test() {
 
   resource_governor.acquire_loop(gov) |> should.be_ok
   resource_governor.acquire_mutator(gov) |> should.be_error
+
+  resource_governor.shutdown(gov)
 }
 
 pub fn governor_release_slot_test() {
@@ -2856,6 +2872,8 @@ pub fn governor_release_slot_test() {
 
   let assert Ok(Nil) = resource_governor.release_slot(gov, slot_id1)
   resource_governor.acquire_mutator(gov) |> should.be_ok
+
+  resource_governor.shutdown(gov)
 }
 
 pub fn governor_double_release_slot_test() {
@@ -2875,6 +2893,8 @@ pub fn governor_double_release_slot_test() {
   let assert Ok(Nil) = resource_governor.release_slot(gov, slot_id1)
 
   resource_governor.acquire_mutator(gov) |> should.be_ok
+
+  resource_governor.shutdown(gov)
 }
 
 pub fn check_free_ram_test() {

@@ -25,6 +25,9 @@ pub fn tick_updates_status_to_green_when_tests_pass_test() {
 
   let status = heartbeat.get_status(hb)
   status |> should.equal(heartbeat.Green)
+
+  heartbeat.shutdown(hb)
+  signal_bus.shutdown(bus)
 }
 
 pub fn tick_updates_status_to_red_when_tests_fail_test() {
@@ -42,6 +45,9 @@ pub fn tick_updates_status_to_red_when_tests_fail_test() {
 
   let status = heartbeat.get_status(hb)
   status |> should.equal(heartbeat.Red)
+
+  heartbeat.shutdown(hb)
+  signal_bus.shutdown(bus)
 }
 
 pub fn transition_from_green_to_red_broadcasts_test_failure_test() {
@@ -68,6 +74,9 @@ pub fn transition_from_green_to_red_broadcasts_test_failure_test() {
 
   let status = heartbeat.get_status(hb)
   status |> should.equal(heartbeat.Green)
+
+  heartbeat.shutdown(hb)
+  signal_bus.shutdown(bus)
 }
 
 pub fn transition_from_red_to_green_broadcasts_test_passing_test() {
@@ -96,6 +105,9 @@ pub fn transition_from_red_to_green_broadcasts_test_passing_test() {
 
   let status_final = heartbeat.get_status(hb_pass)
   status_final |> should.equal(heartbeat.Green)
+
+  heartbeat.shutdown(hb_pass)
+  signal_bus.shutdown(bus)
 }
 
 pub fn no_signal_broadcast_when_status_unchanged_green_test() {
@@ -130,6 +142,9 @@ pub fn no_signal_broadcast_when_status_unchanged_green_test() {
     Ok(_) -> panic as "Expected no signal when status unchanged"
     Error(Nil) -> Nil
   }
+
+  heartbeat.shutdown(hb)
+  signal_bus.shutdown(bus)
 }
 
 pub fn no_signal_broadcast_when_status_unchanged_red_test() {
@@ -158,6 +173,9 @@ pub fn no_signal_broadcast_when_status_unchanged_red_test() {
     Ok(_) -> panic as "Expected no signal when status unchanged"
     Error(Nil) -> Nil
   }
+
+  heartbeat.shutdown(hb)
+  signal_bus.shutdown(bus)
 }
 
 pub fn multiple_transitions_test() {
@@ -178,6 +196,9 @@ pub fn multiple_transitions_test() {
 
   let status = heartbeat.get_status(hb)
   status |> should.equal(heartbeat.Red)
+
+  heartbeat.shutdown(hb)
+  signal_bus.shutdown(bus)
 }
 
 pub fn get_status_returns_current_state_test() {
@@ -194,6 +215,8 @@ pub fn get_status_returns_current_state_test() {
   let initial_status = heartbeat.get_status(hb)
   initial_status |> should.equal(heartbeat.Green)
 
+  heartbeat.shutdown(hb)
+
   let config_fail =
     heartbeat.HeartbeatConfig(
       interval_ms: 1000,
@@ -205,6 +228,9 @@ pub fn get_status_returns_current_state_test() {
 
   let status = heartbeat.get_status(hb_fail)
   status |> should.equal(heartbeat.Red)
+
+  heartbeat.shutdown(hb_fail)
+  signal_bus.shutdown(bus)
 }
 
 pub fn progress_buffer_bounded_test() {
@@ -230,4 +256,7 @@ pub fn progress_buffer_bounded_test() {
 
   let status = heartbeat.get_status(hb)
   status |> should.equal(heartbeat.Green)
+
+  heartbeat.shutdown(hb)
+  signal_bus.shutdown(bus)
 }

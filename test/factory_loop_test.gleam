@@ -32,6 +32,9 @@ pub fn get_state_returns_ok_on_valid_response_test() {
   |> should.equal("state-ok-1")
   state.phase
   |> should.equal(factory_loop.Implementing)
+
+  factory_loop.shutdown(loop)
+  signal_bus.shutdown(bus)
 }
 
 pub fn get_state_returns_timeout_on_dead_actor_test() {
@@ -90,4 +93,7 @@ pub fn advance_handles_unexpected_event_state_combination_test() {
   let assert factory_loop.GotState(state) = factory_loop.get_state(loop)
   state.phase
   |> should.equal(factory_loop.Failed)
+
+  factory_loop.shutdown(loop)
+  signal_bus.shutdown(bus)
 }

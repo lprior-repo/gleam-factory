@@ -34,6 +34,7 @@ pub type HeartbeatMessage {
   Tick
   GetStatus(reply_with: Subject(TestStatus))
   StreamProgress(task_id: String, chunk: String)
+  Shutdown
 }
 
 type HeartbeatState {
@@ -44,6 +45,8 @@ type HeartbeatState {
     signal_bus: Subject(signal_bus.SignalBusMessage),
     progress_buffer: List(#(String, String)),
     self_subject: Subject(HeartbeatMessage),
+    shutting_down: Bool,
+    timer_ref: Int,
   )
 }
 
@@ -65,6 +68,8 @@ pub fn start_link(
       signal_bus: bus,
       progress_buffer: [],
       self_subject: placeholder_subject,
+      shutting_down: False,
+      timer_ref: 0,
     )
   let builder = actor.new(initial) |> actor.on_message(handle_message)
   case actor.start(builder) {
@@ -84,9 +89,8 @@ pub fn start_link(
   }
 }
 
-fn schedule_tick(subject: Subject(HeartbeatMessage), interval_ms: Int) -> Nil {
-  let _ = process.send_after(subject, interval_ms, Tick)
-  Nil
+fn schedule_tick(subject: Subject(HeartbeatMessage), interval_ms: Int) -> Int {
+  erlang_send_after(subject, interval_ms, Tick)
 }
 
 fn handle_message(
@@ -103,15 +107,27 @@ fn handle_message(
       actor.continue(state)
     }
     Tick -> {
-      let new_status = run_tests(state.config)
-      let new_state = update_status(state, new_status)
-      schedule_tick(state.self_subject, state.config.interval_ms)
-      actor.continue(new_state)
+      case state.shutting_down {
+        True -> actor.stop()
+        False -> {
+          let new_status = run_tests(state.config)
+          let new_timer_ref =
+            schedule_tick(state.self_subject, state.config.interval_ms)
+          let new_state = update_status(state, new_status)
+          actor.continue(HeartbeatState(..new_state, timer_ref: new_timer_ref))
+        }
+      }
     }
     StreamProgress(task_id:, chunk:) -> {
       let new_buffer = [#(task_id, chunk), ..state.progress_buffer]
       let trimmed_buffer = list.take(new_buffer, max_buffer_size)
       actor.continue(HeartbeatState(..state, progress_buffer: trimmed_buffer))
+    }
+    Shutdown -> {
+      // Cancel any pending timer
+      let _ = erlang_cancel_timer(state.timer_ref)
+      logging.log(logging.Info, "Heartbeat shutting down", dict.new())
+      actor.stop()
     }
   }
 }
@@ -162,3 +178,18 @@ pub fn stream_progress(
 ) -> Nil {
   process.send(hb, StreamProgress(task_id:, chunk:))
 }
+
+/// Shutdown the heartbeat actor.
+pub fn shutdown(hb: Subject(HeartbeatMessage)) -> Nil {
+  process.send(hb, Shutdown)
+}
+
+@external(erlang, "erlang", "send_after")
+fn erlang_send_after(
+  to: process.Subject(HeartbeatMessage),
+  time: Int,
+  msg: HeartbeatMessage,
+) -> Int
+
+@external(erlang, "erlang", "cancel_timer")
+fn erlang_cancel_timer(timer: Int) -> Int
