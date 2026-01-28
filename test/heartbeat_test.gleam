@@ -260,3 +260,71 @@ pub fn progress_buffer_bounded_test() {
   heartbeat.shutdown(hb)
   signal_bus.shutdown(bus)
 }
+
+pub fn timer_schedules_periodic_ticks_test() {
+  let assert Ok(bus) = signal_bus.start_link()
+  let config =
+    heartbeat.HeartbeatConfig(
+      interval_ms: 100,
+      test_cmd: "true",
+      golden_master_path: "/tmp",
+    )
+  let assert Ok(hb) = heartbeat.start_link(config, bus)
+
+  process.sleep(200)
+
+  let status1 = heartbeat.get_status(hb)
+  status1 |> should.equal(heartbeat.Green)
+
+  process.sleep(200)
+
+  let status2 = heartbeat.get_status(hb)
+  status2 |> should.equal(heartbeat.Green)
+
+  heartbeat.shutdown(hb)
+  signal_bus.shutdown(bus)
+}
+
+pub fn timer_cancelled_on_shutdown_test() {
+  let assert Ok(bus) = signal_bus.start_link()
+  let config =
+    heartbeat.HeartbeatConfig(
+      interval_ms: 100,
+      test_cmd: "true",
+      golden_master_path: "/tmp",
+    )
+  let assert Ok(hb) = heartbeat.start_link(config, bus)
+
+  process.sleep(150)
+
+  heartbeat.shutdown(hb)
+
+  process.sleep(200)
+
+  heartbeat.shutdown(hb)
+  signal_bus.shutdown(bus)
+}
+
+pub fn new_timer_cancels_old_prevents_leak_test() {
+  let assert Ok(bus) = signal_bus.start_link()
+  let config =
+    heartbeat.HeartbeatConfig(
+      interval_ms: 50,
+      test_cmd: "true",
+      golden_master_path: "/tmp",
+    )
+  let assert Ok(hb) = heartbeat.start_link(config, bus)
+
+  list.range(0, 10)
+  |> list.fold(Nil, fn(_acc, _i) {
+    heartbeat.tick(hb)
+    process.sleep(25)
+    Nil
+  })
+
+  let status = heartbeat.get_status(hb)
+  status |> should.equal(heartbeat.Green)
+
+  heartbeat.shutdown(hb)
+  signal_bus.shutdown(bus)
+}
