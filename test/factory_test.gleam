@@ -801,7 +801,7 @@ pub fn parse_args_approve_command_with_short_force_flag_test() {
   // Assert: should return ApproveTask with force=True
   // -f should be equivalent to --force
   result
-  |> should.equal(Ok(cli.ApproveTask("my-task", None)))
+  |> should.equal(Ok(cli.ApproveTask("my-task", None, False)))
 }
 
 /// Test that short flag -s works for show command
@@ -872,15 +872,15 @@ pub fn parse_args_list_command_accepts_valid_status_test() {
 pub fn parse_args_approve_command_accepts_valid_strategy_test() {
   // Test immediate
   cli.parse_args(["approve", "-s", "task", "--strategy", "immediate"])
-  |> should.equal(Ok(cli.ApproveTask("task", Some("immediate"))))
+  |> should.equal(Ok(cli.ApproveTask("task", Some("immediate"), False)))
 
   // Test gradual
   cli.parse_args(["approve", "-s", "task", "--strategy", "gradual"])
-  |> should.equal(Ok(cli.ApproveTask("task", Some("gradual"))))
+  |> should.equal(Ok(cli.ApproveTask("task", Some("gradual"), False)))
 
   // Test canary
   cli.parse_args(["approve", "-s", "task", "--strategy", "canary"])
-  |> should.equal(Ok(cli.ApproveTask("task", Some("canary"))))
+  |> should.equal(Ok(cli.ApproveTask("task", Some("canary"), False)))
 }
 
 /// Test that help command with no args returns Help(None)

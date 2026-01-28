@@ -10,29 +10,15 @@ import simplifile
 
 /// Detect repository root directory
 pub fn detect_repo_root() -> Result(String, String) {
-  // Try jj first (preferred)
-  case process.run_command("jj", ["workspace", "root"], ".") {
-    Ok(process.Success(path, _, 0)) -> {
-      let trimmed = string.trim(path)
-      case trimmed {
-        "" -> detect_git_root()
-        root -> Ok(root)
-      }
-    }
-    _ -> detect_git_root()
-  }
-}
-
-fn detect_git_root() -> Result(String, String) {
   case process.run_command("git", ["rev-parse", "--show-toplevel"], ".") {
     Ok(process.Success(path, _, 0)) -> {
       let trimmed = string.trim(path)
       case trimmed {
-        "" -> Error("Not in a jj or git repository")
+        "" -> Error("Not in a git repository")
         root -> Ok(root)
       }
     }
-    _ -> Error("Not in a jj or git repository")
+    _ -> Error("Not in a git repository")
   }
 }
 

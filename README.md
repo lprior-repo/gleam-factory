@@ -42,7 +42,7 @@ Factory implements an automated pipeline that:
 
 **repo.gleam** - Repository detection
 - Auto-detect language from gleam.toml, go.mod, Cargo.toml, pyproject.toml
-- Find repo root via jj/git
+- Find repo root via git
 
 **audit.gleam** - Event logging
 - Task lifecycle: created, approved
@@ -92,11 +92,6 @@ factory help
 Each stage uses language-appropriate tooling.
 
 ## Design Decisions
-
-**Why jj over git?**
-- Native worktree support without git's complexity
-- Journal-based history tracking per workspace
-- Simpler restore/revert semantics
 
 **Why opaque Slug type?**
 - Makes invalid task IDs unrepresentable at compile time
@@ -154,7 +149,7 @@ gleam run -- new -s test-task
 ## Requirements
 
 - **Gleam**: >=0.44.0
-- **jj**: Latest stable (for worktree management)
+- **git**: For repository operations
 - **Language-specific tools**:
   - Go: go, gofmt, gosec
   - Rust: cargo, rustfmt, clippy, cargo-tarpaulin, cargo-audit

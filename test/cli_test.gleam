@@ -119,37 +119,37 @@ pub fn parse_args_stage_missing_stage_test() {
 // parse_args: approve command tests
 pub fn parse_args_approve_basic_test() {
   cli.parse_args(["approve", "--slug", "test-slug"])
-  |> should.equal(Ok(cli.ApproveTask("test-slug", None)))
+  |> should.equal(Ok(cli.ApproveTask("test-slug", None, False)))
 }
 
 pub fn parse_args_approve_with_short_slug_test() {
   cli.parse_args(["approve", "-s", "test-slug"])
-  |> should.equal(Ok(cli.ApproveTask("test-slug", None)))
+  |> should.equal(Ok(cli.ApproveTask("test-slug", None, False)))
 }
 
 pub fn parse_args_approve_with_force_test() {
   cli.parse_args(["approve", "--slug", "test-slug", "--force"])
-  |> should.equal(Ok(cli.ApproveTask("test-slug", None)))
+  |> should.equal(Ok(cli.ApproveTask("test-slug", None, True)))
 }
 
 pub fn parse_args_approve_with_short_force_test() {
   cli.parse_args(["approve", "-s", "test-slug", "-f"])
-  |> should.equal(Ok(cli.ApproveTask("test-slug", None)))
+  |> should.equal(Ok(cli.ApproveTask("test-slug", None, True)))
 }
 
 pub fn parse_args_approve_with_strategy_immediate_test() {
   cli.parse_args(["approve", "--slug", "test-slug", "--strategy", "immediate"])
-  |> should.equal(Ok(cli.ApproveTask("test-slug", Some("immediate"))))
+  |> should.equal(Ok(cli.ApproveTask("test-slug", Some("immediate"), False)))
 }
 
 pub fn parse_args_approve_with_strategy_gradual_test() {
   cli.parse_args(["approve", "--slug", "test-slug", "--strategy", "gradual"])
-  |> should.equal(Ok(cli.ApproveTask("test-slug", Some("gradual"))))
+  |> should.equal(Ok(cli.ApproveTask("test-slug", Some("gradual"), False)))
 }
 
 pub fn parse_args_approve_with_strategy_canary_test() {
   cli.parse_args(["approve", "--slug", "test-slug", "--strategy", "canary"])
-  |> should.equal(Ok(cli.ApproveTask("test-slug", Some("canary"))))
+  |> should.equal(Ok(cli.ApproveTask("test-slug", Some("canary"), False)))
 }
 
 pub fn parse_args_approve_with_invalid_strategy_test() {
@@ -320,7 +320,7 @@ pub fn parse_args_stage_all_flags_test() {
 
 pub fn parse_args_approve_all_flags_test() {
   cli.parse_args(["approve", "-s", "test-slug", "--strategy", "gradual", "-f"])
-  |> should.equal(Ok(cli.ApproveTask("test-slug", Some("gradual"))))
+  |> should.equal(Ok(cli.ApproveTask("test-slug", Some("gradual"), True)))
 }
 
 pub fn parse_args_show_detailed_test() {
@@ -341,13 +341,13 @@ pub fn parse_args_list_both_filters_p3_done_test() {
 // Edge cases: strategy validation - all valid values
 pub fn parse_args_approve_strategy_all_valid_test() {
   cli.parse_args(["approve", "-s", "slug1", "--strategy", "immediate"])
-  |> should.equal(Ok(cli.ApproveTask("slug1", Some("immediate"))))
+  |> should.equal(Ok(cli.ApproveTask("slug1", Some("immediate"), False)))
 
   cli.parse_args(["approve", "-s", "slug2", "--strategy", "gradual"])
-  |> should.equal(Ok(cli.ApproveTask("slug2", Some("gradual"))))
+  |> should.equal(Ok(cli.ApproveTask("slug2", Some("gradual"), False)))
 
   cli.parse_args(["approve", "-s", "slug3", "--strategy", "canary"])
-  |> should.equal(Ok(cli.ApproveTask("slug3", Some("canary"))))
+  |> should.equal(Ok(cli.ApproveTask("slug3", Some("canary"), False)))
 }
 
 // Edge cases: strategy validation - various invalid values

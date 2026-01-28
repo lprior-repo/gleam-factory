@@ -418,7 +418,7 @@ pub fn factory_approve_with_strategy_test() {
   // Test approve command with strategy
   let args = ["approve", "-s", "test-task", "--strategy", "gradual"]
   case cli.parse_args(args) {
-    Ok(cli.ApproveTask(slug, strategy)) -> {
+    Ok(cli.ApproveTask(slug, strategy, _force)) -> {
       slug
       |> should.equal("test-task")
       strategy

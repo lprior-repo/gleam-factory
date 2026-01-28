@@ -260,9 +260,16 @@ pub fn load_task_record(
     }),
   )
 
-  use record <- result.try(
-    json_to_record(content, slug)
+  use records <- result.try(
+    json_to_all_records(content)
     |> result.map_error(fn(e) { format_error(JsonParseFailed(e)) }),
+  )
+
+  use record <- result.try(
+    list.find(records, fn(r) { r.slug == slug })
+    |> result.map_error(fn(_) {
+      format_error(InvalidRecord("Task not found: " <> slug))
+    }),
   )
 
   record_to_task(record)

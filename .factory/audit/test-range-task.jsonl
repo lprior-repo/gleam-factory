@@ -1,0 +1,4 @@
+{"timestamp":"2026-01-28T09:43:29.739Z","event_type":"task_created","task_slug":"test-range-task","actor":"lewis","details":"Task created","metadata":{"language":"gleam","branch":"feat/test-range-task"}}
+{"timestamp":"2026-01-28T09:45:12.789Z","event_type":"stage_started","task_slug":"test-range-task","actor":"lewis","details":"Stage started: implement","metadata":{"stage":"implement","attempt":"1"}}
+{"timestamp":"2026-01-28T09:45:13.614Z","event_type":"stage_passed","task_slug":"test-range-task","actor":"lewis","details":"Stage passed: implement","metadata":{"stage":"implement","duration_ms":"823"}}
+{"timestamp":"2026-01-28T09:45:13.614Z","event_type":"stage_started","task_slug":"test-range-task","actor":"lewis","details":"Stage started: unit-test","metadata":{"stage":"unit-test","attempt":"1"}}

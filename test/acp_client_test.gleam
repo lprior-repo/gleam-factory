@@ -1,4 +1,3 @@
-import acp_client
 import gleeunit
 import gleeunit/should
 
