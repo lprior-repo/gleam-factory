@@ -31,6 +31,8 @@ pub fn create_worktree(
   language: domain.Language,
   repo_root: String,
 ) -> Result(Worktree, String) {
+  use _ <- result.try(check_slug_not_exists(slug, repo_root))
+
   let workspaces_base = repo_root <> "/" <> workspaces_dir
   let unique_id = generate_unique_id()
   let worktree_name = slug <> "-" <> unique_id
@@ -63,6 +65,18 @@ pub fn create_worktree(
   )
 
   Ok(Worktree(slug, worktree_path, branch, language))
+}
+
+fn check_slug_not_exists(slug: String, repo_root: String) -> Result(Nil, String) {
+  let symlink_path = repo_root <> "/" <> factory_dir <> "/" <> slug
+
+  case
+    process.run_command("test", ["-e", symlink_path], repo_root)
+    |> result.map_error(fn(_) { "Failed to check for existing slug" })
+  {
+    Ok(process.Success(_, _, 0)) -> Error("Slug already exists: " <> slug)
+    _ -> Ok(Nil)
+  }
 }
 
 fn create_base_dir(

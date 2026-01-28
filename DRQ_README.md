@@ -567,7 +567,7 @@ steps:
 
 - **TDD15**: `/home/lewis/src/gleam-factory/src/tdd15/`
 - **Factory Pipeline**: `/home/lewis/src/gleam-factory/README.md`
-- **Contract Validation**: `/home/lewis/src/gleam-factory/.factory/cue/schemas.cue`
+- **Contract Validation**: `/home/lewis/src/gleam-factory/.factory/cue/contract.cue`
 
 ## License
 

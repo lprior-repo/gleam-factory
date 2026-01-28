@@ -20,6 +20,7 @@ pub type PersistenceError {
   FileReadFailed(path: String, reason: String)
   JsonParseFailed(reason: String)
   InvalidRecord(reason: String)
+  DuplicateTask(slug: String)
 }
 
 /// Format persistence error for display
@@ -33,6 +34,7 @@ pub fn format_error(err: PersistenceError) -> String {
       "Failed to read file '" <> path <> "': " <> reason
     JsonParseFailed(reason) -> "JSON parse error: " <> reason
     InvalidRecord(reason) -> "Invalid record: " <> reason
+    DuplicateTask(slug) -> "Task with slug '" <> slug <> "' already exists"
   }
 }
 
@@ -205,12 +207,30 @@ pub fn save_task_record(
     }),
   )
 
-  let json = record_to_json(record)
+  let existing_content_result = simplifile.read(file_path)
 
-  simplifile.write(file_path, json)
-  |> result.map_error(fn(e) {
-    format_error(FileWriteFailed(file_path, simplifile_error_to_string(e)))
-  })
+  let existing_records = case existing_content_result {
+    Ok(content) -> {
+      case json_to_all_records(content) {
+        Ok(records) -> records
+        Error(_) -> []
+      }
+    }
+    Error(_) -> []
+  }
+
+  case list.find(existing_records, fn(r) { r.slug == record.slug }) {
+    Ok(_) -> Error(format_error(DuplicateTask(record.slug)))
+    Error(_) -> {
+      let updated_records = list.append(existing_records, [record])
+      let json = records_list_to_json(updated_records)
+
+      simplifile.write(file_path, json)
+      |> result.map_error(fn(e) {
+        format_error(FileWriteFailed(file_path, simplifile_error_to_string(e)))
+      })
+    }
+  }
 }
 
 fn simplifile_error_to_string(err: simplifile.FileError) -> String {
@@ -379,7 +399,46 @@ fn save_task_record_direct(
   repo_root: String,
 ) -> Result(Nil, String) {
   let file_path = status_file_path(repo_root)
-  let json = record_to_json(record)
+  let factory_dir = repo_root <> "/.factory"
+
+  use Nil <- result.try(
+    simplifile.create_directory_all(factory_dir)
+    |> result.map_error(fn(e) {
+      format_error(DirectoryCreationFailed(
+        factory_dir,
+        simplifile_error_to_string(e),
+      ))
+    }),
+  )
+
+  let existing_content_result = simplifile.read(file_path)
+
+  let existing_records = case existing_content_result {
+    Ok(content) -> {
+      case json_to_all_records(content) {
+        Ok(records) -> records
+        Error(_) -> []
+      }
+    }
+    Error(_) -> []
+  }
+
+  let updated_records =
+    list.map(existing_records, fn(r) {
+      case r.slug == record.slug {
+        True -> record
+        False -> r
+      }
+    })
+
+  let final_records = case
+    list.any(updated_records, fn(r) { r.slug == record.slug })
+  {
+    True -> updated_records
+    False -> list.append(updated_records, [record])
+  }
+
+  let json = records_list_to_json(final_records)
 
   simplifile.write(file_path, json)
   |> result.map_error(fn(e) {
@@ -417,6 +476,27 @@ pub fn record_to_json(record: TaskRecord) -> String {
     #("current_stage", json.string(record.current_stage)),
     #("current_error", json.string(record.current_error)),
   ])
+  |> json.to_string
+}
+
+/// Convert list of task records to JSON array string
+fn records_list_to_json(records: List(TaskRecord)) -> String {
+  json.array(records, fn(r) {
+    let stages_json = json.array(r.stages, stage_to_json)
+
+    json.object([
+      #("slug", json.string(r.slug)),
+      #("language", json.string(r.language)),
+      #("status", json.string(r.status)),
+      #("priority", json.string(r.priority)),
+      #("created_at", json.string(r.created_at)),
+      #("updated_at", json.string(r.updated_at)),
+      #("stages", stages_json),
+      #("worktree_path", json.string(r.worktree_path)),
+      #("current_stage", json.string(r.current_stage)),
+      #("current_error", json.string(r.current_error)),
+    ])
+  })
   |> json.to_string
 }
 

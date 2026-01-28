@@ -114,7 +114,7 @@ pub fn phase_meta(phase: Phase) -> PhaseMeta {
         "MF#2",
         "martin_fowler_2",
         "refactorer",
-        "claude-3-5-sonnet",
+        "claude-3-opus-20240229",
       )
     Phase13Consistency ->
       PhaseMeta(

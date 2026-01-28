@@ -22,6 +22,8 @@ pub type Signal {
   LoopSpawned
   LoopComplete
   LoopFailed
+  TDD15Started
+  TDD15PhaseComplete(Int, Bool)
   ResourceExhausted
   ShutdownRequested
 }
@@ -46,6 +48,8 @@ fn signal_type(sig: Signal) -> SignalType {
     LoopSpawned -> SignalType("LoopSpawned")
     LoopComplete -> SignalType("LoopComplete")
     LoopFailed -> SignalType("LoopFailed")
+    TDD15Started -> SignalType("TDD15Started")
+    TDD15PhaseComplete(_, _) -> SignalType("TDD15PhaseComplete")
     ResourceExhausted -> SignalType("ResourceExhausted")
     ShutdownRequested -> SignalType("ShutdownRequested")
   }

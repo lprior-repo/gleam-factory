@@ -275,6 +275,8 @@ fn execute_approve(
   use repo_root <- result.try(repo.detect_repo_root())
   use task <- result.try(persistence.load_task_record(slug, repo_root))
 
+  use _ <- result.try(check_at_least_one_stage_passed(repo_root, slug))
+
   let strategy_str = case strategy {
     Some(s) -> s
     None -> "immediate"
@@ -288,6 +290,31 @@ fn execute_approve(
 
   io.println("✓ Approved: " <> slug)
   Ok(Nil)
+}
+
+fn check_at_least_one_stage_passed(
+  repo_root: String,
+  slug: String,
+) -> Result(Nil, String) {
+  use audit_log <- result.try(audit.read_audit_log(repo_root, slug))
+
+  let has_passed_stage =
+    audit_log.entries
+    |> list.any(fn(entry) {
+      case entry.event_type {
+        audit.StagePassed -> True
+        _ -> False
+      }
+    })
+
+  case has_passed_stage {
+    True -> Ok(Nil)
+    False ->
+      Error(
+        "Cannot approve task: no stages have been passed. "
+        <> "Run at least one stage before approving.",
+      )
+  }
 }
 
 fn execute_show(slug: String, detailed: Bool) -> Result(Nil, String) {

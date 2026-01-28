@@ -73,7 +73,7 @@ fn parse_command_output(output: String) -> CommandResult {
               // Callers must check exit_code explicitly
               Success(combined, "", exit_code)
             }
-            Error(_) -> Success(output, "", exit_success)
+            Error(_) -> Failure("Failed to parse exit code", 1)
           }
         }
         [] -> Success("", "", exit_success)
