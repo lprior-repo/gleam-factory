@@ -75,6 +75,7 @@ fn stage_to_command(_stage_name: String, language: domain.Language) -> String {
     domain.Go -> "go"
     domain.Rust -> "cargo"
     domain.Python -> "python"
+    domain.Javascript -> "npm"
   }
 }
 
@@ -100,6 +101,11 @@ fn stage_to_args(stage_name: String, language: domain.Language) -> List(String) 
     domain.Python, "lint" -> ["-m", "black", "--check", "."]
     domain.Python, "static" -> ["-m", "mypy", "."]
     domain.Python, _ -> ["-m", "pytest"]
+    domain.Javascript, "implement" -> ["run", "build"]
+    domain.Javascript, "unit-test" -> ["test"]
+    domain.Javascript, "lint" -> ["run", "lint"]
+    domain.Javascript, "static" -> ["run", "typecheck"]
+    domain.Javascript, _ -> ["test"]
   }
 }
 
@@ -237,6 +243,7 @@ fn language_extension(lang: domain.Language) -> String {
     domain.Go -> "go"
     domain.Rust -> "rs"
     domain.Python -> "py"
+    domain.Javascript -> "js"
   }
 }
 
@@ -246,5 +253,6 @@ fn language_name(lang: domain.Language) -> String {
     domain.Go -> "go"
     domain.Rust -> "rust"
     domain.Python -> "python"
+    domain.Javascript -> "javascript"
   }
 }

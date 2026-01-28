@@ -77,14 +77,16 @@ pub fn start_link() -> Result(Subject(SignalBusMessage), SignalBusError) {
   let initial_state = SignalBusState(subscriptions: dict.new())
   let parent_subject = process.new_subject()
 
-  process.spawn(fn() {
-    let child_subject = process.new_subject()
-    process.send(parent_subject, child_subject)
-    let selector =
-      process.new_selector()
-      |> process.select(child_subject)
-    bus_loop(initial_state, selector)
-  })
+  let pid =
+    process.spawn(fn() {
+      let child_subject = process.new_subject()
+      process.send(parent_subject, child_subject)
+      let selector =
+        process.new_selector()
+        |> process.select(child_subject)
+      bus_loop(initial_state, selector)
+    })
+  let _ = process.link(pid)
 
   case process.receive(parent_subject, 5000) {
     Ok(child_subject) -> {

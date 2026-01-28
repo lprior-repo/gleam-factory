@@ -88,7 +88,7 @@ pub fn prop_language_gleam_priority__test() {
   ))
   let #(has_go, has_rust, has_python) = vals
   assert case
-    domain.detect_language_from_files(True, has_go, has_rust, has_python)
+    domain.detect_language_from_files(True, has_go, has_rust, has_python, False)
   {
     Ok(domain.Gleam) -> True
     _ -> False
@@ -97,7 +97,9 @@ pub fn prop_language_gleam_priority__test() {
 
 // LANGUAGE DETECTION - Property: needs at least one manifest
 pub fn prop_language_requires_manifest__test() {
-  assert case domain.detect_language_from_files(False, False, False, False) {
+  assert case
+    domain.detect_language_from_files(False, False, False, False, False)
+  {
     Ok(_) -> False
     Error(_) -> True
   }

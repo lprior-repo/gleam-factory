@@ -11,33 +11,29 @@ import simplifile
 /// Detect repository root directory
 pub fn detect_repo_root() -> Result(String, String) {
   // Try jj first (preferred)
-  process.run_command("jj", ["workspace", "root"], ".")
-  |> result.map(fn(result) {
-    case result {
-      process.Success(path, _, _) -> string.trim(path)
-      _ -> ""
+  case process.run_command("jj", ["workspace", "root"], ".") {
+    Ok(process.Success(path, _, 0)) -> {
+      let trimmed = string.trim(path)
+      case trimmed {
+        "" -> detect_git_root()
+        root -> Ok(root)
+      }
     }
-  })
-  |> result.try(fn(jj_root) {
-    case jj_root {
-      "" ->
-        // Fall back to git
-        process.run_command("git", ["rev-parse", "--show-toplevel"], ".")
-        |> result.map(fn(result) {
-          case result {
-            process.Success(path, _, _) -> string.trim(path)
-            _ -> ""
-          }
-        })
-        |> result.try(fn(git_root) {
-          case git_root {
-            "" -> Error("Not in a jj or git repository")
-            root -> Ok(root)
-          }
-        })
-      root -> Ok(root)
+    _ -> detect_git_root()
+  }
+}
+
+fn detect_git_root() -> Result(String, String) {
+  case process.run_command("git", ["rev-parse", "--show-toplevel"], ".") {
+    Ok(process.Success(path, _, 0)) -> {
+      let trimmed = string.trim(path)
+      case trimmed {
+        "" -> Error("Not in a jj or git repository")
+        root -> Ok(root)
+      }
     }
-  })
+    _ -> Error("Not in a jj or git repository")
+  }
 }
 
 /// Auto-detect language from repository contents
@@ -51,12 +47,14 @@ pub fn detect_language(repo_root: String) -> Result(domain.Language, String) {
     let has_go_mod = file_exists(repo_root <> "/go.mod")
     let has_cargo_toml = file_exists(repo_root <> "/Cargo.toml")
     let has_pyproject = file_exists(repo_root <> "/pyproject.toml")
+    let has_package_json = file_exists(repo_root <> "/package.json")
 
     domain.detect_language_from_files(
       has_gleam_toml,
       has_go_mod,
       has_cargo_toml,
       has_pyproject,
+      has_package_json,
     )
   })
 }

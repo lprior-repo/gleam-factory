@@ -45,47 +45,52 @@ fn create_file(
 // ===== Language Detection Tests (via domain module) =====
 
 pub fn detect_language_from_files_gleam_test() {
-  domain.detect_language_from_files(True, False, False, False)
+  domain.detect_language_from_files(True, False, False, False, False)
   |> should.equal(Ok(domain.Gleam))
 }
 
 pub fn detect_language_from_files_go_test() {
-  domain.detect_language_from_files(False, True, False, False)
+  domain.detect_language_from_files(False, True, False, False, False)
   |> should.equal(Ok(domain.Go))
 }
 
 pub fn detect_language_from_files_rust_test() {
-  domain.detect_language_from_files(False, False, True, False)
+  domain.detect_language_from_files(False, False, True, False, False)
   |> should.equal(Ok(domain.Rust))
 }
 
 pub fn detect_language_from_files_python_test() {
-  domain.detect_language_from_files(False, False, False, True)
+  domain.detect_language_from_files(False, False, False, True, False)
   |> should.equal(Ok(domain.Python))
 }
 
+pub fn detect_language_from_files_javascript_test() {
+  domain.detect_language_from_files(False, False, False, False, True)
+  |> should.equal(Ok(domain.Javascript))
+}
+
 pub fn detect_language_from_files_none_test() {
-  domain.detect_language_from_files(False, False, False, False)
+  domain.detect_language_from_files(False, False, False, False, False)
   |> should.be_error()
 }
 
 pub fn detect_language_from_files_priority_gleam_test() {
-  domain.detect_language_from_files(True, True, True, True)
+  domain.detect_language_from_files(True, True, True, True, False)
   |> should.equal(Ok(domain.Gleam))
 }
 
 pub fn detect_language_from_files_priority_go_test() {
-  domain.detect_language_from_files(False, True, True, True)
+  domain.detect_language_from_files(False, True, True, True, False)
   |> should.equal(Ok(domain.Go))
 }
 
 pub fn detect_language_from_files_priority_rust_test() {
-  domain.detect_language_from_files(False, False, True, True)
+  domain.detect_language_from_files(False, False, True, True, False)
   |> should.equal(Ok(domain.Rust))
 }
 
 pub fn detect_language_from_files_priority_python_test() {
-  domain.detect_language_from_files(False, False, False, True)
+  domain.detect_language_from_files(False, False, False, True, False)
   |> should.equal(Ok(domain.Python))
 }
 

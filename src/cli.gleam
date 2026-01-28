@@ -190,6 +190,7 @@ fn execute_new(
     domain.Gleam -> "gleam"
     domain.Rust -> "rust"
     domain.Python -> "python"
+    domain.Javascript -> "javascript"
   }
 
   use message <- result.try(execute_new_impl(
@@ -308,6 +309,7 @@ fn execute_show(slug: String, detailed: Bool) -> Result(Nil, String) {
           domain.Gleam -> "gleam"
           domain.Rust -> "rust"
           domain.Python -> "python"
+          domain.Javascript -> "javascript"
         },
       )
     }

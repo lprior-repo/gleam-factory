@@ -9,19 +9,21 @@ pub fn main() {
 }
 
 pub fn start_link_creates_bus_test() {
-  signal_bus.start_link()
-  |> should.be_ok()
+  let assert Ok(bus) = signal_bus.start_link()
+  signal_bus.shutdown(bus)
 }
 
 pub fn start_link_timeout_test() {
-  signal_bus.start_link()
-  |> should.be_ok()
+  let assert Ok(bus) = signal_bus.start_link()
+  signal_bus.shutdown(bus)
 }
 
 pub fn publish_without_subscribers_test() {
   let assert Ok(bus) = signal_bus.start_link()
   signal_bus.publish(bus, signal_bus.TestPassing)
   |> should.equal(Nil)
+
+  signal_bus.shutdown(bus)
 }
 
 pub fn subscribe_and_publish_test() {
@@ -36,6 +38,8 @@ pub fn subscribe_and_publish_test() {
     Ok(signal_bus.TestPassing) -> Nil
     _ -> panic as "Expected TestPassing signal"
   }
+
+  signal_bus.shutdown(bus)
 }
 
 pub fn multiple_subscribers_test() {
@@ -64,6 +68,8 @@ pub fn multiple_subscribers_test() {
     Ok(signal_bus.TestFailure) -> Nil
     _ -> panic as "sub3 expected TestFailure"
   }
+
+  signal_bus.shutdown(bus)
 }
 
 pub fn different_signal_types_test() {
@@ -87,6 +93,8 @@ pub fn different_signal_types_test() {
     Error(Nil) -> Nil
     _ -> panic as "sub_failure should not receive TestPassing"
   }
+
+  signal_bus.shutdown(bus)
 }
 
 pub fn broadcast_alias_test() {
@@ -101,6 +109,8 @@ pub fn broadcast_alias_test() {
     Ok(signal_bus.Evolution) -> Nil
     _ -> panic as "Expected Evolution signal"
   }
+
+  signal_bus.shutdown(bus)
 }
 
 pub fn subscribe_returns_ok_test() {
@@ -109,6 +119,8 @@ pub fn subscribe_returns_ok_test() {
 
   signal_bus.subscribe(bus, signal_bus.LoopSpawned, subscriber)
   |> should.be_ok()
+
+  signal_bus.shutdown(bus)
 }
 
 pub fn multiple_signals_single_subscriber_test() {
@@ -137,6 +149,8 @@ pub fn multiple_signals_single_subscriber_test() {
     Ok(signal_bus.PatchAccepted(_)) -> Nil
     _ -> panic as "Expected PatchAccepted"
   }
+
+  signal_bus.shutdown(bus)
 }
 
 pub fn publish_to_empty_subscriptions_test() {
@@ -145,6 +159,8 @@ pub fn publish_to_empty_subscriptions_test() {
   signal_bus.publish(bus, signal_bus.ResourceExhausted)
   signal_bus.publish(bus, signal_bus.GoldenMasterUpdated)
   signal_bus.publish(bus, signal_bus.LoopComplete)
+
+  signal_bus.shutdown(bus)
 }
 
 pub fn subscriber_receives_in_order_test() {
@@ -166,4 +182,6 @@ pub fn subscriber_receives_in_order_test() {
     Ok(signal_bus.LoopSpawned) -> Nil
     _ -> panic as "Expected second LoopSpawned"
   }
+
+  signal_bus.shutdown(bus)
 }

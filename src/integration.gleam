@@ -66,6 +66,7 @@ pub fn test_integration(
     domain.Gleam -> test_gleam_integration(repo_root)
     domain.Rust -> test_rust_integration(repo_root)
     domain.Python -> test_python_integration(repo_root)
+    domain.Javascript -> test_javascript_integration(repo_root)
   }
 
   // STEP 4: Clean up temp branch (regardless of test result)
@@ -104,6 +105,12 @@ fn test_python_integration(
   repo_root: String,
 ) -> Result(IntegrationResult, String) {
   run_test_cmd("python", ["-m", "pytest", "-v"], "Python", repo_root)
+}
+
+fn test_javascript_integration(
+  repo_root: String,
+) -> Result(IntegrationResult, String) {
+  run_test_cmd("npm", ["test"], "JavaScript", repo_root)
 }
 
 fn run_test_cmd(

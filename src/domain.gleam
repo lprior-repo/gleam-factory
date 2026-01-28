@@ -11,6 +11,7 @@ pub type Language {
   Gleam
   Rust
   Python
+  Javascript
 }
 
 /// Language from string, fails if unsupported
@@ -20,11 +21,12 @@ pub fn parse_language(lang: String) -> Result(Language, String) {
     "gleam" -> Ok(Gleam)
     "rust" -> Ok(Rust)
     "python" -> Ok(Python)
+    "javascript" -> Ok(Javascript)
     other ->
       Error(
         "unsupported language: "
         <> other
-        <> " (supported: go, gleam, rust, python)",
+        <> " (supported: go, gleam, rust, python, javascript)",
       )
   }
 }
@@ -35,15 +37,23 @@ pub fn detect_language_from_files(
   has_go_mod: Bool,
   has_cargo_toml: Bool,
   has_pyproject: Bool,
+  has_package_json: Bool,
 ) -> Result(Language, String) {
-  case has_gleam_toml, has_go_mod, has_cargo_toml, has_pyproject {
-    True, _, _, _ -> Ok(Gleam)
-    _, True, _, _ -> Ok(Go)
-    _, _, True, _ -> Ok(Rust)
-    _, _, _, True -> Ok(Python)
-    _, _, _, _ ->
+  case
+    has_gleam_toml,
+    has_go_mod,
+    has_cargo_toml,
+    has_pyproject,
+    has_package_json
+  {
+    True, _, _, _, _ -> Ok(Gleam)
+    _, True, _, _, _ -> Ok(Go)
+    _, _, True, _, _ -> Ok(Rust)
+    _, _, _, True, _ -> Ok(Python)
+    _, _, _, _, True -> Ok(Javascript)
+    _, _, _, _, _ ->
       Error(
-        "could not detect language from repository files (looked for gleam.toml, go.mod, Cargo.toml, pyproject.toml)",
+        "could not detect language from repository files (looked for gleam.toml, go.mod, Cargo.toml, pyproject.toml, package.json)",
       )
   }
 }
@@ -260,7 +270,7 @@ pub fn get_current_stage(status: TaskStatus) -> Result(String, String) {
 pub fn is_compiled_language(lang: Language) -> Bool {
   case lang {
     Go | Rust | Gleam -> True
-    Python -> False
+    Python | Javascript -> False
   }
 }
 
@@ -279,6 +289,7 @@ pub fn language_display_name(lang: Language) -> String {
     Gleam -> "Gleam"
     Rust -> "Rust"
     Python -> "Python"
+    Javascript -> "JavaScript"
   }
 }
 

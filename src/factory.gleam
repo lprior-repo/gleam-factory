@@ -12,6 +12,9 @@ import gleam/io
 import gleam/option.{Some}
 import logging
 
+@external(erlang, "erlang", "halt")
+fn halt(status: Int) -> Nil
+
 pub fn main() {
   case cli.parse() {
     Ok(cmd) ->
@@ -21,6 +24,7 @@ pub fn main() {
           let ctx = ErrorContext("factory", "main", Some(err))
           let error = error_handling.wrap_error_string(err, ctx)
           io.println("Error: " <> format_error(error))
+          halt(1)
         }
       }
     Error(err) -> {
@@ -29,6 +33,7 @@ pub fn main() {
       io.println("Error: " <> format_error(error))
       io.println("")
       io.println(cli.help_text())
+      halt(1)
     }
   }
 }

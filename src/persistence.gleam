@@ -116,6 +116,7 @@ pub fn task_to_record(task: domain.Task) -> TaskRecord {
     domain.Gleam -> "gleam"
     domain.Rust -> "rust"
     domain.Python -> "python"
+    domain.Javascript -> "javascript"
   }
 
   let #(status_str, current_stage, current_error) = case task.status {
@@ -151,6 +152,7 @@ pub fn record_to_task(record: TaskRecord) -> Result(domain.Task, String) {
     "gleam" -> Ok(domain.Gleam)
     "rust" -> Ok(domain.Rust)
     "python" -> Ok(domain.Python)
+    "javascript" -> Ok(domain.Javascript)
     other -> Error("Unknown language: " <> other)
   })
 

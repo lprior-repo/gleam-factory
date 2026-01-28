@@ -29,7 +29,7 @@ pub fn parse_language_python_test() {
 }
 
 pub fn parse_language_invalid_test() {
-  domain.parse_language("javascript")
+  domain.parse_language("java")
   |> should.be_error()
 }
 
@@ -70,57 +70,62 @@ pub fn parse_language_java_test() {
 
 // Language detection tests
 pub fn detect_language_gleam_test() {
-  domain.detect_language_from_files(True, False, False, False)
+  domain.detect_language_from_files(True, False, False, False, False)
   |> should.equal(Ok(domain.Gleam))
 }
 
 pub fn detect_language_go_test() {
-  domain.detect_language_from_files(False, True, False, False)
+  domain.detect_language_from_files(False, True, False, False, False)
   |> should.equal(Ok(domain.Go))
 }
 
 pub fn detect_language_rust_test() {
-  domain.detect_language_from_files(False, False, True, False)
+  domain.detect_language_from_files(False, False, True, False, False)
   |> should.equal(Ok(domain.Rust))
 }
 
 pub fn detect_language_python_test() {
-  domain.detect_language_from_files(False, False, False, True)
+  domain.detect_language_from_files(False, False, False, True, False)
   |> should.equal(Ok(domain.Python))
 }
 
+pub fn detect_language_javascript_test() {
+  domain.detect_language_from_files(False, False, False, False, True)
+  |> should.equal(Ok(domain.Javascript))
+}
+
 pub fn detect_language_priority_test() {
-  domain.detect_language_from_files(True, True, True, True)
+  domain.detect_language_from_files(True, True, True, True, True)
   |> should.equal(Ok(domain.Gleam))
 }
 
 pub fn detect_language_none_test() {
-  domain.detect_language_from_files(False, False, False, False)
+  domain.detect_language_from_files(False, False, False, False, False)
   |> should.be_error()
 }
 
 pub fn detect_language_first_match_priority_test() {
-  domain.detect_language_from_files(True, True, False, False)
+  domain.detect_language_from_files(True, True, False, False, False)
   |> should.equal(Ok(domain.Gleam))
 }
 
 pub fn detect_language_multiple_markers_go_priority_test() {
-  domain.detect_language_from_files(False, True, True, False)
+  domain.detect_language_from_files(False, True, True, False, False)
   |> should.equal(Ok(domain.Go))
 }
 
 pub fn detect_language_multiple_markers_rust_priority_test() {
-  domain.detect_language_from_files(False, False, True, True)
+  domain.detect_language_from_files(False, False, True, True, False)
   |> should.equal(Ok(domain.Rust))
 }
 
 pub fn detect_language_only_python_test() {
-  domain.detect_language_from_files(False, False, False, True)
+  domain.detect_language_from_files(False, False, False, True, False)
   |> should.equal(Ok(domain.Python))
 }
 
 pub fn detect_language_all_false_test() {
-  domain.detect_language_from_files(False, False, False, False)
+  domain.detect_language_from_files(False, False, False, False, False)
   |> should.be_error()
 }
 
