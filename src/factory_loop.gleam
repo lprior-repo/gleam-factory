@@ -146,11 +146,11 @@ fn init_tdd15(
         state.Medium -> phases.Medium
         state.Complex -> phases.Complex
       }
-      let route = phases.route_for_complexity(phases_complexity)
+      let route = phases.route_for_complexty(phases_complexity)
       let phases.Route(numbers) = route
-      let assert Ok(start_phase) = phases.route_start(route)
-      let phases.PhaseMeta(number: start_num, ..) =
-        phases.phase_meta(start_phase)
+      let assert Ok(start_num) = phases.route_start(route)
+      let assert Ok(start_phase) = phases.phase_by_number(start_num)
+      let phases.PhaseMeta(number: _, ..) = phases.phase_meta(start_phase)
 
       let progress =
         state.Progress(

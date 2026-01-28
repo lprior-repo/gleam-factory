@@ -1,7 +1,7 @@
 {
-  "last_failure": "2026-01-27T22:12:11.177605753-06:00",
-  "failure_count": 6,
-  "backoff_until": "2026-01-27T22:42:11.177605963-06:00",
+  "last_failure": "2026-01-28T02:56:27.326255419-06:00",
+  "failure_count": 8,
+  "backoff_until": "2026-01-28T03:26:27.326255619-06:00",
   "needs_manual_sync": true,
   "failure_reason": "git pull failed: exit status 128\nerror: cannot pull with rebase: You have unstaged changes.\nerror: Please commit or stash them.\n"
 }

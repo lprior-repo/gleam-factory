@@ -3,6 +3,8 @@ import gleeunit
 import gleeunit/should
 import simplifile
 import stages
+import stages_types
+import stages_test_mode
 
 pub fn main() {
   gleeunit.main()
@@ -10,32 +12,32 @@ pub fn main() {
 
 // Stage transition validation tests
 pub fn validate_stage_transition_forward_test() {
-  stages.validate_stage_transition("implement", "unit-test")
+  stages_types.validate_stage_transition("implement", "unit-test")
   |> should.be_ok()
 }
 
 pub fn validate_stage_transition_backward_test() {
-  stages.validate_stage_transition("unit-test", "implement")
+  stages_types.validate_stage_transition("unit-test", "implement")
   |> should.be_error()
 }
 
 pub fn validate_stage_transition_same_test() {
-  stages.validate_stage_transition("implement", "implement")
+  stages_types.validate_stage_transition("implement", "implement")
   |> should.be_error()
 }
 
 pub fn validate_stage_transition_unknown_from_test() {
-  stages.validate_stage_transition("unknown", "implement")
+  stages_types.validate_stage_transition("unknown", "implement")
   |> should.be_error()
 }
 
 pub fn validate_stage_transition_unknown_to_test() {
-  stages.validate_stage_transition("implement", "unknown")
+  stages_types.validate_stage_transition("implement", "unknown")
   |> should.be_error()
 }
 
 pub fn validate_stage_transition_distant_test() {
-  stages.validate_stage_transition("implement", "accept")
+  stages_types.validate_stage_transition("implement", "accept")
   |> should.be_ok()
 }
 
@@ -46,9 +48,9 @@ pub fn execute_gleam_implement_test() {
 }
 
 pub fn execute_gleam_unit_test_test() {
-  stages.set_test_mode()
+  stages_test_mode.set_test_mode()
   let result = stages.execute_stage("unit-test", domain.Gleam, ".")
-  stages.clear_test_mode()
+  stages_test_mode.clear_test_mode()
   result
   |> should.be_ok()
 }
@@ -69,9 +71,9 @@ pub fn execute_gleam_static_test() {
 }
 
 pub fn execute_gleam_integration_test() {
-  stages.set_test_mode()
+  stages_test_mode.set_test_mode()
   let result = stages.execute_stage("integration", domain.Gleam, ".")
-  stages.clear_test_mode()
+  stages_test_mode.clear_test_mode()
   result
   |> should.be_ok()
 }
@@ -87,9 +89,9 @@ pub fn execute_gleam_review_test() {
 }
 
 pub fn execute_gleam_accept_test() {
-  stages.set_test_mode()
+  stages_test_mode.set_test_mode()
   let result = stages.execute_stage("accept", domain.Gleam, ".")
-  stages.clear_test_mode()
+  stages_test_mode.clear_test_mode()
   result
   |> should.be_ok()
 }
@@ -126,7 +128,7 @@ pub fn go_lint_detects_unformatted_code_test() {
 // Dry-run mode tests
 pub fn execute_stages_dry_run_gleam_single_stage_test() {
   let stage = domain.Stage("implement", "Code compiles", 5)
-  let previews = stages.execute_stages_dry_run([stage], domain.Gleam)
+  let previews = stages_types.execute_stages_dry_run([stage], domain.Gleam)
 
   case previews {
     [preview] -> {
@@ -141,7 +143,7 @@ pub fn execute_stages_dry_run_gleam_single_stage_test() {
 pub fn execute_stages_dry_run_go_multiple_stages_test() {
   let stage1 = domain.Stage("implement", "Code compiles", 5)
   let stage2 = domain.Stage("unit-test", "All tests pass", 3)
-  let previews = stages.execute_stages_dry_run([stage1, stage2], domain.Go)
+  let previews = stages_types.execute_stages_dry_run([stage1, stage2], domain.Go)
 
   case previews {
     [p1, p2] -> {
@@ -158,7 +160,7 @@ pub fn execute_stages_dry_run_go_multiple_stages_test() {
 
 pub fn execute_stages_dry_run_rust_accept_stage_test() {
   let stage = domain.Stage("accept", "Ready for merge", 1)
-  let previews = stages.execute_stages_dry_run([stage], domain.Rust)
+  let previews = stages_types.execute_stages_dry_run([stage], domain.Rust)
 
   case previews {
     [preview] -> {
@@ -173,7 +175,7 @@ pub fn execute_stages_dry_run_rust_accept_stage_test() {
 
 pub fn execute_stages_dry_run_python_security_stage_test() {
   let stage = domain.Stage("security", "No vulnerabilities", 2)
-  let previews = stages.execute_stages_dry_run([stage], domain.Python)
+  let previews = stages_types.execute_stages_dry_run([stage], domain.Python)
 
   case previews {
     [preview] -> {
@@ -186,13 +188,13 @@ pub fn execute_stages_dry_run_python_security_stage_test() {
 }
 
 pub fn execute_stages_dry_run_empty_list_test() {
-  let previews = stages.execute_stages_dry_run([], domain.Gleam)
+  let previews = stages_types.execute_stages_dry_run([], domain.Gleam)
   previews |> should.equal([])
 }
 
 pub fn execute_stages_dry_run_all_gleam_stages_test() {
   let pipeline = domain.standard_pipeline()
-  let previews = stages.execute_stages_dry_run(pipeline, domain.Gleam)
+  let previews = stages_types.execute_stages_dry_run(pipeline, domain.Gleam)
   previews |> should.not_equal([])
 }
 

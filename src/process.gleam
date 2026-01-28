@@ -2,6 +2,7 @@
 
 import gleam/dynamic/decode
 import gleam/erlang/process as erl_process
+import gleam/int
 import gleam/json
 import gleam/list
 import gleam/result
@@ -66,13 +67,13 @@ fn parse_command_output(output: String) -> CommandResult {
       case reversed {
         [_, ..rest_reversed] -> {
           case extract_exit_code(output) {
-            Ok(exit_code) -> {
+            Ok(exit_code) if exit_code >= 0 -> {
               let stdout_lines = reverse_list(rest_reversed)
               let combined = string.join(stdout_lines, "\n")
-              // Always return Success with actual exit code
-              // Callers must check exit_code explicitly
               Success(combined, "", exit_code)
             }
+            Ok(exit_code) ->
+              Failure("Negative exit code: " <> int.to_string(exit_code), 1)
             Error(_) -> Failure("Failed to parse exit code", 1)
           }
         }
@@ -106,7 +107,7 @@ pub fn run_command_with_env(
   let env_prefix =
     list.fold(env, "", fn(acc, pair) {
       let #(key, val) = pair
-      acc <> key <> "='" <> string.replace(val, "'", "'\"'\"'") <> "' "
+      acc <> key <> "=" <> shell_escape(val) <> " "
     })
   let full_cmd = env_prefix <> shell_cmd
   let output = os_cmd(full_cmd)

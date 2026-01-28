@@ -9,6 +9,7 @@ import gleam/string
 import persistence
 import repo
 import stages
+import stages_types.{type StagePreview}
 import worktree
 
 pub type Command {
@@ -20,7 +21,7 @@ pub type Command {
     from: Option(String),
     to: Option(String),
   )
-  ApproveTask(slug: String, strategy: Option(String))
+  ApproveTask(slug: String, strategy: Option(String), force: Bool)
   ShowTask(slug: String, detailed: Bool)
   ListTasks(priority: Option(String), status: Option(String))
   Help(topic: Option(String))
@@ -85,11 +86,12 @@ fn parse_approve(args: List(String)) -> Result(Command, String) {
   case get_flag(args, "--slug", "-s") {
     None -> Error("--slug is required for approve command")
     Some(slug) -> {
+      let force = has_flag(args, "--force", "-f")
       case get_flag(args, "--strategy", "-str") {
-        None -> Ok(ApproveTask(slug, None))
+        None -> Ok(ApproveTask(slug, None, force))
         Some(s) ->
           validate_strategy(s)
-          |> result.map(fn(v) { ApproveTask(slug, Some(v)) })
+          |> result.map(fn(v) { ApproveTask(slug, Some(v), force) })
       }
     }
   }
@@ -158,7 +160,7 @@ pub fn execute(cmd: Command) -> Result(Nil, String) {
     RunStage(slug, stage, dry_run, from, to) ->
       execute_stage(slug, stage, dry_run, from, to)
 
-    ApproveTask(slug, strategy) -> execute_approve(slug, strategy)
+    ApproveTask(slug, strategy, force) -> execute_approve(slug, strategy, force)
 
     ShowTask(slug, detailed) -> execute_show(slug, detailed)
 
@@ -229,7 +231,7 @@ fn execute_stage(
       case dry_run {
         True -> {
           let previews =
-            stages.execute_stages_dry_run(stage_list, task.language)
+            stages_types.execute_stages_dry_run(stage_list, task.language)
           list.each(previews, fn(preview) {
             io.println("DRY RUN: " <> preview.name)
             io.println("  Command: " <> preview.command)
@@ -270,12 +272,17 @@ fn execute_stage_range(
 fn execute_approve(
   slug: String,
   strategy: Option(String),
+  force: Bool,
 ) -> Result(Nil, String) {
   use _ <- result.try(domain.validate_slug(slug))
   use repo_root <- result.try(repo.detect_repo_root())
   use task <- result.try(persistence.load_task_record(slug, repo_root))
 
-  use _ <- result.try(check_at_least_one_stage_passed(repo_root, slug))
+  let check_result = case force {
+    True -> Ok(Nil)
+    False -> check_at_least_one_stage_passed(repo_root, slug)
+  }
+  use _ <- result.try(check_result)
 
   let strategy_str = case strategy {
     Some(s) -> s
@@ -291,7 +298,6 @@ fn execute_approve(
   io.println("✓ Approved: " <> slug)
   Ok(Nil)
 }
-
 fn check_at_least_one_stage_passed(
   repo_root: String,
   slug: String,

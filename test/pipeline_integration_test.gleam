@@ -16,6 +16,7 @@ import merge_queue
 import signal_bus
 import signals
 import stages
+import stages_types
 
 pub fn main() {
   gleeunit.main()
@@ -259,36 +260,36 @@ pub fn pipeline_shutdown_test() {
 /// Test: Stage transition validation - forward only
 pub fn pipeline_stage_transition_forward_test() {
   // Valid forward transition
-  stages.validate_stage_transition("implement", "unit-test")
+  stages_types.validate_stage_transition("implement", "unit-test")
   |> should.be_ok()
 
-  stages.validate_stage_transition("unit-test", "lint")
+  stages_types.validate_stage_transition("unit-test", "lint")
   |> should.be_ok()
 
-  stages.validate_stage_transition("implement", "accept")
+  stages_types.validate_stage_transition("implement", "accept")
   |> should.be_ok()
 }
 
 /// Test: Stage transition validation - reject backward
 pub fn pipeline_stage_transition_backward_rejected_test() {
   // Invalid backward transition
-  stages.validate_stage_transition("lint", "implement")
+  stages_types.validate_stage_transition("lint", "implement")
   |> should.be_error()
 
-  stages.validate_stage_transition("accept", "unit-test")
+  stages_types.validate_stage_transition("accept", "unit-test")
   |> should.be_error()
 
   // Same stage transition should fail
-  stages.validate_stage_transition("implement", "implement")
+  stages_types.validate_stage_transition("implement", "implement")
   |> should.be_error()
 }
 
 /// Test: Stage transition validation - unknown stages
 pub fn pipeline_stage_unknown_rejected_test() {
-  stages.validate_stage_transition("unknown", "implement")
+  stages_types.validate_stage_transition("unknown", "implement")
   |> should.be_error()
 
-  stages.validate_stage_transition("implement", "unknown")
+  stages_types.validate_stage_transition("implement", "unknown")
   |> should.be_error()
 }
 
@@ -297,7 +298,7 @@ pub fn pipeline_dry_run_execution_test() {
   let pipeline = domain.standard_pipeline()
   let gleam_lang = domain.Gleam
 
-  let previews = stages.execute_stages_dry_run(pipeline, gleam_lang)
+  let previews = stages_types.execute_stages_dry_run(pipeline, gleam_lang)
 
   // Should have preview for each stage
   list.length(previews)
@@ -320,7 +321,7 @@ pub fn pipeline_dry_run_execution_test() {
 /// Test: Dry-run previews show estimated durations
 pub fn pipeline_dry_run_shows_duration_test() {
   let single_stage = [domain.Stage("implement", "Build code", 0)]
-  let previews = stages.execute_stages_dry_run(single_stage, domain.Gleam)
+  let previews = stages_types.execute_stages_dry_run(single_stage, domain.Gleam)
 
   case previews {
     [preview] -> {
@@ -382,8 +383,8 @@ pub fn pipeline_gleam_stage_commands_test() {
   let lint_stage = [domain.Stage("lint", "Format check", 0)]
 
   let impl_preview =
-    stages.execute_stages_dry_run(implement_stage, domain.Gleam)
-  let lint_preview = stages.execute_stages_dry_run(lint_stage, domain.Gleam)
+    stages_types.execute_stages_dry_run(implement_stage, domain.Gleam)
+  let lint_preview = stages_types.execute_stages_dry_run(lint_stage, domain.Gleam)
 
   case impl_preview, lint_preview {
     [impl], [lint] -> {
@@ -404,8 +405,8 @@ pub fn pipeline_go_stage_commands_test() {
   let implement_stage = [domain.Stage("implement", "Build", 0)]
   let lint_stage = [domain.Stage("lint", "Format check", 0)]
 
-  let impl_preview = stages.execute_stages_dry_run(implement_stage, domain.Go)
-  let lint_preview = stages.execute_stages_dry_run(lint_stage, domain.Go)
+  let impl_preview = stages_types.execute_stages_dry_run(implement_stage, domain.Go)
+  let lint_preview = stages_types.execute_stages_dry_run(lint_stage, domain.Go)
 
   case impl_preview, lint_preview {
     [impl], [lint] -> {
@@ -426,8 +427,8 @@ pub fn pipeline_rust_stage_commands_test() {
   let implement_stage = [domain.Stage("implement", "Build", 0)]
   let lint_stage = [domain.Stage("lint", "Format check", 0)]
 
-  let impl_preview = stages.execute_stages_dry_run(implement_stage, domain.Rust)
-  let lint_preview = stages.execute_stages_dry_run(lint_stage, domain.Rust)
+  let impl_preview = stages_types.execute_stages_dry_run(implement_stage, domain.Rust)
+  let lint_preview = stages_types.execute_stages_dry_run(lint_stage, domain.Rust)
 
   case impl_preview, lint_preview {
     [impl], [lint] -> {
@@ -449,8 +450,8 @@ pub fn pipeline_python_stage_commands_test() {
   let lint_stage = [domain.Stage("lint", "Format check", 0)]
 
   let impl_preview =
-    stages.execute_stages_dry_run(implement_stage, domain.Python)
-  let lint_preview = stages.execute_stages_dry_run(lint_stage, domain.Python)
+    stages_types.execute_stages_dry_run(implement_stage, domain.Python)
+  let lint_preview = stages_types.execute_stages_dry_run(lint_stage, domain.Python)
 
   case impl_preview, lint_preview {
     [impl], [lint] -> {
@@ -512,14 +513,14 @@ pub fn pipeline_get_stage_test() {
 /// Test: Pipeline with all stages executes in sequence (dry-run)
 pub fn pipeline_full_sequence_dry_run_test() {
   let all_stages = domain.standard_pipeline()
-  let previews = stages.execute_stages_dry_run(all_stages, domain.Gleam)
+  let previews = stages_types.execute_stages_dry_run(all_stages, domain.Gleam)
 
   // Should have same count
   list.length(previews)
   |> should.equal(list.length(all_stages))
 
   // Each preview should have name, command, and positive duration
-  list.all(previews, fn(p: stages.StagePreview) {
+  list.all(previews, fn(p: stages_types.StagePreview) {
     string.length(p.name) > 0
     && string.length(p.command) > 0
     && p.estimated_duration > 0
