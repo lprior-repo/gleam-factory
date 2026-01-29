@@ -31,8 +31,6 @@ pub fn main() {
       let ctx = ErrorContext("factory", "parse", Some(err))
       let error = error_handling.wrap_error_string(err, ctx)
       io.println("Error: " <> format_error(error))
-      io.println("")
-      io.println(cli.help_text())
       halt(1)
     }
   }

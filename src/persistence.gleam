@@ -219,18 +219,27 @@ pub fn save_task_record(
     Error(_) -> []
   }
 
-  case list.find(existing_records, fn(r) { r.slug == record.slug }) {
-    Ok(_) -> Error(format_error(DuplicateTask(record.slug)))
-    Error(_) -> {
-      let updated_records = list.append(existing_records, [record])
-      let json = records_list_to_json(updated_records)
+  let updated_records =
+    list.map(existing_records, fn(r) {
+      case r.slug == record.slug {
+        True -> record
+        False -> r
+      }
+    })
 
-      simplifile.write(file_path, json)
-      |> result.map_error(fn(e) {
-        format_error(FileWriteFailed(file_path, simplifile_error_to_string(e)))
-      })
-    }
+  let final_records = case
+    list.any(updated_records, fn(r) { r.slug == record.slug })
+  {
+    True -> updated_records
+    False -> list.append(updated_records, [record])
   }
+
+  let json = records_list_to_json(final_records)
+
+  simplifile.write(file_path, json)
+  |> result.map_error(fn(e) {
+    format_error(FileWriteFailed(file_path, simplifile_error_to_string(e)))
+  })
 }
 
 fn simplifile_error_to_string(err: simplifile.FileError) -> String {

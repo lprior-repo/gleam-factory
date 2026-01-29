@@ -298,6 +298,7 @@ fn execute_approve(
   io.println("✓ Approved: " <> slug)
   Ok(Nil)
 }
+
 fn check_at_least_one_stage_passed(
   repo_root: String,
   slug: String,
@@ -504,10 +505,7 @@ fn execute_stage_impl(
         <> "ms)",
       )
     }
-    Error(err) -> {
-      let _ = audit.log_stage_failed(repo_root, slug, stage_name, err)
-      Error(err)
-    }
+    Error(err) -> Error(err)
   }
 }
 
