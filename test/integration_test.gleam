@@ -24,7 +24,10 @@ pub fn signal_bus_subscribe_and_broadcast_test() {
 
   case process.receive(subscriber, 1000) {
     Ok(signal_bus.TestPassing) -> Nil
-    _ -> should.fail()
+    _ -> {
+      signal_bus.shutdown(bus)
+      should.fail()
+    }
   }
 
   signal_bus.shutdown(bus)
@@ -51,7 +54,10 @@ pub fn signal_bus_multiple_subscribers_test() {
       Ok(signal_bus.TestPassing),
       Ok(signal_bus.TestPassing)
     -> Nil
-    _, _, _ -> should.fail()
+    _, _, _ -> {
+      signal_bus.shutdown(bus)
+      should.fail()
+    }
   }
 
   signal_bus.shutdown(bus)
@@ -72,7 +78,10 @@ pub fn signal_bus_different_signal_types_test() {
 
   case process.receive(test_sub, 1000), process.receive(loop_sub, 1000) {
     Ok(signal_bus.TestPassing), Ok(signal_bus.LoopSpawned) -> Nil
-    _, _ -> should.fail()
+    _, _ -> {
+      signal_bus.shutdown(bus)
+      should.fail()
+    }
   }
 
   signal_bus.shutdown(bus)
@@ -227,7 +236,11 @@ pub fn factory_loop_broadcasts_spawned_signal_test() {
 
   case process.receive(subscriber, 1000) {
     Ok(signal_bus.LoopSpawned) -> Nil
-    _ -> should.fail()
+    _ -> {
+      factory_loop.shutdown(loop)
+      signal_bus.shutdown(bus)
+      should.fail()
+    }
   }
 
   factory_loop.shutdown(loop)
@@ -258,7 +271,11 @@ pub fn factory_loop_broadcasts_completion_signals_test() {
 
   case process.receive(subscriber, 1000) {
     Ok(signal_bus.LoopComplete) -> Nil
-    _ -> should.fail()
+    _ -> {
+      factory_loop.shutdown(loop)
+      signal_bus.shutdown(bus)
+      should.fail()
+    }
   }
 
   factory_loop.shutdown(loop)
@@ -288,7 +305,11 @@ pub fn factory_loop_broadcasts_failure_signals_test() {
 
   case process.receive(subscriber, 1000) {
     Ok(signal_bus.LoopFailed) -> Nil
-    _ -> should.fail()
+    _ -> {
+      factory_loop.shutdown(loop)
+      signal_bus.shutdown(bus)
+      should.fail()
+    }
   }
 
   factory_loop.shutdown(loop)
@@ -324,7 +345,11 @@ pub fn dispatcher_spawns_loop_on_bead_assigned_test() {
 
   case process.receive(loop_subscriber, 2000) {
     Ok(signal_bus.LoopSpawned) -> Nil
-    _ -> should.fail()
+    _ -> {
+      factory_loop.shutdown(loop)
+      signal_bus.shutdown(bus)
+      should.fail()
+    }
   }
 
   let state = factory_loop.get_state(loop) |> factory_loop.unwrap_state
@@ -382,7 +407,13 @@ pub fn dispatcher_handles_multiple_beads_test() {
       Ok(signal_bus.LoopSpawned),
       Ok(signal_bus.LoopSpawned)
     -> Nil
-    _, _, _ -> should.fail()
+    _, _, _ -> {
+      factory_loop.shutdown(loop1)
+      factory_loop.shutdown(loop2)
+      factory_loop.shutdown(loop3)
+      signal_bus.shutdown(bus)
+      should.fail()
+    }
   }
 
   factory_loop.shutdown(loop1)
@@ -590,7 +621,11 @@ pub fn full_pipeline_execution_test() {
   // Verify LoopSpawned signal broadcast at task creation
   case process.receive(spawned_sub, 2000) {
     Ok(signal_bus.LoopSpawned) -> Nil
-    _ -> should.fail()
+    _ -> {
+      factory_loop.shutdown(loop)
+      signal_bus.shutdown(bus)
+      should.fail()
+    }
   }
 
   let state0 = factory_loop.get_state(loop) |> factory_loop.unwrap_state
@@ -644,7 +679,11 @@ pub fn full_pipeline_execution_test() {
   // Verify LoopComplete signal broadcast at deployment completion
   case process.receive(complete_sub, 2000) {
     Ok(signal_bus.LoopComplete) -> Nil
-    _ -> should.fail()
+    _ -> {
+      factory_loop.shutdown(loop)
+      signal_bus.shutdown(bus)
+      should.fail()
+    }
   }
 
   // Final state validation: task deployed, iteration incremented
@@ -825,7 +864,11 @@ pub fn full_pipeline_signal_broadcast_test() {
   // LoopSpawned broadcasts immediately on start_link
   case process.receive(spawned_sub, 2000) {
     Ok(signal_bus.LoopSpawned) -> Nil
-    _ -> should.fail()
+    _ -> {
+      factory_loop.shutdown(loop)
+      signal_bus.shutdown(bus)
+      should.fail()
+    }
   }
 
   // Execute full pipeline
@@ -841,14 +884,26 @@ pub fn full_pipeline_signal_broadcast_test() {
   // LoopComplete broadcasts on successful completion
   case process.receive(complete_sub, 2000) {
     Ok(signal_bus.LoopComplete) -> Nil
-    _ -> should.fail()
+    _ -> {
+      factory_loop.shutdown(loop)
+      signal_bus.shutdown(bus)
+      should.fail()
+    }
   }
 
   // LoopFailed should NOT have been broadcast (using timeout to verify no message)
   case process.receive(failed_sub, 500) {
-    Ok(signal_bus.LoopFailed) -> should.fail()
+    Ok(signal_bus.LoopFailed) -> {
+      factory_loop.shutdown(loop)
+      signal_bus.shutdown(bus)
+      should.fail()
+    }
     Error(Nil) -> Nil
-    Ok(_) -> should.fail()
+    Ok(_) -> {
+      factory_loop.shutdown(loop)
+      signal_bus.shutdown(bus)
+      should.fail()
+    }
   }
 
   let final_state = factory_loop.get_state(loop) |> factory_loop.unwrap_state

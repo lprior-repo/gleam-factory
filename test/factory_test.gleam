@@ -1846,11 +1846,17 @@ pub fn workspace_manager_destroy_workspace_removes_directory_and_state_test() {
       // Verify the workspace is no longer in state
       let assert Ok(workspaces_after) =
         workspace_manager.query_workspaces(manager_subject)
-      workspaces_after
-      |> list_length
-      |> should.equal(0)
+      let result =
+        workspaces_after
+        |> list_length
+        |> should.equal(0)
+      workspace_manager.shutdown(manager_subject)
+      result
     }
-    Error(_msg) -> should.fail()
+    Error(_msg) -> {
+      workspace_manager.shutdown(manager_subject)
+      should.fail()
+    }
   }
 }
 
@@ -1873,8 +1879,14 @@ pub fn workspace_manager_destroy_workspace_nonexistent_id_returns_error_test() {
 
   // Assert: Should return Error, not crash
   case result {
-    Ok(_) -> should.fail()
-    Error(_msg) -> Nil
+    Ok(_) -> {
+      workspace_manager.shutdown(manager_subject)
+      should.fail()
+    }
+    Error(_msg) -> {
+      workspace_manager.shutdown(manager_subject)
+      Nil
+    }
     // Graceful error handling
   }
 }
@@ -1917,11 +1929,17 @@ pub fn workspace_manager_destroy_workspace_handles_reflink_type_test() {
       // Verify it was removed from state
       let assert Ok(remaining) =
         workspace_manager.query_workspaces(manager_subject)
-      remaining
-      |> list_length
-      |> should.equal(0)
+      let result =
+        remaining
+        |> list_length
+        |> should.equal(0)
+      workspace_manager.shutdown(manager_subject)
+      result
     }
-    Error(_msg) -> should.fail()
+    Error(_msg) -> {
+      workspace_manager.shutdown(manager_subject)
+      should.fail()
+    }
   }
 }
 
@@ -1995,7 +2013,10 @@ pub fn workspace_manager_destroy_workspace_removes_filesystem_directory_test() {
       // Verify the marker file is actually removed from filesystem
       // If the directory was deleted, the file inside should also be gone
       case simplifile.read(marker_file) {
-        Ok(_) -> should.fail()
+        Ok(_) -> {
+          workspace_manager.shutdown(manager_subject)
+          should.fail()
+        }
         // File still exists - directory not deleted!
         Error(_) -> Nil
         // File is gone - directory was deleted correctly
@@ -2004,11 +2025,17 @@ pub fn workspace_manager_destroy_workspace_removes_filesystem_directory_test() {
       // Verify workspace is removed from state
       let assert Ok(remaining) =
         workspace_manager.query_workspaces(manager_subject)
-      remaining
-      |> list_length
-      |> should.equal(0)
+      let result =
+        remaining
+        |> list_length
+        |> should.equal(0)
+      workspace_manager.shutdown(manager_subject)
+      result
     }
-    Error(_msg) -> should.fail()
+    Error(_msg) -> {
+      workspace_manager.shutdown(manager_subject)
+      should.fail()
+    }
   }
 }
 
@@ -2046,13 +2073,20 @@ pub fn create_workspace_reflink_uses_cp_reflink_command_test() {
 
       case simplifile.verify_is_directory(workspace.path) {
         Ok(True) -> Nil
-        _ -> should.fail()
+        _ -> {
+          workspace_manager.shutdown(manager_subject)
+          should.fail()
+        }
       }
 
       let _ = process.run_command("rm", ["-rf", temp_source], "/tmp")
+      workspace_manager.shutdown(manager_subject)
       Nil
     }
-    Error(_) -> should.fail()
+    Error(_) -> {
+      workspace_manager.shutdown(manager_subject)
+      should.fail()
+    }
   }
 }
 
@@ -2131,19 +2165,32 @@ pub fn create_workspace_jj_creates_isolated_bookmark_test() {
             process.Success(output, _, _) -> {
               case contains_substring(output, "feat/" <> slug) {
                 True -> Nil
-                False -> should.fail()
+                False -> {
+                  workspace_manager.shutdown(manager_subject)
+                  should.fail()
+                }
               }
             }
-            _ -> should.fail()
+            _ -> {
+              workspace_manager.shutdown(manager_subject)
+              should.fail()
+            }
           }
-        Error(_) -> should.fail()
+        Error(_) -> {
+          workspace_manager.shutdown(manager_subject)
+          should.fail()
+        }
       }
 
       let _ = process.run_command("rm", ["-rf", temp_source], "/tmp")
       let _ = process.run_command("rm", ["-rf", workspace.path], "/tmp")
+      workspace_manager.shutdown(manager_subject)
       Nil
     }
-    Error(_) -> should.fail()
+    Error(_) -> {
+      workspace_manager.shutdown(manager_subject)
+      should.fail()
+    }
   }
 }
 
@@ -2165,13 +2212,21 @@ pub fn signal_bus_broadcast_reaches_all_subscribers_test() {
 
   case erl_process.receive(subscriber_1, 1000) {
     Ok(signal_bus.TestPassing) -> Nil
-    _ -> should.fail()
+    _ -> {
+      signal_bus.shutdown(bus)
+      should.fail()
+    }
   }
 
   case erl_process.receive(subscriber_2, 1000) {
     Ok(signal_bus.TestPassing) -> Nil
-    _ -> should.fail()
+    _ -> {
+      signal_bus.shutdown(bus)
+      should.fail()
+    }
   }
+
+  signal_bus.shutdown(bus)
 }
 
 /// Test golden_master.start_link() creates actor with path.
@@ -2179,8 +2234,17 @@ pub fn golden_master_start_link_returns_subject_test() {
   let path = "/dev/shm/golden-master"
   let result = golden_master.start_link(path)
 
-  result
-  |> should.be_ok
+  case result {
+    Ok(master) -> {
+      golden_master.shutdown(master)
+      result
+      |> should.be_ok
+    }
+    Error(_) -> {
+      result
+      |> should.be_ok
+    }
+  }
 }
 
 /// Test fs/read_text_file handler reads file content.
