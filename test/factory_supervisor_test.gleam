@@ -192,7 +192,10 @@ pub fn supervisor_startup_error_test() {
     )
 
   case factory_supervisor.start_link(config) {
-    Ok(_) -> Nil
+    Ok(started) -> {
+      factory_supervisor.shutdown(started)
+      Nil
+    }
     Error(factory_supervisor.InitFailed(_)) -> Nil
   }
   |> should.equal(Nil)

@@ -69,7 +69,11 @@ pub fn transition_from_green_to_red_broadcasts_test_failure_test() {
   process.sleep(100)
   case process.receive(subscriber, 100) {
     Error(Nil) -> Nil
-    Ok(_) -> panic as "Expected no TestFailure from Red->Green"
+    Ok(_) -> {
+      heartbeat.shutdown(hb)
+      signal_bus.shutdown(bus)
+      panic as "Expected no TestFailure from Red->Green"
+    }
   }
 
   let status = heartbeat.get_status(hb)
@@ -100,7 +104,11 @@ pub fn transition_from_red_to_green_broadcasts_test_passing_test() {
 
   case process.receive(passing_sub, 1000) {
     Ok(signal_bus.TestPassing) -> Nil
-    _ -> panic as "Expected TestPassing signal on transition"
+    _ -> {
+      heartbeat.shutdown(hb_pass)
+      signal_bus.shutdown(bus)
+      panic as "Expected TestPassing signal on transition"
+    }
   }
 
   let status_final = heartbeat.get_status(hb_pass)
@@ -129,7 +137,11 @@ pub fn no_signal_broadcast_when_status_unchanged_green_test() {
   process.sleep(100)
   case process.receive(subscriber, 100) {
     Ok(signal_bus.TestPassing) -> Nil
-    _ -> panic as "Expected initial TestPassing from Red->Green"
+    _ -> {
+      heartbeat.shutdown(hb)
+      signal_bus.shutdown(bus)
+      panic as "Expected initial TestPassing from Red->Green"
+    }
   }
 
   heartbeat.tick(hb)
@@ -139,7 +151,11 @@ pub fn no_signal_broadcast_when_status_unchanged_green_test() {
   process.sleep(100)
 
   case process.receive(subscriber, 200) {
-    Ok(_) -> panic as "Expected no signal when status unchanged"
+    Ok(_) -> {
+      heartbeat.shutdown(hb)
+      signal_bus.shutdown(bus)
+      panic as "Expected no signal when status unchanged"
+    }
     Error(Nil) -> Nil
   }
 
@@ -170,7 +186,11 @@ pub fn no_signal_broadcast_when_status_unchanged_red_test() {
   process.sleep(100)
 
   case process.receive(subscriber, 200) {
-    Ok(_) -> panic as "Expected no signal when status unchanged"
+    Ok(_) -> {
+      heartbeat.shutdown(hb)
+      signal_bus.shutdown(bus)
+      panic as "Expected no signal when status unchanged"
+    }
     Error(Nil) -> Nil
   }
 

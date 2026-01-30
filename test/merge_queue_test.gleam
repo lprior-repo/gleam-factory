@@ -70,7 +70,11 @@ pub fn report_test_result_success_broadcasts_patch_accepted_test() {
 
   case process.receive(accepted_sub, 500) {
     Ok(signal_bus.PatchAccepted(_)) -> Nil
-    _ -> panic as "Expected PatchAccepted signal"
+    _ -> {
+      merge_queue.shutdown(queue)
+      signal_bus.shutdown(bus)
+      panic as "Expected PatchAccepted signal"
+    }
   }
 
   merge_queue.shutdown(queue)
@@ -98,7 +102,11 @@ pub fn report_test_result_failure_broadcasts_patch_rejected_test() {
     Ok(signal_bus.PatchRejected(reason)) -> {
       reason |> should.equal(expected_reason)
     }
-    _ -> panic as "Expected PatchRejected signal"
+    _ -> {
+      merge_queue.shutdown(queue)
+      signal_bus.shutdown(bus)
+      panic as "Expected PatchRejected signal"
+    }
   }
 
   merge_queue.shutdown(queue)
@@ -154,7 +162,11 @@ pub fn only_matching_patch_hash_accepts_test() {
 
   // Verify no PatchAccepted was sent
   case process.receive(accepted_sub, 100) {
-    Ok(_) -> panic as "Should not have sent PatchAccepted for different hash"
+    Ok(_) -> {
+      merge_queue.shutdown(queue)
+      signal_bus.shutdown(bus)
+      panic as "Should not have sent PatchAccepted for different hash"
+    }
     Error(Nil) -> Nil
   }
 

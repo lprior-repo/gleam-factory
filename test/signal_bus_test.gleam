@@ -36,7 +36,10 @@ pub fn subscribe_and_publish_test() {
 
   case process.receive(subscriber, 1000) {
     Ok(signal_bus.TestPassing) -> Nil
-    _ -> panic as "Expected TestPassing signal"
+    _ -> {
+      signal_bus.shutdown(bus)
+      panic as "Expected TestPassing signal"
+    }
   }
 
   signal_bus.shutdown(bus)
@@ -56,17 +59,26 @@ pub fn multiple_subscribers_test() {
 
   case process.receive(sub1, 1000) {
     Ok(signal_bus.TestFailure) -> Nil
-    _ -> panic as "sub1 expected TestFailure"
+    _ -> {
+      signal_bus.shutdown(bus)
+      panic as "sub1 expected TestFailure"
+    }
   }
 
   case process.receive(sub2, 1000) {
     Ok(signal_bus.TestFailure) -> Nil
-    _ -> panic as "sub2 expected TestFailure"
+    _ -> {
+      signal_bus.shutdown(bus)
+      panic as "sub2 expected TestFailure"
+    }
   }
 
   case process.receive(sub3, 1000) {
     Ok(signal_bus.TestFailure) -> Nil
-    _ -> panic as "sub3 expected TestFailure"
+    _ -> {
+      signal_bus.shutdown(bus)
+      panic as "sub3 expected TestFailure"
+    }
   }
 
   signal_bus.shutdown(bus)
@@ -86,12 +98,18 @@ pub fn different_signal_types_test() {
 
   case process.receive(sub_passing, 1000) {
     Ok(signal_bus.TestPassing) -> Nil
-    _ -> panic as "Expected TestPassing"
+    _ -> {
+      signal_bus.shutdown(bus)
+      panic as "Expected TestPassing"
+    }
   }
 
   case process.receive(sub_failure, 100) {
     Error(Nil) -> Nil
-    _ -> panic as "sub_failure should not receive TestPassing"
+    _ -> {
+      signal_bus.shutdown(bus)
+      panic as "sub_failure should not receive TestPassing"
+    }
   }
 
   signal_bus.shutdown(bus)
@@ -107,7 +125,10 @@ pub fn broadcast_alias_test() {
 
   case process.receive(subscriber, 1000) {
     Ok(signal_bus.Evolution) -> Nil
-    _ -> panic as "Expected Evolution signal"
+    _ -> {
+      signal_bus.shutdown(bus)
+      panic as "Expected Evolution signal"
+    }
   }
 
   signal_bus.shutdown(bus)
@@ -142,12 +163,18 @@ pub fn multiple_signals_single_subscriber_test() {
 
   case process.receive(subscriber, 1000) {
     Ok(signal_bus.PatchProposed) -> Nil
-    _ -> panic as "Expected PatchProposed"
+    _ -> {
+      signal_bus.shutdown(bus)
+      panic as "Expected PatchProposed"
+    }
   }
 
   case process.receive(subscriber, 1000) {
     Ok(signal_bus.PatchAccepted(_)) -> Nil
-    _ -> panic as "Expected PatchAccepted"
+    _ -> {
+      signal_bus.shutdown(bus)
+      panic as "Expected PatchAccepted"
+    }
   }
 
   signal_bus.shutdown(bus)
@@ -175,12 +202,18 @@ pub fn subscriber_receives_in_order_test() {
 
   case process.receive(subscriber, 1000) {
     Ok(signal_bus.LoopSpawned) -> Nil
-    _ -> panic as "Expected first LoopSpawned"
+    _ -> {
+      signal_bus.shutdown(bus)
+      panic as "Expected first LoopSpawned"
+    }
   }
 
   case process.receive(subscriber, 1000) {
     Ok(signal_bus.LoopSpawned) -> Nil
-    _ -> panic as "Expected second LoopSpawned"
+    _ -> {
+      signal_bus.shutdown(bus)
+      panic as "Expected second LoopSpawned"
+    }
   }
 
   signal_bus.shutdown(bus)
