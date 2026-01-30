@@ -4,7 +4,9 @@
 //// signals on red-to-green or green-to-red transitions.
 
 import gleam/dict
-import gleam/erlang/process.{type Subject, type Timer, cancel_timer, send_after}
+import gleam/erlang/process.{
+  type Pid, type Subject, type Timer, cancel_timer, kill, send_after,
+}
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -35,6 +37,7 @@ pub type HeartbeatMessage {
   Tick
   GetStatus(reply_with: Subject(TestStatus))
   StreamProgress(task_id: String, chunk: String)
+  TestResult(status: TestStatus)
   Shutdown
 }
 
@@ -48,6 +51,7 @@ type HeartbeatState {
     self_subject: Subject(HeartbeatMessage),
     shutting_down: Bool,
     timer_ref: Option(Timer),
+    test_runner_pid: Option(Pid),
   )
 }
 
@@ -71,6 +75,7 @@ pub fn start_link(
       self_subject: placeholder_subject,
       shutting_down: False,
       timer_ref: None,
+      test_runner_pid: None,
     )
   let builder = actor.new(initial) |> actor.on_message(handle_message)
   case actor.start(builder) {
@@ -107,6 +112,7 @@ fn handle_message(
     Tick -> handle_tick(state)
     StreamProgress(task_id:, chunk:) ->
       handle_stream_progress(state, task_id, chunk)
+    TestResult(status:) -> handle_test_result(state, status)
     Shutdown -> handle_shutdown(state)
   }
 }
@@ -133,12 +139,36 @@ fn handle_tick(
   case state.shutting_down {
     True -> actor.stop()
     False -> {
-      let new_status = run_tests(state.config)
-      let new_state = update_status(state, new_status)
+      let self_subject = state.self_subject
+      let config = state.config
+      let pid =
+        shell_process.start_linked(fn() {
+          let status = run_tests(config)
+          process.send(self_subject, TestResult(status:))
+        })
+      actor.continue(HeartbeatState(..state, test_runner_pid: Some(pid)))
+    }
+  }
+}
+
+fn handle_test_result(
+  state: HeartbeatState,
+  status: TestStatus,
+) -> actor.Next(HeartbeatState, HeartbeatMessage) {
+  case state.shutting_down {
+    True -> actor.stop()
+    False -> {
+      let new_state = update_status(state, status)
       let _ = cancel_existing_timer(state.timer_ref)
       let new_timer_ref =
         schedule_tick(state.self_subject, state.config.interval_ms)
-      actor.continue(HeartbeatState(..new_state, timer_ref: new_timer_ref))
+      actor.continue(
+        HeartbeatState(
+          ..new_state,
+          timer_ref: new_timer_ref,
+          test_runner_pid: None,
+        ),
+      )
     }
   }
 }
@@ -164,6 +194,10 @@ fn handle_shutdown(
   state: HeartbeatState,
 ) -> actor.Next(HeartbeatState, HeartbeatMessage) {
   let _ = cancel_existing_timer(state.timer_ref)
+  case state.test_runner_pid {
+    Some(pid) -> kill(pid)
+    None -> Nil
+  }
   logging.log(logging.Info, "Heartbeat shutting down", dict.new())
   actor.stop()
 }

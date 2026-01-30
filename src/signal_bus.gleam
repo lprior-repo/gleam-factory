@@ -10,6 +10,8 @@ import signals
 
 const startup_timeout_ms = 5000
 
+const loop_timeout_ms = 100
+
 /// Signal types that can be published/subscribed.
 pub type Signal {
   TestFailure
@@ -135,8 +137,8 @@ fn bus_loop(
   state: SignalBusState,
   selector: process.Selector(SignalBusMessage),
 ) -> Nil {
-  case process.selector_receive_forever(selector) {
-    Subscribe(sig_type, subscriber) -> {
+  case process.selector_receive(selector, loop_timeout_ms) {
+    Ok(Subscribe(sig_type, subscriber)) -> {
       let subs = case dict.get(state.subscriptions, sig_type) {
         Ok(existing) -> [subscriber, ..existing]
         Error(Nil) -> [subscriber]
@@ -144,7 +146,7 @@ fn bus_loop(
       let new_subs = dict.insert(state.subscriptions, sig_type, subs)
       bus_loop(SignalBusState(subscriptions: new_subs), selector)
     }
-    Unsubscribe(sig_type, subscriber) -> {
+    Ok(Unsubscribe(sig_type, subscriber)) -> {
       let subs = case dict.get(state.subscriptions, sig_type) {
         Ok(existing) -> remove_subscriber(existing, subscriber, [])
         Error(Nil) -> []
@@ -152,7 +154,7 @@ fn bus_loop(
       let new_subs = dict.insert(state.subscriptions, sig_type, subs)
       bus_loop(SignalBusState(subscriptions: new_subs), selector)
     }
-    Publish(signal) -> {
+    Ok(Publish(signal)) -> {
       let sig_type = signal_type(signal)
       case dict.get(state.subscriptions, sig_type) {
         Ok(subscribers) -> notify_all(subscribers, signal)
@@ -160,13 +162,16 @@ fn bus_loop(
       }
       bus_loop(state, selector)
     }
-    ListSubscriptions(reply_with) -> {
+    Ok(ListSubscriptions(reply_with)) -> {
       process.send(reply_with, state.subscriptions)
       bus_loop(state, selector)
     }
-    Shutdown -> {
+    Ok(Shutdown) -> {
       logging.log(logging.Info, "Signal bus shutting down", dict.new())
       Nil
+    }
+    Error(Nil) -> {
+      bus_loop(state, selector)
     }
   }
 }

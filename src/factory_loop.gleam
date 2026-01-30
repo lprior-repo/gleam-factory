@@ -480,7 +480,7 @@ pub type GetStateResult {
 pub fn get_state(loop: Subject(LoopMessage)) -> GetStateResult {
   let reply = process.new_subject()
   process.send(loop, GetState(reply_with: reply))
-  case process.receive(reply, 5000) {
+  case process.receive(reply, 100) {
     Ok(state) -> GotState(state)
     Error(Nil) -> GetStateTimeout
   }

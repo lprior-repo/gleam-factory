@@ -64,7 +64,10 @@ fn handle_message(
   msg: GoldenMasterMessage,
 ) -> actor.Next(GoldenMasterState, GoldenMasterMessage) {
   case msg {
-    Shutdown -> actor.stop()
+    Shutdown -> {
+      process.kill(process.self())
+      actor.stop()
+    }
     GetHash(reply) -> {
       let result = get_hash_from_jj(state.path)
       process.send(reply, result)

@@ -19,7 +19,7 @@ import signal_bus
 import signal_handler
 import workspace_manager
 
-const shutdown_timeout_ms = 30_000
+const shutdown_timeout_ms = 1000
 
 pub type SupervisorConfig {
   SupervisorConfig(
@@ -165,6 +165,10 @@ pub fn start_and_wait(config: SupervisorConfig) -> Result(Nil, InitFailed) {
 /// Wait for shutdown signal and perform graceful shutdown
 fn wait_for_shutdown(started: Started) -> Nil {
   logging.log(logging.Info, "Waiting for shutdown signal", dict.new())
+  wait_for_shutdown_loop(started, 0)
+}
+
+fn wait_for_shutdown_loop(started: Started, iteration: Int) -> Nil {
   case process.receive(started.signal_handler_subject, shutdown_timeout_ms) {
     Ok(signal_handler.SignalReceived(signal)) -> {
       let signal_name = case signal {
@@ -182,7 +186,18 @@ fn wait_for_shutdown(started: Started) -> Nil {
       )
       graceful_shutdown(started)
     }
-    Error(Nil) -> wait_for_shutdown(started)
+    Error(Nil) -> {
+      case iteration % 10 {
+        0 ->
+          logging.log(
+            logging.Debug,
+            "Still waiting for shutdown signal",
+            dict.new(),
+          )
+        _ -> Nil
+      }
+      wait_for_shutdown_loop(started, iteration + 1)
+    }
   }
 }
 
@@ -251,35 +266,35 @@ fn graceful_shutdown(started: Started) -> Nil {
 
   logging.log(logging.Info, "Stopping beads watcher", dict.new())
   process.send_exit(started.beads_watcher_pid)
-  process.sleep(100)
+  process.sleep(10)
 
   logging.log(logging.Info, "Stopping factory dispatcher", dict.new())
   process.send_exit(started.factory_dispatcher_pid)
-  process.sleep(100)
+  process.sleep(10)
 
   logging.log(logging.Info, "Stopping heartbeat", dict.new())
   heartbeat.shutdown(started.heartbeat_subject)
-  process.sleep(100)
+  process.sleep(10)
 
   logging.log(logging.Info, "Stopping merge queue", dict.new())
   merge_queue.shutdown(started.merge_queue_subject)
-  process.sleep(100)
+  process.sleep(10)
 
   logging.log(logging.Info, "Stopping workspace manager", dict.new())
   workspace_manager.shutdown(started.workspace_manager_subject)
-  process.sleep(100)
+  process.sleep(10)
 
   logging.log(logging.Info, "Stopping resource governor", dict.new())
   resource_governor.shutdown(started.resource_governor_subject)
-  process.sleep(100)
+  process.sleep(10)
 
   logging.log(logging.Info, "Stopping golden master", dict.new())
   process.send(started.golden_master_subject, golden_master.Shutdown)
-  process.sleep(100)
+  process.sleep(10)
 
   logging.log(logging.Info, "Stopping signal bus", dict.new())
   signal_bus.shutdown(started.signal_bus_subject)
-  process.sleep(100)
+  process.sleep(10)
 
   signal_handler.teardown()
 

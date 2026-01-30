@@ -52,7 +52,10 @@ fn handle_message(
   msg: MergeQueueMessage,
 ) -> actor.Next(MergeQueueState, MergeQueueMessage) {
   case msg {
-    Shutdown -> actor.stop()
+    Shutdown -> {
+      logging.log(logging.Info, "Merge queue shutting down", dict.new())
+      actor.stop()
+    }
     GetAbsorbing(reply) -> {
       process.send(reply, state.absorbing)
       actor.continue(state)
