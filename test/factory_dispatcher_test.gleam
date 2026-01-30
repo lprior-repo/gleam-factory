@@ -1,5 +1,4 @@
 import factory_dispatcher
-import gleam/dict
 import gleeunit/should
 
 pub fn dispatcher_state_captures_signal_bus_test() {

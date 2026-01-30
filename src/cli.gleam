@@ -9,7 +9,7 @@ import gleam/string
 import persistence
 import repo
 import stages
-import stages_types.{type StagePreview}
+import stages_types
 import worktree
 
 pub type Command {

@@ -20,6 +20,7 @@ pub fn signal_received_captures_sigterm_test() {
   case msg {
     signal_handler.SignalReceived(signal_handler.Sigterm) ->
       should.be_true(True)
+    signal_handler.SignalReceived(signal_handler.Sigint) -> should.fail()
   }
 }
 
@@ -27,6 +28,7 @@ pub fn signal_received_captures_sigint_test() {
   let msg = signal_handler.SignalReceived(signal_handler.Sigint)
   case msg {
     signal_handler.SignalReceived(signal_handler.Sigint) -> should.be_true(True)
+    signal_handler.SignalReceived(signal_handler.Sigterm) -> should.fail()
   }
 }
 
@@ -36,12 +38,10 @@ pub fn can_discriminate_sigterm_from_sigint_test() {
 
   case term {
     signal_handler.Sigterm -> should.be_true(True)
-    signal_handler.Sigint -> should.fail()
   }
 
   case int_ {
     signal_handler.Sigint -> should.be_true(True)
-    signal_handler.Sigterm -> should.fail()
   }
 }
 

@@ -15,7 +15,6 @@ import heartbeat
 import merge_queue
 import signal_bus
 import signals
-import stages
 import stages_types
 
 pub fn main() {

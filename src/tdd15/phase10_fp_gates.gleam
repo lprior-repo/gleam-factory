@@ -2,6 +2,7 @@ import gleam/json
 import gleam/list
 import gleam/option
 import gleam/result
+import llm
 import llm_router
 import tdd15/state
 import tdd15/types

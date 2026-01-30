@@ -33,6 +33,7 @@ pub fn gauntlet_result_passed_captures_stages_test() {
   let result = verification_gauntlet.Passed(stages_run: 3)
   case result {
     verification_gauntlet.Passed(stages_run: 3) -> should.be_true(True)
+    verification_gauntlet.Passed(..) -> should.fail()
   }
 }
 
@@ -45,6 +46,7 @@ pub fn gauntlet_result_failed_captures_stage_test() {
   case result {
     verification_gauntlet.Failed(stage: verification_gauntlet.Build, ..) ->
       should.be_true(True)
+    verification_gauntlet.Failed(..) -> should.fail()
   }
 }
 
@@ -57,6 +59,7 @@ pub fn gauntlet_result_failed_captures_error_test() {
   case result {
     verification_gauntlet.Failed(error: "test error", ..) ->
       should.be_true(True)
+    verification_gauntlet.Failed(..) -> should.fail()
   }
 }
 
@@ -100,6 +103,7 @@ pub fn passed_with_zero_stages_test() {
   let result = verification_gauntlet.Passed(stages_run: 0)
   case result {
     verification_gauntlet.Passed(stages_run: 0) -> should.be_true(True)
+    verification_gauntlet.Passed(..) -> should.fail()
   }
 }
 
@@ -107,6 +111,7 @@ pub fn passed_with_multiple_stages_test() {
   let result = verification_gauntlet.Passed(stages_run: 10)
   case result {
     verification_gauntlet.Passed(stages_run: 10) -> should.be_true(True)
+    verification_gauntlet.Passed(..) -> should.fail()
   }
 }
 
@@ -120,7 +125,6 @@ pub fn can_discriminate_passed_from_failed_test() {
 
   case passed {
     verification_gauntlet.Passed(..) -> should.be_true(True)
-    verification_gauntlet.Failed(..) -> should.fail()
   }
 
   case failed {

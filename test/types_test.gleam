@@ -28,7 +28,7 @@ pub fn git_hash_to_string_test() {
   let result = types.git_hash_parse(hash)
   let parsed = case result {
     Ok(g) -> g
-    Error(_) -> panic("Should not happen")
+    Error(_) -> panic as "Should not happen"
   }
   types.git_hash_to_string(parsed)
   |> should.equal(hash)
