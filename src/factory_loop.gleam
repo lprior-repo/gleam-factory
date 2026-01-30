@@ -148,34 +148,44 @@ fn init_tdd15(
       }
       let route = phases.route_for_complexty(phases_complexity)
       let phases.Route(numbers) = route
-      let assert Ok(start_num) = phases.route_start(route)
-      let assert Ok(start_phase) = phases.phase_by_number(start_num)
-      let phases.PhaseMeta(number: _, ..) = phases.phase_meta(start_phase)
+      case phases.route_start(route) {
+        Ok(start_num) ->
+          case phases.phase_by_number(start_num) {
+            Ok(start_phase) -> {
+              case phases.phase_meta(start_phase) {
+                Ok(phases.PhaseMeta(number: _, ..)) -> {
+                  let progress =
+                    state.Progress(
+                      bead_id: bead_id,
+                      language: state.Gleam,
+                      complexity: complexity,
+                      route: numbers,
+                      phases: dict.new(),
+                      current_phase: start_num,
+                      last_commit: "init",
+                    )
 
-      let progress =
-        state.Progress(
-          bead_id: bead_id,
-          language: state.Gleam,
-          complexity: complexity,
-          route: numbers,
-          phases: dict.new(),
-          current_phase: start_num,
-          last_commit: "init",
-        )
-
-      case state.save_progress(bead_id, progress) {
-        Ok(_) -> {
-          Ok(
-            FactoryLoopState(
-              ..state,
-              bead_id: option.Some(bead_id),
-              tdd15_route: option.Some(route),
-              current_tdd15_phase: option.Some(start_phase),
-              phase: TDD15Phase(start_num),
-            ),
-          )
-        }
-        Error(_) -> Error("Failed to save progress")
+                  case state.save_progress(bead_id, progress) {
+                    Ok(_) -> {
+                      Ok(
+                        FactoryLoopState(
+                          ..state,
+                          bead_id: option.Some(bead_id),
+                          tdd15_route: option.Some(route),
+                          current_tdd15_phase: option.Some(start_phase),
+                          phase: TDD15Phase(start_num),
+                        ),
+                      )
+                    }
+                    Error(_) -> Error("Failed to save progress")
+                  }
+                }
+                Error(_) -> Error("Invalid phase metadata")
+              }
+            }
+            Error(_) -> Error("Invalid start phase")
+          }
+        Error(_) -> Error("Invalid route start")
       }
     }
     Error(_) -> Error("Failed to init cache")
@@ -271,14 +281,17 @@ fn handle_event_transition(
     TestPassed, _, TDD15Phase(_) -> {
       case state.current_tdd15_phase {
         option.Some(phase) -> {
-          let phases.PhaseMeta(number: phase_num, ..) = phases.phase_meta(phase)
-          case advance_tdd15_phase(state, phase_num, True) {
-            Ok(updated) -> updated
-            Error(err) -> {
-              let msg = "TDD15 advance failed: " <> err
-              logging.log(logging.Error, msg, dict.new())
-              state
-            }
+          case phases.phase_meta(phase) {
+            Ok(phases.PhaseMeta(number: phase_num, ..)) ->
+              case advance_tdd15_phase(state, phase_num, True) {
+                Ok(updated) -> updated
+                Error(err) -> {
+                  let msg = "TDD15 advance failed: " <> err
+                  logging.log(logging.Error, msg, dict.new())
+                  state
+                }
+              }
+            Error(_) -> state
           }
         }
         option.None -> state
@@ -327,14 +340,17 @@ fn handle_event_transition(
     TestFailed, _, TDD15Phase(_) -> {
       case state.current_tdd15_phase {
         option.Some(phase) -> {
-          let phases.PhaseMeta(number: phase_num, ..) = phases.phase_meta(phase)
-          case advance_tdd15_phase(state, phase_num, False) {
-            Ok(updated) -> updated
-            Error(err) -> {
-              let msg = "TDD15 advance failed: " <> err
-              logging.log(logging.Error, msg, dict.new())
-              state
-            }
+          case phases.phase_meta(phase) {
+            Ok(phases.PhaseMeta(number: phase_num, ..)) ->
+              case advance_tdd15_phase(state, phase_num, False) {
+                Ok(updated) -> updated
+                Error(err) -> {
+                  let msg = "TDD15 advance failed: " <> err
+                  logging.log(logging.Error, msg, dict.new())
+                  state
+                }
+              }
+            Error(_) -> state
           }
         }
         option.None -> state
@@ -356,58 +372,77 @@ fn advance_tdd15_phase(
 ) -> Result(FactoryLoopState, String) {
   case state.bead_id, state.tdd15_route {
     option.Some(bead_id), option.Some(route) -> {
-      let assert Ok(progress) = state.load_progress(bead_id)
+      case state.load_progress(bead_id) {
+        Ok(progress) -> {
+          let updated_progress = case passed {
+            True -> {
+              let updated =
+                state.update_phase_status(
+                  progress,
+                  current_phase,
+                  state.Completed,
+                )
+              state.mark_gate_result(updated, current_phase, True)
+            }
+            False -> {
+              let updated =
+                state.update_phase_status(progress, current_phase, state.Failed)
+              state.increment_attempt(updated, current_phase)
+            }
+          }
 
-      let updated_progress = case passed {
-        True -> {
-          let updated =
-            state.update_phase_status(progress, current_phase, state.Completed)
-          state.mark_gate_result(updated, current_phase, True)
+          case state.save_progress(bead_id, updated_progress) {
+            Ok(_) -> {
+              case phases.phase_by_number(current_phase) {
+                Ok(current) ->
+                  case phases.next_phase(current, route) {
+                    Ok(next_phase) -> {
+                      case phases.phase_meta(next_phase) {
+                        Ok(phases.PhaseMeta(number: next_num, ..)) -> {
+                          let next_progress =
+                            state.update_phase_status(
+                              updated_progress,
+                              next_num,
+                              state.InProgress,
+                            )
+                          case state.save_progress(bead_id, next_progress) {
+                            Ok(_) -> {
+                              signal_bus.broadcast(
+                                state.signal_bus,
+                                signal_bus.TDD15PhaseComplete(next_num, passed),
+                              )
+
+                              Ok(
+                                FactoryLoopState(
+                                  ..state,
+                                  current_tdd15_phase: option.Some(next_phase),
+                                  tests_were_green: passed,
+                                ),
+                              )
+                            }
+                            Error(_) -> Error("Failed to save next progress")
+                          }
+                        }
+                        Error(_) -> Error("Invalid next phase metadata")
+                      }
+                    }
+                    Error(_) -> {
+                      Ok(
+                        FactoryLoopState(
+                          ..state,
+                          phase: Completed,
+                          current_tdd15_phase: option.None,
+                        ),
+                      )
+                    }
+                  }
+                Error(_) -> Error("Invalid current phase number")
+              }
+            }
+            Error(_) -> Error("Failed to save updated progress")
+          }
         }
-        False -> {
-          let updated =
-            state.update_phase_status(progress, current_phase, state.Failed)
-          state.increment_attempt(updated, current_phase)
-        }
-      }
-
-      let assert Ok(_) = state.save_progress(bead_id, updated_progress)
-
-      let assert Ok(current) = phases.phase_by_number(current_phase)
-      case phases.next_phase(current, route) {
-        Ok(next_phase) -> {
-          let phases.PhaseMeta(number: next_num, ..) =
-            phases.phase_meta(next_phase)
-          let next_progress =
-            state.update_phase_status(
-              updated_progress,
-              next_num,
-              state.InProgress,
-            )
-          let assert Ok(_) = state.save_progress(bead_id, next_progress)
-
-          signal_bus.broadcast(
-            state.signal_bus,
-            signal_bus.TDD15PhaseComplete(next_num, passed),
-          )
-
-          Ok(
-            FactoryLoopState(
-              ..state,
-              current_tdd15_phase: option.Some(next_phase),
-              tests_were_green: passed,
-            ),
-          )
-        }
-        Error(_) -> {
-          Ok(
-            FactoryLoopState(
-              ..state,
-              phase: Completed,
-              current_tdd15_phase: option.None,
-            ),
-          )
-        }
+        Error(_) -> Error("Failed to load progress")
       }
     }
     _, _ -> Error("TDD15 not initialized")
@@ -477,6 +512,10 @@ pub type GetStateResult {
   GetStateTimeout
 }
 
+pub type StateError {
+  LoopUnresponsive
+}
+
 pub fn get_state(loop: Subject(LoopMessage)) -> GetStateResult {
   let reply = process.new_subject()
   process.send(loop, GetState(reply_with: reply))
@@ -486,10 +525,12 @@ pub fn get_state(loop: Subject(LoopMessage)) -> GetStateResult {
   }
 }
 
-pub fn unwrap_state(result: GetStateResult) -> FactoryLoopState {
+pub fn unwrap_state(
+  result: GetStateResult,
+) -> Result(FactoryLoopState, StateError) {
   case result {
-    GotState(state) -> state
-    GetStateTimeout -> panic as "get_state timed out - loop unresponsive"
+    GotState(state) -> Ok(state)
+    GetStateTimeout -> Error(LoopUnresponsive)
   }
 }
 

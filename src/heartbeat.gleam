@@ -195,7 +195,14 @@ fn handle_shutdown(
 ) -> actor.Next(HeartbeatState, HeartbeatMessage) {
   let _ = cancel_existing_timer(state.timer_ref)
   case state.test_runner_pid {
-    Some(pid) -> kill(pid)
+    Some(pid) -> {
+      process.send_exit(pid)
+      process.sleep(100)
+      case process.is_alive(pid) {
+        True -> kill(pid)
+        False -> Nil
+      }
+    }
     None -> Nil
   }
   logging.log(logging.Info, "Heartbeat shutting down", dict.new())

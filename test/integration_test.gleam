@@ -104,7 +104,8 @@ pub fn factory_loop_starts_in_implementing_phase_test() {
 
   let assert Ok(loop) = factory_loop.start_link("loop-1", bead, "/tmp/ws", bus)
 
-  let state = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(state) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state.phase
   |> should.equal(factory_loop.Implementing)
   state.task_id
@@ -132,27 +133,31 @@ pub fn factory_loop_phase_transitions_test() {
   // First TestPassed: Implementing -> Reviewing (green_count = 1)
   factory_loop.advance(loop, factory_loop.TestPassed)
   process.sleep(100)
-  let state1 = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(state1) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state1.phase
   |> should.equal(factory_loop.Reviewing)
 
   // Second TestPassed: stay in Reviewing (green_count = 2)
   factory_loop.advance(loop, factory_loop.TestPassed)
   process.sleep(100)
-  let state2 = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(state2) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state2.phase
   |> should.equal(factory_loop.Reviewing)
 
   // Third TestPassed: Reviewing -> Pushing (green_count = 3, triggers approval gate)
   factory_loop.advance(loop, factory_loop.TestPassed)
   process.sleep(100)
-  let state3 = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(state3) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state3.phase
   |> should.equal(factory_loop.Pushing)
 
   factory_loop.advance(loop, factory_loop.PushSuccess)
   process.sleep(100)
-  let state4 = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(state4) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state4.phase
   |> should.equal(factory_loop.Completed)
 
@@ -177,7 +182,8 @@ pub fn factory_loop_failure_transitions_test() {
   factory_loop.advance(loop, factory_loop.TestPassed)
   factory_loop.advance(loop, factory_loop.TestFailed)
   process.sleep(100)
-  let state = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(state) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state.phase
   |> should.equal(factory_loop.Failed)
 
@@ -203,13 +209,15 @@ pub fn factory_loop_rebase_flow_test() {
   factory_loop.advance(loop, factory_loop.TestPassed)
   factory_loop.advance(loop, factory_loop.PushConflict)
   process.sleep(100)
-  let state1 = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(state1) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state1.phase
   |> should.equal(factory_loop.Rebasing)
 
   factory_loop.advance(loop, factory_loop.RebaseSuccess)
   process.sleep(100)
-  let state2 = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(state2) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state2.phase
   |> should.equal(factory_loop.Pushing)
 
@@ -352,7 +360,8 @@ pub fn dispatcher_spawns_loop_on_bead_assigned_test() {
     }
   }
 
-  let state = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(state) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state.task_id
   |> should.equal("disp-1")
 
@@ -448,7 +457,8 @@ pub fn e2e_single_bead_full_lifecycle_test() {
 
   process.sleep(200)
 
-  let final_state = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(final_state) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   final_state.phase
   |> should.equal(factory_loop.Completed)
   final_state.task_id
@@ -529,7 +539,8 @@ pub fn e2e_error_recovery_test() {
 
   let assert Ok(signal_bus.LoopFailed) = process.receive(loop_fail_sub, 2000)
 
-  let final_state = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(final_state) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   final_state.phase
   |> should.equal(factory_loop.Failed)
 
@@ -558,21 +569,24 @@ pub fn e2e_rebase_recovery_test() {
   factory_loop.advance(loop, factory_loop.PushConflict)
   process.sleep(200)
 
-  let state1 = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(state1) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state1.phase
   |> should.equal(factory_loop.Rebasing)
 
   factory_loop.advance(loop, factory_loop.RebaseSuccess)
   process.sleep(200)
 
-  let state2 = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(state2) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state2.phase
   |> should.equal(factory_loop.Pushing)
 
   factory_loop.advance(loop, factory_loop.PushSuccess)
   process.sleep(200)
 
-  let state3 = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(state3) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state3.phase
   |> should.equal(factory_loop.Completed)
 
@@ -628,7 +642,8 @@ pub fn full_pipeline_execution_test() {
     }
   }
 
-  let state0 = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(state0) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state0.phase
   |> should.equal(factory_loop.Implementing)
   state0.task_id
@@ -644,7 +659,8 @@ pub fn full_pipeline_execution_test() {
   factory_loop.advance(loop, factory_loop.TestPassed)
   process.sleep(100)
 
-  let state1 = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(state1) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state1.phase
   |> should.equal(factory_loop.Reviewing)
   state1.iteration
@@ -654,7 +670,8 @@ pub fn full_pipeline_execution_test() {
   factory_loop.advance(loop, factory_loop.TestPassed)
   process.sleep(100)
 
-  let state2 = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(state2) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state2.phase
   |> should.equal(factory_loop.Reviewing)
 
@@ -662,7 +679,8 @@ pub fn full_pipeline_execution_test() {
   factory_loop.advance(loop, factory_loop.TestPassed)
   process.sleep(100)
 
-  let state3 = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(state3) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state3.phase
   |> should.equal(factory_loop.Pushing)
 
@@ -670,7 +688,8 @@ pub fn full_pipeline_execution_test() {
   factory_loop.advance(loop, factory_loop.PushSuccess)
   process.sleep(100)
 
-  let state4 = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(state4) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state4.phase
   |> should.equal(factory_loop.Completed)
   state4.task_id
@@ -687,7 +706,8 @@ pub fn full_pipeline_execution_test() {
   }
 
   // Final state validation: task deployed, iteration incremented
-  let final_state = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(final_state) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   final_state.phase
   |> should.equal(factory_loop.Completed)
   final_state.task_id
@@ -724,7 +744,8 @@ pub fn full_pipeline_with_stage_transitions_test() {
       bus,
     )
 
-  let state0 = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(state0) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state0.phase
   |> should.equal(factory_loop.Implementing)
 
@@ -733,7 +754,8 @@ pub fn full_pipeline_with_stage_transitions_test() {
   factory_loop.advance(loop, factory_loop.TestPassed)
   process.sleep(100)
 
-  let state1 = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(state1) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state1.phase
   |> should.equal(factory_loop.Reviewing)
   state1.iteration
@@ -742,7 +764,8 @@ pub fn full_pipeline_with_stage_transitions_test() {
   factory_loop.advance(loop, factory_loop.TestPassed)
   process.sleep(100)
 
-  let state2 = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(state2) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state2.phase
   |> should.equal(factory_loop.Reviewing)
   state2.green_count
@@ -752,14 +775,16 @@ pub fn full_pipeline_with_stage_transitions_test() {
   factory_loop.advance(loop, factory_loop.TestPassed)
   process.sleep(100)
 
-  let state3 = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(state3) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state3.phase
   |> should.equal(factory_loop.Pushing)
 
   factory_loop.advance(loop, factory_loop.PushSuccess)
   process.sleep(100)
 
-  let final_state = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(final_state) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   final_state.phase
   |> should.equal(factory_loop.Completed)
   final_state.task_id
@@ -800,7 +825,7 @@ pub fn full_pipeline_approval_gate_test() {
   factory_loop.advance(loop, factory_loop.TestPassed)
   process.sleep(100)
 
-  let state_at_reviewing =
+  let assert Ok(state_at_reviewing) =
     factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state_at_reviewing.phase
   |> should.equal(factory_loop.Reviewing)
@@ -809,7 +834,7 @@ pub fn full_pipeline_approval_gate_test() {
   factory_loop.advance(loop, factory_loop.TestPassed)
   process.sleep(100)
 
-  let state_after_approval =
+  let assert Ok(state_after_approval) =
     factory_loop.get_state(loop) |> factory_loop.unwrap_state
   state_after_approval.phase
   |> should.equal(factory_loop.Pushing)
@@ -818,7 +843,8 @@ pub fn full_pipeline_approval_gate_test() {
   factory_loop.advance(loop, factory_loop.PushSuccess)
   process.sleep(100)
 
-  let final_state = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(final_state) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   final_state.phase
   |> should.equal(factory_loop.Completed)
 
@@ -906,7 +932,8 @@ pub fn full_pipeline_signal_broadcast_test() {
     }
   }
 
-  let final_state = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(final_state) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
   final_state.phase
   |> should.equal(factory_loop.Completed)
 
@@ -949,7 +976,8 @@ pub fn full_pipeline_deployment_tracking_test() {
   process.sleep(100)
 
   // Verify final deployment state
-  let final_state = factory_loop.get_state(loop) |> factory_loop.unwrap_state
+  let assert Ok(final_state) =
+    factory_loop.get_state(loop) |> factory_loop.unwrap_state
 
   // Task deployed (Completed phase)
   final_state.phase

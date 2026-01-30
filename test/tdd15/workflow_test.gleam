@@ -37,14 +37,16 @@ pub fn route_start_test() {
 
 pub fn phase_meta_test() {
   let phase0 = phases.Phase(number: 0, name: "Triage")
-  let phases.PhaseMeta(number: num, name: name) = phases.phase_meta(phase0)
+  let assert Ok(phases.PhaseMeta(number: num, name: name)) =
+    phases.phase_meta(phase0)
   num
   |> should.equal(0)
   name
   |> should.equal("Triage")
 
   let phase15 = phases.Phase(number: 15, name: "Landing")
-  let phases.PhaseMeta(number: num15, name: name15) = phases.phase_meta(phase15)
+  let assert Ok(phases.PhaseMeta(number: num15, name: name15)) =
+    phases.phase_meta(phase15)
   num15
   |> should.equal(15)
   name15

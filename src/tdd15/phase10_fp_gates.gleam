@@ -18,9 +18,15 @@ pub fn execute_phase10_fp_gates(
   config: types.PhaseConfig,
 ) -> Result(types.FPGateResult, String) {
   let bead_id = config.bead_id
-  let assert Ok(progress) = state.load_progress(bead_id)
+  use progress <- result.try(
+    state.load_progress(bead_id)
+    |> result.map_error(fn(_) { "Failed to load progress for phase10" }),
+  )
   let updated = state.update_phase_status(progress, 10, state.InProgress)
-  let assert Ok(Nil) = state.save_progress(bead_id, updated)
+  use _ <- result.try(
+    state.save_progress(bead_id, updated)
+    |> result.map_error(fn(_) { "Failed to save progress for phase10" }),
+  )
   let checks = [
     types.FPGateCheck(
       id: 1,
@@ -75,44 +81,70 @@ pub fn execute_phase10_fp_gates(
           #("completion_tokens", json.int(response.usage.completion_tokens)),
           #("content", json.string(response.content)),
         ])
-      let assert Ok(Nil) =
+      use _ <- result.try(
         state.save_phase_output(bead_id, "phase10_fp_gates", output_data)
+        |> result.map_error(fn(_) { "Failed to save phase10 output" }),
+      )
       case parse_fp_gate_response(response.content) {
         Ok(fp_result) -> {
           let passed = calculate_fp_gate_pass(fp_result)
           case passed {
             True -> {
-              let assert Ok(progress) = state.load_progress(bead_id)
+              use progress <- result.try(
+                state.load_progress(bead_id)
+                |> result.map_error(fn(_) { "Failed to load progress" }),
+              )
               let updated =
                 state.update_phase_status(progress, 10, state.Completed)
               let updated = state.mark_gate_result(updated, 10, True)
-              let assert Ok(Nil) = state.save_progress(bead_id, updated)
+              use _ <- result.try(
+                state.save_progress(bead_id, updated)
+                |> result.map_error(fn(_) { "Failed to save progress" }),
+              )
               Ok(fp_result)
             }
             False -> {
-              let assert Ok(progress) = state.load_progress(bead_id)
+              use progress <- result.try(
+                state.load_progress(bead_id)
+                |> result.map_error(fn(_) { "Failed to load progress" }),
+              )
               let updated =
                 state.update_phase_status(progress, 10, state.Failed)
               let updated = state.increment_attempt(updated, 10)
-              let assert Ok(Nil) = state.save_progress(bead_id, updated)
+              use _ <- result.try(
+                state.save_progress(bead_id, updated)
+                |> result.map_error(fn(_) { "Failed to save progress" }),
+              )
               Ok(fp_result)
             }
           }
         }
         Error(_) -> {
-          let assert Ok(progress) = state.load_progress(bead_id)
+          use progress <- result.try(
+            state.load_progress(bead_id)
+            |> result.map_error(fn(_) { "Failed to load progress" }),
+          )
           let updated = state.update_phase_status(progress, 10, state.Failed)
           let updated = state.increment_attempt(updated, 10)
-          let assert Ok(Nil) = state.save_progress(bead_id, updated)
+          use _ <- result.try(
+            state.save_progress(bead_id, updated)
+            |> result.map_error(fn(_) { "Failed to save progress" }),
+          )
           Ok(types.FPGateResult(passed: False, checks: checks))
         }
       }
     }
     Error(_) -> {
-      let assert Ok(progress) = state.load_progress(bead_id)
+      use progress <- result.try(
+        state.load_progress(bead_id)
+        |> result.map_error(fn(_) { "Failed to load progress" }),
+      )
       let updated = state.update_phase_status(progress, 10, state.Failed)
       let updated = state.increment_attempt(updated, 10)
-      let assert Ok(Nil) = state.save_progress(bead_id, updated)
+      use _ <- result.try(
+        state.save_progress(bead_id, updated)
+        |> result.map_error(fn(_) { "Failed to save progress" }),
+      )
       Ok(types.FPGateResult(passed: False, checks: checks))
     }
   }

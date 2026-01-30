@@ -266,11 +266,11 @@ fn graceful_shutdown(started: Started) -> Nil {
 
   logging.log(logging.Info, "Stopping beads watcher", dict.new())
   process.send_exit(started.beads_watcher_pid)
-  process.sleep(10)
+  wait_for_process_exit(started.beads_watcher_pid, 100)
 
   logging.log(logging.Info, "Stopping factory dispatcher", dict.new())
   process.send_exit(started.factory_dispatcher_pid)
-  process.sleep(10)
+  wait_for_process_exit(started.factory_dispatcher_pid, 100)
 
   logging.log(logging.Info, "Stopping heartbeat", dict.new())
   heartbeat.shutdown(started.heartbeat_subject)
@@ -304,6 +304,26 @@ fn graceful_shutdown(started: Started) -> Nil {
     "All actors shutdown gracefully in " <> int.to_string(elapsed) <> "ms",
     dict.new(),
   )
+}
+
+fn wait_for_process_exit(pid: process.Pid, timeout_ms: Int) -> Nil {
+  case process.is_alive(pid) {
+    False -> Nil
+    True -> {
+      process.sleep(10)
+      case timeout_ms <= 10 {
+        True -> {
+          logging.log(
+            logging.Error,
+            "Process did not exit within timeout, forcefully killing",
+            dict.new(),
+          )
+          process.kill(pid)
+        }
+        False -> wait_for_process_exit(pid, timeout_ms - 10)
+      }
+    }
+  }
 }
 
 @external(erlang, "erlang", "monotonic_time")

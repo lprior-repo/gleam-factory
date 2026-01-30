@@ -84,8 +84,10 @@ pub fn call_claude_sync(
     |> request.set_header("content-type", "application/json")
     |> request.set_body(body)
 
+  let config = httpc.configure() |> httpc.timeout(30_000)
   use resp <- result.try(
-    httpc.send(final_req) |> result.replace_error("HTTP request failed"),
+    httpc.dispatch(config, final_req)
+    |> result.replace_error("HTTP request failed"),
   )
 
   case resp.status {
@@ -138,8 +140,10 @@ pub fn call_claude_stream(
     |> request.set_header("content-type", "application/json")
     |> request.set_body(body)
 
+  let config = httpc.configure() |> httpc.timeout(30_000)
   use resp <- result.try(
-    httpc.send(final_req) |> result.replace_error("HTTP request failed"),
+    httpc.dispatch(config, final_req)
+    |> result.replace_error("HTTP request failed"),
   )
 
   case resp.status {

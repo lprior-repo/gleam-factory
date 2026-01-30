@@ -14,6 +14,7 @@ pub type BroadcasterState {
     db_path: String,
     bus: Subject(signal_bus.SignalBusMessage),
     snapshot: bead_detector.BeadSnapshot,
+    shutdown: Bool,
   )
 }
 
@@ -23,35 +24,46 @@ pub fn start(
   bus: Subject(signal_bus.SignalBusMessage),
 ) -> process.Pid {
   let initial_snapshot = bead_detector.empty_snapshot()
-  let state = BroadcasterState(db_path:, bus:, snapshot: initial_snapshot)
+  let state =
+    BroadcasterState(
+      db_path:,
+      bus:,
+      snapshot: initial_snapshot,
+      shutdown: False,
+    )
 
   process.spawn(fn() { broadcast_loop(state) })
 }
 
 /// Main broadcast loop - detects changes and publishes signals
 fn broadcast_loop(state: BroadcasterState) -> Nil {
-  case bead_detector.detect_changes(state.db_path, state.snapshot) {
-    Ok(detection) -> {
-      // Broadcast signals for new beads
-      broadcast_new_beads(detection.new_beads, state.bus)
+  case state.shutdown {
+    True -> Nil
+    False -> {
+      case bead_detector.detect_changes(state.db_path, state.snapshot) {
+        Ok(detection) -> {
+          // Broadcast signals for new beads
+          broadcast_new_beads(detection.new_beads, state.bus)
 
-      // Broadcast signals for removed beads
-      let removed_ids =
-        detection.removed_beads
-        |> list.map(fn(b) { b.id })
-      broadcast_removed_beads(removed_ids, state.bus)
+          // Broadcast signals for removed beads
+          let removed_ids =
+            detection.removed_beads
+            |> list.map(fn(b) { b.id })
+          broadcast_removed_beads(removed_ids, state.bus)
 
-      let updated =
-        BroadcasterState(..state, snapshot: detection.current_snapshot)
+          let updated =
+            BroadcasterState(..state, snapshot: detection.current_snapshot)
 
-      // Continue polling
-      process.sleep(5000)
-      broadcast_loop(updated)
-    }
-    Error(_) -> {
-      // Retry on error
-      process.sleep(5000)
-      broadcast_loop(state)
+          // Continue polling
+          process.sleep(100)
+          broadcast_loop(updated)
+        }
+        Error(_) -> {
+          // Retry on error
+          process.sleep(100)
+          broadcast_loop(state)
+        }
+      }
     }
   }
 }

@@ -18,6 +18,10 @@ pub type PhaseMeta {
   PhaseMeta(number: Int, name: String)
 }
 
+pub type PhaseError {
+  InvalidPhaseNumber(Int)
+}
+
 pub fn route_for_complexty(complexty: Complexty) -> Route {
   case complexty {
     Simple -> Route([0, 4, 5, 6, 7, 10, 12, 15])
@@ -37,18 +41,18 @@ pub fn route_start(route: Route) -> Result(Int, Nil) {
   }
 }
 
-pub fn phase_meta(phase: Phase) -> PhaseMeta {
+pub fn phase_meta(phase: Phase) -> Result(PhaseMeta, PhaseError) {
   case phase {
-    Phase(number: 0, name: _) -> PhaseMeta(number: 0, name: "Triage")
-    Phase(number: 4, name: _) -> PhaseMeta(number: 4, name: "Red")
-    Phase(number: 5, name: _) -> PhaseMeta(number: 5, name: "Green")
-    Phase(number: 6, name: _) -> PhaseMeta(number: 6, name: "Refactor")
-    Phase(number: 7, name: _) -> PhaseMeta(number: 7, name: "Martin Fowler")
-    Phase(number: 10, name: _) -> PhaseMeta(number: 10, name: "FP Gates")
+    Phase(number: 0, name: _) -> Ok(PhaseMeta(number: 0, name: "Triage"))
+    Phase(number: 4, name: _) -> Ok(PhaseMeta(number: 4, name: "Red"))
+    Phase(number: 5, name: _) -> Ok(PhaseMeta(number: 5, name: "Green"))
+    Phase(number: 6, name: _) -> Ok(PhaseMeta(number: 6, name: "Refactor"))
+    Phase(number: 7, name: _) -> Ok(PhaseMeta(number: 7, name: "Martin Fowler"))
+    Phase(number: 10, name: _) -> Ok(PhaseMeta(number: 10, name: "FP Gates"))
     Phase(number: 12, name: _) ->
-      PhaseMeta(number: 12, name: "Martin Fowler (Phase 12)")
-    Phase(number: 15, name: _) -> PhaseMeta(number: 15, name: "Landing")
-    Phase(number: _n, name: _) -> panic as "Invalid phase"
+      Ok(PhaseMeta(number: 12, name: "Martin Fowler (Phase 12)"))
+    Phase(number: 15, name: _) -> Ok(PhaseMeta(number: 15, name: "Landing"))
+    Phase(number: n, name: _) -> Error(InvalidPhaseNumber(n))
   }
 }
 

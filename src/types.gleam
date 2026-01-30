@@ -249,9 +249,17 @@ pub opaque type GpuGovernor {
   GpuGovernor(gov_id: Int, subject: Subject(GpuMessage))
 }
 
+pub fn shutdown_gpu_governor(gov: GpuGovernor) -> Result(Nil, Nil) {
+  let GpuGovernor(_, subj) = gov
+  let reply_subj = process.new_subject()
+  process.send(subj, Shutdown(reply_subj))
+  process.receive(reply_subj, timeout_ms)
+}
+
 type GpuMessage {
   Request(reply: Subject(Result(GpuTicket, Nil)))
   Release(ticket: GpuTicket, reply: Subject(Result(Nil, Nil)))
+  Shutdown(reply: Subject(Nil))
 }
 
 type GpuState {
@@ -290,15 +298,22 @@ pub fn new_gpu_governor(limit: Int) -> Result(GpuGovernor, Nil) {
   }
 }
 
+const gpu_poll_ms = 100
+
 fn gpu_loop(
   gov_id: Int,
   state: GpuState,
   selector: process.Selector(GpuMessage),
 ) -> Nil {
-  case process.selector_receive_forever(selector) {
-    Request(reply:) -> handle_request(gov_id, state, reply, selector)
-    Release(ticket, reply:) ->
+  case process.selector_receive(selector, gpu_poll_ms) {
+    Ok(Shutdown(reply:)) -> {
+      process.send(reply, Nil)
+      Nil
+    }
+    Ok(Request(reply:)) -> handle_request(gov_id, state, reply, selector)
+    Ok(Release(ticket, reply:)) ->
       handle_release(gov_id, state, ticket, reply, selector)
+    Error(Nil) -> gpu_loop(gov_id, state, selector)
   }
 }
 

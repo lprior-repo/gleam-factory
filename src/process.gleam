@@ -151,9 +151,9 @@ fn try_parse_int(s: String) -> Result(Int, Nil) {
 @external(erlang, "factory@process_ffi", "parse_int_safe")
 fn catch_parse(s: String) -> Result(Int, Nil)
 
-/// Execute a raw shell command using Erlang's os:cmd (expects charlist)
-@external(erlang, "os", "cmd")
-fn os_cmd_raw(cmd: Charlist) -> Charlist
+/// Execute command with timeout (30 seconds)
+@external(erlang, "factory@process_ffi", "os_cmd_with_timeout")
+fn os_cmd_with_timeout(cmd: Charlist, timeout_ms: Int) -> Result(Charlist, Nil)
 
 /// Convert string to charlist
 @external(erlang, "unicode", "characters_to_list")
@@ -166,11 +166,13 @@ fn from_charlist(chars: Charlist) -> String
 /// Opaque type for Erlang charlist
 pub type Charlist
 
+const timeout_ms = 30_000
+
 fn os_cmd(cmd: String) -> String {
-  cmd
-  |> to_charlist
-  |> os_cmd_raw
-  |> from_charlist
+  case os_cmd_with_timeout(to_charlist(cmd), timeout_ms) {
+    Ok(charlist) -> from_charlist(charlist)
+    Error(_) -> "Command timeout after 30s"
+  }
 }
 
 /// Check if a command exists in PATH

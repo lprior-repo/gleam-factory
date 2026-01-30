@@ -11,9 +11,15 @@ pub fn execute_phase15_landing(
   config: types.PhaseConfig,
 ) -> Result(types.LandingResult, String) {
   let bead_id = config.bead_id
-  let assert Ok(progress) = state.load_progress(bead_id)
+  use progress <- result.try(
+    state.load_progress(bead_id)
+    |> result.map_error(fn(_) { "Failed to load progress for phase15" }),
+  )
   let updated = state.update_phase_status(progress, 15, InProgress)
-  let assert Ok(Nil) = state.save_progress(bead_id, updated)
+  use _ <- result.try(
+    state.save_progress(bead_id, updated)
+    |> result.map_error(fn(_) { "Failed to save progress for phase15" }),
+  )
   let bead_context = case state.load_bead_context(bead_id) {
     Ok(ctx) -> ctx
     _ ->
@@ -66,13 +72,21 @@ pub fn execute_phase15_landing(
           #("completion_tokens", json.int(response.usage.completion_tokens)),
           #("content", json.string(response.content)),
         ])
-      let assert Ok(Nil) =
+      use _ <- result.try(
         state.save_phase_output(bead_id, "phase15_landing", output_data)
+        |> result.map_error(fn(_) { "Failed to save phase15 output" }),
+      )
       case parse_landing_response(response.content) {
         Ok(landing) -> {
-          let assert Ok(progress) = state.load_progress(bead_id)
+          use progress <- result.try(
+            state.load_progress(bead_id)
+            |> result.map_error(fn(_) { "Failed to load progress" }),
+          )
           let updated = state.update_phase_status(progress, 15, Completed)
-          let assert Ok(Nil) = state.save_progress(bead_id, updated)
+          use _ <- result.try(
+            state.save_progress(bead_id, updated)
+            |> result.map_error(fn(_) { "Failed to save progress" }),
+          )
           Ok(types.LandingResult(
             committed: landing.committed,
             pushed: landing.pushed,
@@ -81,10 +95,16 @@ pub fn execute_phase15_landing(
           ))
         }
         Error(_) -> {
-          let assert Ok(progress) = state.load_progress(bead_id)
+          use progress <- result.try(
+            state.load_progress(bead_id)
+            |> result.map_error(fn(_) { "Failed to load progress" }),
+          )
           let updated = state.update_phase_status(progress, 15, Failed)
           let updated = state.increment_attempt(updated, 15)
-          let assert Ok(Nil) = state.save_progress(bead_id, updated)
+          use _ <- result.try(
+            state.save_progress(bead_id, updated)
+            |> result.map_error(fn(_) { "Failed to save progress" }),
+          )
           Ok(types.LandingResult(
             committed: False,
             pushed: False,
@@ -95,10 +115,16 @@ pub fn execute_phase15_landing(
       }
     }
     Error(_) -> {
-      let assert Ok(progress) = state.load_progress(bead_id)
+      use progress <- result.try(
+        state.load_progress(bead_id)
+        |> result.map_error(fn(_) { "Failed to load progress" }),
+      )
       let updated = state.update_phase_status(progress, 15, Failed)
       let updated = state.increment_attempt(updated, 15)
-      let assert Ok(Nil) = state.save_progress(bead_id, updated)
+      use _ <- result.try(
+        state.save_progress(bead_id, updated)
+        |> result.map_error(fn(_) { "Failed to save progress" }),
+      )
       Ok(types.LandingResult(
         committed: False,
         pushed: False,

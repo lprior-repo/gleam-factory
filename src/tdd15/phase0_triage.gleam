@@ -11,13 +11,21 @@ pub fn execute_phase0_triage(
   config: types.PhaseConfig,
 ) -> Result(types.QualityGateResult, String) {
   let bead_id = config.bead_id
-  let assert Ok(progress) = state.load_progress(bead_id)
+  use progress <- result.try(
+    state.load_progress(bead_id)
+    |> result.map_error(fn(_) { "Failed to load progress for phase0" }),
+  )
   let updated = state.update_phase_status(progress, 0, InProgress)
-  let assert Ok(Nil) = state.save_progress(bead_id, updated)
+  use _ <- result.try(
+    state.save_progress(bead_id, updated)
+    |> result.map_error(fn(_) { "Failed to save progress for phase0" }),
+  )
   let bead_context = case state.load_bead_context(bead_id) {
     Ok(ctx) -> ctx
     _ -> {
-      let assert Ok(_) = state.init_cache(bead_id)
+      let _ =
+        state.init_cache(bead_id)
+        |> result.unwrap(state.CacheDir(".tdd15-cache/" <> bead_id, bead_id))
       state.BeadContext(
         id: bead_id,
         title: "Triage Assessment",
@@ -64,13 +72,21 @@ Respond in JSON format:
           #("completion_tokens", json.int(response.usage.completion_tokens)),
           #("content", json.string(response.content)),
         ])
-      let assert Ok(Nil) =
+      use _ <- result.try(
         state.save_phase_output(bead_id, "phase0_triage", output_data)
+        |> result.map_error(fn(_) { "Failed to save phase0 output" }),
+      )
       case parse_triage_response(response.content) {
         Ok(_) -> {
-          let assert Ok(progress) = state.load_progress(bead_id)
+          use progress <- result.try(
+            state.load_progress(bead_id)
+            |> result.map_error(fn(_) { "Failed to load progress" }),
+          )
           let updated = state.update_phase_status(progress, 0, Completed)
-          let assert Ok(Nil) = state.save_progress(bead_id, updated)
+          use _ <- result.try(
+            state.save_progress(bead_id, updated)
+            |> result.map_error(fn(_) { "Failed to save progress" }),
+          )
           let questions = [
             types.QualityGateQuestion(
               id: 1,
@@ -104,19 +120,31 @@ Respond in JSON format:
           ))
         }
         Error(_) -> {
-          let assert Ok(progress) = state.load_progress(bead_id)
+          use progress <- result.try(
+            state.load_progress(bead_id)
+            |> result.map_error(fn(_) { "Failed to load progress" }),
+          )
           let updated = state.update_phase_status(progress, 0, Failed)
           let updated = state.increment_attempt(updated, 0)
-          let assert Ok(Nil) = state.save_progress(bead_id, updated)
+          use _ <- result.try(
+            state.save_progress(bead_id, updated)
+            |> result.map_error(fn(_) { "Failed to save progress" }),
+          )
           Ok(types.QualityGateResult(passed: False, questions: [], score: 0))
         }
       }
     }
     Error(_) -> {
-      let assert Ok(progress) = state.load_progress(bead_id)
+      use progress <- result.try(
+        state.load_progress(bead_id)
+        |> result.map_error(fn(_) { "Failed to load progress" }),
+      )
       let updated = state.update_phase_status(progress, 0, Failed)
       let updated = state.increment_attempt(updated, 0)
-      let assert Ok(Nil) = state.save_progress(bead_id, updated)
+      use _ <- result.try(
+        state.save_progress(bead_id, updated)
+        |> result.map_error(fn(_) { "Failed to save progress" }),
+      )
       Ok(types.QualityGateResult(passed: False, questions: [], score: 0))
     }
   }

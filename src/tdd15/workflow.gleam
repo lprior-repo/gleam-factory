@@ -1,5 +1,6 @@
 import gleam/dict
 import gleam/int
+import gleam/result
 import llm_router
 import tdd15/phase0_triage.{execute_phase0_triage}
 import tdd15/phase10_fp_gates.{execute_phase10_fp_gates}
@@ -39,9 +40,15 @@ pub fn execute_workflow(
   config: types.PhaseConfig,
 ) -> Result(WorkflowResult, String) {
   let bead_id = config.bead_id
-  let assert Ok(progress) = state.load_progress(bead_id)
+  use progress: state.Progress <- result.try(
+    state.load_progress(bead_id)
+    |> result.map_error(fn(_) { "Failed to load progress for workflow" }),
+  )
   let start_num = progress.current_phase
-  let assert Ok(start_phase) = phases.phase_by_number(start_num)
+  use start_phase <- result.try(
+    phases.phase_by_number(start_num)
+    |> result.map_error(fn(_) { "Failed to get phase by number" }),
+  )
   let complexity = progress.complexity
   let phases_complexity = case complexity {
     state.Simple -> phases.Simple
