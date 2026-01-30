@@ -1,7 +1,6 @@
 import gleeunit
 import gleeunit/should
 import tdd15/phases
-import tdd15/types
 
 pub fn main() {
   gleeunit.main()

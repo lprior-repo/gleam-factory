@@ -169,7 +169,8 @@ pub fn format_hint_for_stage_not_found_suggests_show_command_test() {
 }
 
 pub fn format_hint_for_command_failed_suggests_tool_check_test() {
-  let hint = error_messages.format_hint(error_messages.CommandFailed("x", 1, ""))
+  let hint =
+    error_messages.format_hint(error_messages.CommandFailed("x", 1, ""))
   hint |> string.contains("tools") |> should.be_true
 }
 

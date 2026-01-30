@@ -18,7 +18,8 @@ pub fn shutdown_signal_sigint_exists_test() {
 pub fn signal_received_captures_sigterm_test() {
   let msg = signal_handler.SignalReceived(signal_handler.Sigterm)
   case msg {
-    signal_handler.SignalReceived(signal_handler.Sigterm) -> should.be_true(True)
+    signal_handler.SignalReceived(signal_handler.Sigterm) ->
+      should.be_true(True)
   }
 }
 

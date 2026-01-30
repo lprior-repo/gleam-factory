@@ -119,36 +119,35 @@ fn parse_list(args: List(String)) -> Result(Command, String) {
   }
 }
 
-fn validate_strategy(s: String) -> Result(String, String) {
-  case s {
-    "immediate" | "gradual" | "canary" -> Ok(s)
-    _ ->
+fn validate_enum(
+  value: String,
+  valid_values: List(String),
+  field_name: String,
+) -> Result(String, String) {
+  case list.contains(valid_values, value) {
+    True -> Ok(value)
+    False ->
       Error(
-        "Invalid strategy value: "
-        <> s
-        <> ". Valid values are: immediate, gradual, canary",
+        "Invalid "
+        <> field_name
+        <> " value: "
+        <> value
+        <> ". Valid values are: "
+        <> string.join(valid_values, ", "),
       )
   }
+}
+
+fn validate_strategy(s: String) -> Result(String, String) {
+  validate_enum(s, ["immediate", "gradual", "canary"], "strategy")
 }
 
 fn validate_priority(p: String) -> Result(String, String) {
-  case p {
-    "P1" | "P2" | "P3" -> Ok(p)
-    _ ->
-      Error("Invalid priority value: " <> p <> ". Valid values are: P1, P2, P3")
-  }
+  validate_enum(p, ["P1", "P2", "P3"], "priority")
 }
 
 fn validate_status(s: String) -> Result(String, String) {
-  case s {
-    "open" | "in_progress" | "done" -> Ok(s)
-    _ ->
-      Error(
-        "Invalid status value: "
-        <> s
-        <> ". Valid values are: open, in_progress, done",
-      )
-  }
+  validate_enum(s, ["open", "in_progress", "done"], "status")
 }
 
 /// Execute parsed command

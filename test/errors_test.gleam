@@ -10,7 +10,9 @@ pub fn classify_error_identifies_timeout_from_completion_message_test() {
 }
 
 pub fn classify_error_identifies_timeout_when_embedded_in_output_test() {
-  errors.classify_error("Starting...\nProcess did not complete in time\nAborted")
+  errors.classify_error(
+    "Starting...\nProcess did not complete in time\nAborted",
+  )
   |> should.equal(errors.Timeout)
 }
 

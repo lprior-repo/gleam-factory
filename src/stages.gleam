@@ -6,8 +6,6 @@ import stages_go
 import stages_javascript
 import stages_python
 import stages_rust
-import stages_test_mode
-import stages_types
 
 pub fn execute_stage(
   stage_name: String,

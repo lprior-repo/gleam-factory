@@ -3,8 +3,8 @@ import gleeunit
 import gleeunit/should
 import simplifile
 import stages
-import stages_types
 import stages_test_mode
+import stages_types
 
 pub fn main() {
   gleeunit.main()
@@ -143,7 +143,8 @@ pub fn execute_stages_dry_run_gleam_single_stage_test() {
 pub fn execute_stages_dry_run_go_multiple_stages_test() {
   let stage1 = domain.Stage("implement", "Code compiles", 5)
   let stage2 = domain.Stage("unit-test", "All tests pass", 3)
-  let previews = stages_types.execute_stages_dry_run([stage1, stage2], domain.Go)
+  let previews =
+    stages_types.execute_stages_dry_run([stage1, stage2], domain.Go)
 
   case previews {
     [p1, p2] -> {

@@ -6,6 +6,7 @@
 //// factory_dispatcher, beads_watcher
 
 import factory_supervisor
+import gleam/string
 import gleeunit
 import gleeunit/should
 import heartbeat
@@ -40,7 +41,7 @@ pub fn supervisor_starts_test() {
       factory_supervisor.shutdown(started)
       should.equal(Nil, Nil)
     }
-    Error(_) -> should.fail()
+    Error(e) -> panic as string.inspect(e)
   }
 }
 
@@ -55,7 +56,7 @@ pub fn signal_bus_accessible_test() {
       factory_supervisor.shutdown(started)
       Nil
     }
-    Error(_) -> should.fail()
+    Error(e) -> panic as string.inspect(e)
   }
   |> should.equal(Nil)
 }
@@ -71,7 +72,7 @@ pub fn heartbeat_accessible_test() {
       factory_supervisor.shutdown(started)
       Nil
     }
-    Error(_) -> should.fail()
+    Error(e) -> panic as string.inspect(e)
   }
   |> should.equal(Nil)
 }
@@ -120,7 +121,15 @@ pub fn multiple_supervisors_test() {
       factory_supervisor.shutdown(s2)
       result
     }
-    _, _ -> should.fail()
+    Error(e), Ok(s2) -> {
+      factory_supervisor.shutdown(s2)
+      panic as string.inspect(e)
+    }
+    Ok(s1), Error(e) -> {
+      factory_supervisor.shutdown(s1)
+      panic as string.inspect(e)
+    }
+    Error(e1), Error(e2) -> panic as string.inspect(#(e1, e2))
   }
 }
 
@@ -135,7 +144,7 @@ pub fn heartbeat_tick_received_test() {
       factory_supervisor.shutdown(started)
       Nil
     }
-    Error(_) -> should.fail()
+    Error(e) -> panic as string.inspect(e)
   }
   |> should.equal(Nil)
 }
@@ -151,7 +160,7 @@ pub fn signal_bus_publish_received_test() {
       factory_supervisor.shutdown(started)
       Nil
     }
-    Error(_) -> should.fail()
+    Error(e) -> panic as string.inspect(e)
   }
   |> should.equal(Nil)
 }
@@ -169,7 +178,7 @@ pub fn supervisor_children_responsive_test() {
       factory_supervisor.shutdown(started)
       Nil
     }
-    Error(_) -> should.fail()
+    Error(e) -> panic as string.inspect(e)
   }
   |> should.equal(Nil)
 }
@@ -212,7 +221,7 @@ pub fn accessor_functions_correct_test() {
       factory_supervisor.shutdown(started)
       Nil
     }
-    Error(_) -> should.fail()
+    Error(e) -> panic as string.inspect(e)
   }
   |> should.equal(Nil)
 }
@@ -263,7 +272,15 @@ pub fn supervisor_config_flexibility_test() {
       factory_supervisor.shutdown(s2)
       result
     }
-    _, _ -> should.fail()
+    Error(e), Ok(s2) -> {
+      factory_supervisor.shutdown(s2)
+      panic as string.inspect(e)
+    }
+    Ok(s1), Error(e) -> {
+      factory_supervisor.shutdown(s1)
+      panic as string.inspect(e)
+    }
+    Error(e1), Error(e2) -> panic as string.inspect(#(e1, e2))
   }
 }
 
@@ -282,7 +299,7 @@ pub fn start_link_all_actors_success_test() {
       factory_supervisor.shutdown(started)
       Nil
     }
-    Error(_) -> should.fail()
+    Error(e) -> panic as string.inspect(e)
   }
   |> should.equal(Nil)
 }
@@ -299,7 +316,7 @@ pub fn supervisor_restarts_failed_child_test() {
       factory_supervisor.shutdown(started)
       Nil
     }
-    Error(_) -> should.fail()
+    Error(e) -> panic as string.inspect(e)
   }
   |> should.equal(Nil)
 }
@@ -317,10 +334,7 @@ pub fn supervisor_returns_all_actor_subjects_test() {
       factory_supervisor.shutdown(started)
       1
     }
-    Error(_) -> {
-      should.fail()
-      0
-    }
+    Error(e) -> panic as string.inspect(e)
   }
   |> should.equal(1)
 }
@@ -340,7 +354,7 @@ pub fn graceful_degradation_on_child_failure_test() {
       factory_supervisor.shutdown(started)
       Nil
     }
-    Error(_) -> should.fail()
+    Error(e) -> panic as string.inspect(e)
   }
   |> should.equal(Nil)
 }
@@ -356,7 +370,7 @@ pub fn log_system_ready_outputs_message_test() {
       factory_supervisor.shutdown(started)
       Nil
     }
-    Error(_) -> should.fail()
+    Error(e) -> panic as string.inspect(e)
   }
   |> should.equal(Nil)
 }
@@ -376,7 +390,7 @@ pub fn system_ready_after_all_services_started_test() {
       factory_supervisor.shutdown(started)
       Nil
     }
-    Error(_) -> should.fail()
+    Error(e) -> panic as string.inspect(e)
   }
   |> should.equal(Nil)
 }

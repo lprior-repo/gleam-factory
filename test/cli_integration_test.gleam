@@ -147,7 +147,7 @@ pub fn cli_init_creates_jj_repo_test() {
 
   case setup_jj_repo(repo_path) {
     Error(msg) -> {
-      let _ = teardown_jj_repo(repo_path)
+      let assert Ok(Nil) = teardown_jj_repo(repo_path)
       panic as msg
     }
     Ok(_) -> {
@@ -163,17 +163,17 @@ pub fn cli_status_shows_clean_repo_test() {
 
   case setup_jj_repo(repo_path) {
     Error(msg) -> {
-      let _ = teardown_jj_repo(repo_path)
+      let assert Ok(Nil) = teardown_jj_repo(repo_path)
       panic as msg
     }
     Ok(_) -> {
       case get_jj_status(repo_path) {
         Error(msg) -> {
-          let _ = teardown_jj_repo(repo_path)
+          let assert Ok(Nil) = teardown_jj_repo(repo_path)
           panic as msg
         }
         Ok(status) -> {
-          let _ = teardown_jj_repo(repo_path)
+          let assert Ok(Nil) = teardown_jj_repo(repo_path)
           status
           |> string.contains("Working copy")
           |> should.be_true()
@@ -192,17 +192,17 @@ pub fn cli_log_shows_commits_test() {
     |> result.try(fn(_) { add_test_file(repo_path, "test.txt") })
   {
     Error(msg) -> {
-      let _ = teardown_jj_repo(repo_path)
+      let assert Ok(Nil) = teardown_jj_repo(repo_path)
       panic as msg
     }
     Ok(_) -> {
       case get_jj_log(repo_path) {
         Error(msg) -> {
-          let _ = teardown_jj_repo(repo_path)
+          let assert Ok(Nil) = teardown_jj_repo(repo_path)
           panic as msg
         }
         Ok(log) -> {
-          let _ = teardown_jj_repo(repo_path)
+          let assert Ok(Nil) = teardown_jj_repo(repo_path)
           log
           |> string.length
           |> fn(len) { len > 0 }
@@ -223,11 +223,11 @@ pub fn cli_commit_records_change_test() {
     |> result.try(fn(_) { get_jj_log(repo_path) })
   {
     Error(msg) -> {
-      let _ = teardown_jj_repo(repo_path)
+      let assert Ok(Nil) = teardown_jj_repo(repo_path)
       panic as msg
     }
     Ok(log) -> {
-      let _ = teardown_jj_repo(repo_path)
+      let assert Ok(Nil) = teardown_jj_repo(repo_path)
       log
       |> string.contains("Add change.txt")
       |> should.be_true()

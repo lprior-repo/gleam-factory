@@ -1,9 +1,6 @@
 import gleam/dynamic/decode
 import gleam/json
-import gleam/list
 import gleam/option
-import gleam/result
-import gleam/string
 import llm_router
 
 pub type PhaseConfig {

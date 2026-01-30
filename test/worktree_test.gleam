@@ -41,9 +41,11 @@ pub fn worktree_captures_slug_test() {
 }
 
 pub fn worktree_captures_path_test() {
-  let wt = worktree.Worktree("slug", "/full/path/to/worktree", "branch", domain.Go)
+  let wt =
+    worktree.Worktree("slug", "/full/path/to/worktree", "branch", domain.Go)
   case wt {
-    worktree.Worktree(path: "/full/path/to/worktree", ..) -> should.be_true(True)
+    worktree.Worktree(path: "/full/path/to/worktree", ..) ->
+      should.be_true(True)
     _ -> should.fail()
   }
 }

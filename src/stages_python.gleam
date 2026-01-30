@@ -2,7 +2,10 @@ import gleam/int
 import gleam/result
 import process
 
-pub fn execute_python_stage(stage_name: String, cwd: String) -> Result(Nil, String) {
+pub fn execute_python_stage(
+  stage_name: String,
+  cwd: String,
+) -> Result(Nil, String) {
   case stage_name {
     "implement" -> python_implement(cwd)
     "unit-test" -> python_unit_test(cwd)

@@ -45,28 +45,32 @@ pub fn new_request_sets_model_test() {
 pub fn new_request_sets_prompt_test() {
   let req = llm.new_request("m", "my prompt text", 100)
   case req {
-    llm.LLMRequest(prompt: prompt, ..) -> prompt |> should.equal("my prompt text")
+    llm.LLMRequest(prompt: prompt, ..) ->
+      prompt |> should.equal("my prompt text")
   }
 }
 
 pub fn new_request_sets_max_tokens_test() {
   let req = llm.new_request("m", "p", 4096)
   case req {
-    llm.LLMRequest(max_tokens: max_tokens, ..) -> max_tokens |> should.equal(4096)
+    llm.LLMRequest(max_tokens: max_tokens, ..) ->
+      max_tokens |> should.equal(4096)
   }
 }
 
 pub fn new_request_has_no_system_prompt_by_default_test() {
   let req = llm.new_request("m", "p", 100)
   case req {
-    llm.LLMRequest(system_prompt: system_prompt, ..) -> system_prompt |> should.equal(None)
+    llm.LLMRequest(system_prompt: system_prompt, ..) ->
+      system_prompt |> should.equal(None)
   }
 }
 
 pub fn new_request_has_default_temperature_test() {
   let req = llm.new_request("m", "p", 100)
   case req {
-    llm.LLMRequest(temperature: temperature, ..) -> temperature |> should.equal(0.7)
+    llm.LLMRequest(temperature: temperature, ..) ->
+      temperature |> should.equal(0.7)
   }
 }
 
@@ -87,7 +91,8 @@ pub fn with_temperature_changes_temperature_test() {
     llm.new_request("m", "p", 100)
     |> llm.with_temperature(0.0)
   case req {
-    llm.LLMRequest(temperature: temperature, ..) -> temperature |> should.equal(0.0)
+    llm.LLMRequest(temperature: temperature, ..) ->
+      temperature |> should.equal(0.0)
   }
 }
 
@@ -248,14 +253,20 @@ pub fn llm_error_auth_error_captures_message_test() {
 // === Response Types ===
 
 pub fn llm_response_captures_all_fields_test() {
-  let usage = llm.TokenUsage(prompt_tokens: 10, completion_tokens: 50, total_tokens: 60)
-  let response = llm.LLMResponse(content: "Hello", finish_reason: "stop", usage: usage)
+  let usage =
+    llm.TokenUsage(prompt_tokens: 10, completion_tokens: 50, total_tokens: 60)
+  let response =
+    llm.LLMResponse(content: "Hello", finish_reason: "stop", usage: usage)
   case response {
     llm.LLMResponse(content: content, finish_reason: finish_reason, usage: u) -> {
       content |> should.equal("Hello")
       finish_reason |> should.equal("stop")
       case u {
-        llm.TokenUsage(prompt_tokens: pt, completion_tokens: ct, total_tokens: tt) -> {
+        llm.TokenUsage(
+          prompt_tokens: pt,
+          completion_tokens: ct,
+          total_tokens: tt,
+        ) -> {
           pt |> should.equal(10)
           ct |> should.equal(50)
           tt |> should.equal(60)
@@ -266,14 +277,16 @@ pub fn llm_response_captures_all_fields_test() {
 }
 
 pub fn token_usage_tracks_prompt_tokens_test() {
-  let usage = llm.TokenUsage(prompt_tokens: 100, completion_tokens: 0, total_tokens: 100)
+  let usage =
+    llm.TokenUsage(prompt_tokens: 100, completion_tokens: 0, total_tokens: 100)
   case usage {
     llm.TokenUsage(prompt_tokens: tokens, ..) -> tokens |> should.equal(100)
   }
 }
 
 pub fn token_usage_tracks_completion_tokens_test() {
-  let usage = llm.TokenUsage(prompt_tokens: 0, completion_tokens: 200, total_tokens: 200)
+  let usage =
+    llm.TokenUsage(prompt_tokens: 0, completion_tokens: 200, total_tokens: 200)
   case usage {
     llm.TokenUsage(completion_tokens: tokens, ..) -> tokens |> should.equal(200)
   }

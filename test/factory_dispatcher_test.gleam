@@ -1,6 +1,6 @@
+import factory_dispatcher
 import gleam/dict
 import gleeunit/should
-import factory_dispatcher
 
 pub fn dispatcher_state_captures_signal_bus_test() {
   // Create a minimal test - we can't test FFI directly

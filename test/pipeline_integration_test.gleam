@@ -384,7 +384,8 @@ pub fn pipeline_gleam_stage_commands_test() {
 
   let impl_preview =
     stages_types.execute_stages_dry_run(implement_stage, domain.Gleam)
-  let lint_preview = stages_types.execute_stages_dry_run(lint_stage, domain.Gleam)
+  let lint_preview =
+    stages_types.execute_stages_dry_run(lint_stage, domain.Gleam)
 
   case impl_preview, lint_preview {
     [impl], [lint] -> {
@@ -405,7 +406,8 @@ pub fn pipeline_go_stage_commands_test() {
   let implement_stage = [domain.Stage("implement", "Build", 0)]
   let lint_stage = [domain.Stage("lint", "Format check", 0)]
 
-  let impl_preview = stages_types.execute_stages_dry_run(implement_stage, domain.Go)
+  let impl_preview =
+    stages_types.execute_stages_dry_run(implement_stage, domain.Go)
   let lint_preview = stages_types.execute_stages_dry_run(lint_stage, domain.Go)
 
   case impl_preview, lint_preview {
@@ -427,8 +429,10 @@ pub fn pipeline_rust_stage_commands_test() {
   let implement_stage = [domain.Stage("implement", "Build", 0)]
   let lint_stage = [domain.Stage("lint", "Format check", 0)]
 
-  let impl_preview = stages_types.execute_stages_dry_run(implement_stage, domain.Rust)
-  let lint_preview = stages_types.execute_stages_dry_run(lint_stage, domain.Rust)
+  let impl_preview =
+    stages_types.execute_stages_dry_run(implement_stage, domain.Rust)
+  let lint_preview =
+    stages_types.execute_stages_dry_run(lint_stage, domain.Rust)
 
   case impl_preview, lint_preview {
     [impl], [lint] -> {
@@ -451,7 +455,8 @@ pub fn pipeline_python_stage_commands_test() {
 
   let impl_preview =
     stages_types.execute_stages_dry_run(implement_stage, domain.Python)
-  let lint_preview = stages_types.execute_stages_dry_run(lint_stage, domain.Python)
+  let lint_preview =
+    stages_types.execute_stages_dry_run(lint_stage, domain.Python)
 
   case impl_preview, lint_preview {
     [impl], [lint] -> {

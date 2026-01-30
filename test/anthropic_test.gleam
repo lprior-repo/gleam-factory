@@ -46,7 +46,8 @@ pub fn parse_response_errors_on_empty_content_array_test() {
 }
 
 pub fn parse_response_extracts_first_text_from_multiple_blocks_test() {
-  let json = "{\"content\":[{\"type\":\"text\",\"text\":\"first\"},{\"type\":\"text\",\"text\":\"second\"}]}"
+  let json =
+    "{\"content\":[{\"type\":\"text\",\"text\":\"first\"},{\"type\":\"text\",\"text\":\"second\"}]}"
   anthropic.parse_response(json)
   |> should.be_ok
   |> should.equal("first")
@@ -74,7 +75,8 @@ pub fn parse_response_preserves_unicode_test() {
 }
 
 pub fn parse_response_preserves_code_blocks_test() {
-  let json = "{\"content\":[{\"type\":\"text\",\"text\":\"```gleam\\npub fn main() {}\\n```\"}]}"
+  let json =
+    "{\"content\":[{\"type\":\"text\",\"text\":\"```gleam\\npub fn main() {}\\n```\"}]}"
   case anthropic.parse_response(json) {
     Ok(text) -> {
       text
@@ -102,7 +104,8 @@ pub fn parse_response_errors_on_malformed_content_test() {
 // === Edge Cases ===
 
 pub fn parse_response_handles_nested_json_in_text_test() {
-  let json = "{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"key\\\":\\\"value\\\"}\"}]}"
+  let json =
+    "{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"key\\\":\\\"value\\\"}\"}]}"
   case anthropic.parse_response(json) {
     Ok(text) -> {
       text

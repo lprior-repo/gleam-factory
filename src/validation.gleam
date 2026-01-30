@@ -36,62 +36,18 @@ fn is_valid_domain_part(domain: String) -> Bool {
   string.length(domain) > 0 && !string.contains(domain, " ")
 }
 
-fn is_valid_local_char(c: String) -> Bool {
-  case c {
-    "a"
-    | "b"
-    | "c"
-    | "d"
-    | "e"
-    | "f"
-    | "g"
-    | "h"
-    | "i"
-    | "j"
-    | "k"
-    | "l"
-    | "m"
-    | "n"
-    | "o"
-    | "p"
-    | "q"
-    | "r"
-    | "s"
-    | "t"
-    | "u"
-    | "v"
-    | "w"
-    | "x"
-    | "y"
-    | "z" -> True
-    "A"
-    | "B"
-    | "C"
-    | "D"
-    | "E"
-    | "F"
-    | "G"
-    | "H"
-    | "I"
-    | "J"
-    | "K"
-    | "L"
-    | "M"
-    | "N"
-    | "O"
-    | "P"
-    | "Q"
-    | "R"
-    | "S"
-    | "T"
-    | "U"
-    | "V"
-    | "W"
-    | "X"
-    | "Y"
-    | "Z" -> True
-    "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" -> True
-    "." | "_" | "-" | "+" -> True
+fn is_valid_local_char(char: String) -> Bool {
+  case string.to_utf_codepoints(char) {
+    [cp] -> {
+      let code = string.utf_codepoint_to_int(cp)
+      { code >= 97 && code <= 122 }
+      || { code >= 65 && code <= 90 }
+      || { code >= 48 && code <= 57 }
+      || code == 46
+      || code == 95
+      || code == 45
+      || code == 43
+    }
     _ -> False
   }
 }

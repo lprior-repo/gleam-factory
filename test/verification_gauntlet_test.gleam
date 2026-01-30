@@ -37,10 +37,11 @@ pub fn gauntlet_result_passed_captures_stages_test() {
 }
 
 pub fn gauntlet_result_failed_captures_stage_test() {
-  let result = verification_gauntlet.Failed(
-    stage: verification_gauntlet.Build,
-    error: "compilation failed",
-  )
+  let result =
+    verification_gauntlet.Failed(
+      stage: verification_gauntlet.Build,
+      error: "compilation failed",
+    )
   case result {
     verification_gauntlet.Failed(stage: verification_gauntlet.Build, ..) ->
       should.be_true(True)
@@ -48,9 +49,14 @@ pub fn gauntlet_result_failed_captures_stage_test() {
 }
 
 pub fn gauntlet_result_failed_captures_error_test() {
-  let result = verification_gauntlet.Failed(stage: verification_gauntlet.Test, error: "test error")
+  let result =
+    verification_gauntlet.Failed(
+      stage: verification_gauntlet.Test,
+      error: "test error",
+    )
   case result {
-    verification_gauntlet.Failed(error: "test error", ..) -> should.be_true(True)
+    verification_gauntlet.Failed(error: "test error", ..) ->
+      should.be_true(True)
   }
 }
 
@@ -81,10 +87,11 @@ pub fn is_passed_returns_true_for_passed_test() {
 }
 
 pub fn is_passed_returns_false_for_failed_test() {
-  let result = verification_gauntlet.Failed(
-    stage: verification_gauntlet.Build,
-    error: "failed",
-  )
+  let result =
+    verification_gauntlet.Failed(
+      stage: verification_gauntlet.Build,
+      error: "failed",
+    )
   verification_gauntlet.is_passed(result)
   |> should.be_false
 }
@@ -105,7 +112,11 @@ pub fn passed_with_multiple_stages_test() {
 
 pub fn can_discriminate_passed_from_failed_test() {
   let passed = verification_gauntlet.Passed(stages_run: 3)
-  let failed = verification_gauntlet.Failed(stage: verification_gauntlet.Build, error: "oops")
+  let failed =
+    verification_gauntlet.Failed(
+      stage: verification_gauntlet.Build,
+      error: "oops",
+    )
 
   case passed {
     verification_gauntlet.Passed(..) -> should.be_true(True)

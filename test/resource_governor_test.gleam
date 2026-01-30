@@ -4,13 +4,14 @@ import resource_governor
 // === ResourceLimits Construction ===
 
 pub fn resource_limits_captures_max_mutators_test() {
-  let limits = resource_governor.ResourceLimits(
-    max_mutators: 4,
-    max_loops: 2,
-    max_workspaces: 10,
-    min_free_ram_mb: 1024,
-    gpu_tickets: 1,
-  )
+  let limits =
+    resource_governor.ResourceLimits(
+      max_mutators: 4,
+      max_loops: 2,
+      max_workspaces: 10,
+      min_free_ram_mb: 1024,
+      gpu_tickets: 1,
+    )
   case limits {
     resource_governor.ResourceLimits(max_mutators: max_mutators, ..) ->
       max_mutators |> should.equal(4)
@@ -18,13 +19,14 @@ pub fn resource_limits_captures_max_mutators_test() {
 }
 
 pub fn resource_limits_captures_max_loops_test() {
-  let limits = resource_governor.ResourceLimits(
-    max_mutators: 4,
-    max_loops: 8,
-    max_workspaces: 10,
-    min_free_ram_mb: 1024,
-    gpu_tickets: 1,
-  )
+  let limits =
+    resource_governor.ResourceLimits(
+      max_mutators: 4,
+      max_loops: 8,
+      max_workspaces: 10,
+      min_free_ram_mb: 1024,
+      gpu_tickets: 1,
+    )
   case limits {
     resource_governor.ResourceLimits(max_loops: max_loops, ..) ->
       max_loops |> should.equal(8)
@@ -32,13 +34,14 @@ pub fn resource_limits_captures_max_loops_test() {
 }
 
 pub fn resource_limits_captures_max_workspaces_test() {
-  let limits = resource_governor.ResourceLimits(
-    max_mutators: 4,
-    max_loops: 2,
-    max_workspaces: 20,
-    min_free_ram_mb: 1024,
-    gpu_tickets: 1,
-  )
+  let limits =
+    resource_governor.ResourceLimits(
+      max_mutators: 4,
+      max_loops: 2,
+      max_workspaces: 20,
+      min_free_ram_mb: 1024,
+      gpu_tickets: 1,
+    )
   case limits {
     resource_governor.ResourceLimits(max_workspaces: max_workspaces, ..) ->
       max_workspaces |> should.equal(20)
@@ -46,13 +49,14 @@ pub fn resource_limits_captures_max_workspaces_test() {
 }
 
 pub fn resource_limits_captures_min_free_ram_test() {
-  let limits = resource_governor.ResourceLimits(
-    max_mutators: 4,
-    max_loops: 2,
-    max_workspaces: 10,
-    min_free_ram_mb: 2048,
-    gpu_tickets: 1,
-  )
+  let limits =
+    resource_governor.ResourceLimits(
+      max_mutators: 4,
+      max_loops: 2,
+      max_workspaces: 10,
+      min_free_ram_mb: 2048,
+      gpu_tickets: 1,
+    )
   case limits {
     resource_governor.ResourceLimits(min_free_ram_mb: min_free_ram_mb, ..) ->
       min_free_ram_mb |> should.equal(2048)
@@ -60,13 +64,14 @@ pub fn resource_limits_captures_min_free_ram_test() {
 }
 
 pub fn resource_limits_captures_gpu_tickets_test() {
-  let limits = resource_governor.ResourceLimits(
-    max_mutators: 4,
-    max_loops: 2,
-    max_workspaces: 10,
-    min_free_ram_mb: 1024,
-    gpu_tickets: 3,
-  )
+  let limits =
+    resource_governor.ResourceLimits(
+      max_mutators: 4,
+      max_loops: 2,
+      max_workspaces: 10,
+      min_free_ram_mb: 1024,
+      gpu_tickets: 3,
+    )
   case limits {
     resource_governor.ResourceLimits(gpu_tickets: gpu_tickets, ..) ->
       gpu_tickets |> should.equal(3)
@@ -186,20 +191,21 @@ pub fn is_sufficient_ram_handles_zero_required_test() {
 }
 
 pub fn is_sufficient_ram_handles_large_values_test() {
-  resource_governor.is_sufficient_ram(65536, 32768)
+  resource_governor.is_sufficient_ram(65_536, 32_768)
   |> should.be_true
 }
 
 // === OTP Actor Behavior (Integration Tests) ===
 
 pub fn start_link_creates_actor_test() {
-  let limits = resource_governor.ResourceLimits(
-    max_mutators: 2,
-    max_loops: 2,
-    max_workspaces: 5,
-    min_free_ram_mb: 100,
-    gpu_tickets: 1,
-  )
+  let limits =
+    resource_governor.ResourceLimits(
+      max_mutators: 2,
+      max_loops: 2,
+      max_workspaces: 5,
+      min_free_ram_mb: 100,
+      gpu_tickets: 1,
+    )
   case resource_governor.start_link(limits) {
     Ok(gov) -> {
       resource_governor.shutdown(gov)
@@ -210,13 +216,14 @@ pub fn start_link_creates_actor_test() {
 }
 
 pub fn acquire_mutator_succeeds_when_under_limit_test() {
-  let limits = resource_governor.ResourceLimits(
-    max_mutators: 2,
-    max_loops: 2,
-    max_workspaces: 5,
-    min_free_ram_mb: 100,
-    gpu_tickets: 1,
-  )
+  let limits =
+    resource_governor.ResourceLimits(
+      max_mutators: 2,
+      max_loops: 2,
+      max_workspaces: 5,
+      min_free_ram_mb: 100,
+      gpu_tickets: 1,
+    )
   case resource_governor.start_link(limits) {
     Ok(gov) -> {
       case resource_governor.acquire_mutator(gov) {
@@ -235,13 +242,14 @@ pub fn acquire_mutator_succeeds_when_under_limit_test() {
 }
 
 pub fn acquire_mutator_fails_when_at_limit_test() {
-  let limits = resource_governor.ResourceLimits(
-    max_mutators: 1,
-    max_loops: 2,
-    max_workspaces: 5,
-    min_free_ram_mb: 100,
-    gpu_tickets: 1,
-  )
+  let limits =
+    resource_governor.ResourceLimits(
+      max_mutators: 1,
+      max_loops: 2,
+      max_workspaces: 5,
+      min_free_ram_mb: 100,
+      gpu_tickets: 1,
+    )
   case resource_governor.start_link(limits) {
     Ok(gov) -> {
       // Acquire first (should succeed)
@@ -263,13 +271,14 @@ pub fn acquire_mutator_fails_when_at_limit_test() {
 }
 
 pub fn acquire_loop_succeeds_when_under_limit_test() {
-  let limits = resource_governor.ResourceLimits(
-    max_mutators: 2,
-    max_loops: 2,
-    max_workspaces: 5,
-    min_free_ram_mb: 100,
-    gpu_tickets: 1,
-  )
+  let limits =
+    resource_governor.ResourceLimits(
+      max_mutators: 2,
+      max_loops: 2,
+      max_workspaces: 5,
+      min_free_ram_mb: 100,
+      gpu_tickets: 1,
+    )
   case resource_governor.start_link(limits) {
     Ok(gov) -> {
       case resource_governor.acquire_loop(gov) {
@@ -288,13 +297,14 @@ pub fn acquire_loop_succeeds_when_under_limit_test() {
 }
 
 pub fn release_allows_new_acquisition_test() {
-  let limits = resource_governor.ResourceLimits(
-    max_mutators: 1,
-    max_loops: 2,
-    max_workspaces: 5,
-    min_free_ram_mb: 100,
-    gpu_tickets: 1,
-  )
+  let limits =
+    resource_governor.ResourceLimits(
+      max_mutators: 1,
+      max_loops: 2,
+      max_workspaces: 5,
+      min_free_ram_mb: 100,
+      gpu_tickets: 1,
+    )
   case resource_governor.start_link(limits) {
     Ok(gov) -> {
       // Acquire first
@@ -325,13 +335,14 @@ pub fn release_allows_new_acquisition_test() {
 }
 
 pub fn release_slot_succeeds_for_valid_slot_test() {
-  let limits = resource_governor.ResourceLimits(
-    max_mutators: 2,
-    max_loops: 2,
-    max_workspaces: 5,
-    min_free_ram_mb: 100,
-    gpu_tickets: 1,
-  )
+  let limits =
+    resource_governor.ResourceLimits(
+      max_mutators: 2,
+      max_loops: 2,
+      max_workspaces: 5,
+      min_free_ram_mb: 100,
+      gpu_tickets: 1,
+    )
   case resource_governor.start_link(limits) {
     Ok(gov) -> {
       case resource_governor.acquire_mutator(gov) {
@@ -358,13 +369,14 @@ pub fn release_slot_succeeds_for_valid_slot_test() {
 }
 
 pub fn release_slot_succeeds_for_unknown_slot_test() {
-  let limits = resource_governor.ResourceLimits(
-    max_mutators: 2,
-    max_loops: 2,
-    max_workspaces: 5,
-    min_free_ram_mb: 100,
-    gpu_tickets: 1,
-  )
+  let limits =
+    resource_governor.ResourceLimits(
+      max_mutators: 2,
+      max_loops: 2,
+      max_workspaces: 5,
+      min_free_ram_mb: 100,
+      gpu_tickets: 1,
+    )
   case resource_governor.start_link(limits) {
     Ok(gov) -> {
       // Releasing unknown slot should succeed (idempotent)

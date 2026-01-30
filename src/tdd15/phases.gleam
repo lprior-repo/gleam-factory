@@ -45,7 +45,8 @@ pub fn phase_meta(phase: Phase) -> PhaseMeta {
     Phase(number: 6, name: _) -> PhaseMeta(number: 6, name: "Refactor")
     Phase(number: 7, name: _) -> PhaseMeta(number: 7, name: "Martin Fowler")
     Phase(number: 10, name: _) -> PhaseMeta(number: 10, name: "FP Gates")
-    Phase(number: 12, name: _) -> PhaseMeta(number: 12, name: "Martin Fowler (Phase 12)")
+    Phase(number: 12, name: _) ->
+      PhaseMeta(number: 12, name: "Martin Fowler (Phase 12)")
     Phase(number: 15, name: _) -> PhaseMeta(number: 15, name: "Landing")
     Phase(number: _n, name: _) -> panic as "Invalid phase"
   }
@@ -61,7 +62,8 @@ pub fn next_phase(_current: Phase, route: Route) -> Result(Phase, Nil) {
       case numbers {
         [] -> Error(Nil)
         [_n] -> Error(Nil)
-        [_, next_n, ..] -> Ok(Phase(number: next_n, name: int.to_string(next_n)))
+        [_, next_n, ..] ->
+          Ok(Phase(number: next_n, name: int.to_string(next_n)))
       }
     }
   }

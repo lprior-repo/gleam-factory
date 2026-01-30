@@ -152,7 +152,10 @@ fn handle_patch_accepted(
       hash: signals.hash(hash),
       merged_at: signals.timestamp(erlang_system_time_ms()),
     )
-  signal_bus.broadcast(state.signal_bus, signal_bus.PatchAccepted(patch_accepted))
+  signal_bus.broadcast(
+    state.signal_bus,
+    signal_bus.PatchAccepted(patch_accepted),
+  )
   actor.continue(
     MergeQueueState(..state, absorbing: False, current_patch_hash: None),
   )

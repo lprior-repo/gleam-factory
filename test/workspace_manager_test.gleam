@@ -1,5 +1,4 @@
 import gleeunit/should
-import types
 import workspace_manager
 
 pub fn workspace_type_test() {
