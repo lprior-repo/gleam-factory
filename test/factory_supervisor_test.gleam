@@ -113,8 +113,12 @@ pub fn multiple_supervisors_test() {
     factory_supervisor.start_link(config2)
   {
     Ok(s1), Ok(s2) -> {
-      s1.signal_bus_subject
-      |> should.not_equal(s2.signal_bus_subject)
+      let result =
+        s1.signal_bus_subject
+        |> should.not_equal(s2.signal_bus_subject)
+      factory_supervisor.shutdown(s1)
+      factory_supervisor.shutdown(s2)
+      result
     }
     _, _ -> should.fail()
   }
@@ -249,8 +253,12 @@ pub fn supervisor_config_flexibility_test() {
     Ok(s1), Ok(s2) -> {
       s1.signal_bus_subject
       |> should.not_equal(s2.signal_bus_subject)
-      s1.heartbeat_subject
-      |> should.not_equal(s2.heartbeat_subject)
+      let result =
+        s1.heartbeat_subject
+        |> should.not_equal(s2.heartbeat_subject)
+      factory_supervisor.shutdown(s1)
+      factory_supervisor.shutdown(s2)
+      result
     }
     _, _ -> should.fail()
   }

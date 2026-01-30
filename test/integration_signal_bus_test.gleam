@@ -124,7 +124,10 @@ pub fn supervisor_signal_bus_isolated() {
           factory_supervisor.shutdown(started)
           Nil
         }
-        _ -> should.fail()
+        _ -> {
+          factory_supervisor.shutdown(started)
+          should.fail()
+        }
       }
     }
   }
