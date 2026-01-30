@@ -1,4 +1,3 @@
-import bead_manager
 import gleeunit
 import gleeunit/should
 

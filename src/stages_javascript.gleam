@@ -1,6 +1,5 @@
 import gleam/int
 import gleam/result
-import gleam/string
 import process
 
 pub fn execute_javascript_stage(

@@ -1,4 +1,3 @@
-import beads_broadcaster
 import gleeunit
 import gleeunit/should
 

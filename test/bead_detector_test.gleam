@@ -1,4 +1,3 @@
-import bead_detector
 import gleeunit
 import gleeunit/should
 

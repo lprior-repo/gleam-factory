@@ -1,6 +1,4 @@
-import gleam/float
 import gleam/int
-import gleam/list
 import gleam/result
 import gleam/string
 import process

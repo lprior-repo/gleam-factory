@@ -1,7 +1,6 @@
 import gleam/int
 import gleam/result
 import gleam/string
-import gleam/list
 import process
 
 pub fn execute_go_stage(stage_name: String, cwd: String) -> Result(Nil, String) {

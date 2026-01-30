@@ -1,4 +1,3 @@
-import beads_watcher
 import gleeunit
 import gleeunit/should
 
