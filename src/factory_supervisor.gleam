@@ -84,12 +84,19 @@ pub fn start_link(config: SupervisorConfig) -> Result(Started, InitFailed) {
       min_free_ram_mb: config.min_free_ram_mb,
       gpu_tickets: config.gpu_tickets,
     ))
-    |> result.map_error(fn(_) { InitFailed(reason: "resource_governor failed") }),
+    |> result.map_error(fn(_) {
+      cleanup_signal_bus(signal_bus_subject)
+      InitFailed(reason: "resource_governor failed")
+    }),
   )
 
   use workspace_manager_subject <- result.try(
     workspace_manager.start_link()
-    |> result.map_error(fn(_) { InitFailed(reason: "workspace_manager failed") }),
+    |> result.map_error(fn(_) {
+      cleanup_resource_governor(resource_governor_subject)
+      cleanup_signal_bus(signal_bus_subject)
+      InitFailed(reason: "workspace_manager failed")
+    }),
   )
 
   use golden_master_subject <- result.try(
@@ -98,6 +105,9 @@ pub fn start_link(config: SupervisorConfig) -> Result(Started, InitFailed) {
       signal_bus_subject,
     )
     |> result.map_error(fn(_) {
+      cleanup_workspace_manager(workspace_manager_subject)
+      cleanup_resource_governor(resource_governor_subject)
+      cleanup_signal_bus(signal_bus_subject)
       InitFailed(reason: "golden_master start failed")
     }),
   )
@@ -116,7 +126,13 @@ pub fn start_link(config: SupervisorConfig) -> Result(Started, InitFailed) {
 
   use merge_queue_subject <- result.try(
     merge_queue.start_link(signal_bus_subject)
-    |> result.map_error(fn(_) { InitFailed(reason: "merge_queue failed") }),
+    |> result.map_error(fn(_) {
+      cleanup_golden_master(golden_master_subject)
+      cleanup_workspace_manager(workspace_manager_subject)
+      cleanup_resource_governor(resource_governor_subject)
+      cleanup_signal_bus(signal_bus_subject)
+      InitFailed(reason: "merge_queue failed")
+    }),
   )
 
   let hb_config =
@@ -128,7 +144,14 @@ pub fn start_link(config: SupervisorConfig) -> Result(Started, InitFailed) {
 
   use heartbeat_subject <- result.try(
     heartbeat.start_link(hb_config, signal_bus_subject)
-    |> result.map_error(fn(_) { InitFailed(reason: "heartbeat failed") }),
+    |> result.map_error(fn(_) {
+      cleanup_merge_queue(merge_queue_subject)
+      cleanup_golden_master(golden_master_subject)
+      cleanup_workspace_manager(workspace_manager_subject)
+      cleanup_resource_governor(resource_governor_subject)
+      cleanup_signal_bus(signal_bus_subject)
+      InitFailed(reason: "heartbeat failed")
+    }),
   )
 
   let factory_dispatcher_pid =
@@ -153,6 +176,37 @@ pub fn start_link(config: SupervisorConfig) -> Result(Started, InitFailed) {
     beads_watcher_pid:,
     signal_handler_subject:,
   ))
+}
+
+fn cleanup_signal_bus(subject: Subject(signal_bus.SignalBusMessage)) -> Nil {
+  signal_bus.shutdown(subject)
+  process.sleep(10)
+}
+
+fn cleanup_resource_governor(
+  subject: Subject(resource_governor.GovernorMessage),
+) -> Nil {
+  resource_governor.shutdown(subject)
+  process.sleep(10)
+}
+
+fn cleanup_workspace_manager(
+  subject: Subject(workspace_manager.WorkspaceManagerMessage),
+) -> Nil {
+  workspace_manager.shutdown(subject)
+  process.sleep(10)
+}
+
+fn cleanup_golden_master(
+  subject: Subject(golden_master.GoldenMasterMessage),
+) -> Nil {
+  process.send(subject, golden_master.Shutdown)
+  process.sleep(10)
+}
+
+fn cleanup_merge_queue(subject: Subject(merge_queue.MergeQueueMessage)) -> Nil {
+  merge_queue.shutdown(subject)
+  process.sleep(10)
 }
 
 /// Start supervisor and wait for shutdown signal
