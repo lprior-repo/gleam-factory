@@ -1,0 +1,2 @@
+{"timestamp":"2026-01-30T06:03:40.033Z","event_type":"task_created","task_slug":"race-condition-1732189","actor":"lewis","details":"Task created","metadata":{"language":"gleam","branch":"feat/race-condition-1732189"}}
+{"timestamp":"2026-01-30T06:03:40.209Z","event_type":"task_created","task_slug":"race-condition-1732189","actor":"lewis","details":"Task created","metadata":{"language":"gleam","branch":"feat/race-condition-1732189"}}

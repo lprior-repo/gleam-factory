@@ -12,8 +12,8 @@ pub fn resource_limits_captures_max_mutators_test() {
     gpu_tickets: 1,
   )
   case limits {
-    resource_governor.ResourceLimits(max_mutators: 4, ..) -> should.be_true(True)
-    _ -> should.fail()
+    resource_governor.ResourceLimits(max_mutators: max_mutators, ..) ->
+      max_mutators |> should.equal(4)
   }
 }
 
@@ -26,8 +26,8 @@ pub fn resource_limits_captures_max_loops_test() {
     gpu_tickets: 1,
   )
   case limits {
-    resource_governor.ResourceLimits(max_loops: 8, ..) -> should.be_true(True)
-    _ -> should.fail()
+    resource_governor.ResourceLimits(max_loops: max_loops, ..) ->
+      max_loops |> should.equal(8)
   }
 }
 
@@ -40,8 +40,8 @@ pub fn resource_limits_captures_max_workspaces_test() {
     gpu_tickets: 1,
   )
   case limits {
-    resource_governor.ResourceLimits(max_workspaces: 20, ..) -> should.be_true(True)
-    _ -> should.fail()
+    resource_governor.ResourceLimits(max_workspaces: max_workspaces, ..) ->
+      max_workspaces |> should.equal(20)
   }
 }
 
@@ -54,8 +54,8 @@ pub fn resource_limits_captures_min_free_ram_test() {
     gpu_tickets: 1,
   )
   case limits {
-    resource_governor.ResourceLimits(min_free_ram_mb: 2048, ..) -> should.be_true(True)
-    _ -> should.fail()
+    resource_governor.ResourceLimits(min_free_ram_mb: min_free_ram_mb, ..) ->
+      min_free_ram_mb |> should.equal(2048)
   }
 }
 
@@ -68,8 +68,8 @@ pub fn resource_limits_captures_gpu_tickets_test() {
     gpu_tickets: 3,
   )
   case limits {
-    resource_governor.ResourceLimits(gpu_tickets: 3, ..) -> should.be_true(True)
-    _ -> should.fail()
+    resource_governor.ResourceLimits(gpu_tickets: gpu_tickets, ..) ->
+      gpu_tickets |> should.equal(3)
   }
 }
 
@@ -79,7 +79,6 @@ pub fn ticket_mutator_ticket_exists_test() {
   let ticket = resource_governor.MutatorTicket
   case ticket {
     resource_governor.MutatorTicket -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 
@@ -87,7 +86,6 @@ pub fn ticket_loop_ticket_exists_test() {
   let ticket = resource_governor.LoopTicket
   case ticket {
     resource_governor.LoopTicket -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 
@@ -97,7 +95,6 @@ pub fn slot_type_mutator_slot_exists_test() {
   let slot = resource_governor.MutatorSlot
   case slot {
     resource_governor.MutatorSlot -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 
@@ -105,7 +102,6 @@ pub fn slot_type_loop_slot_exists_test() {
   let slot = resource_governor.LoopSlot
   case slot {
     resource_governor.LoopSlot -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 
@@ -113,7 +109,6 @@ pub fn slot_type_workspace_slot_exists_test() {
   let slot = resource_governor.WorkspaceSlot
   case slot {
     resource_governor.WorkspaceSlot -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 
@@ -121,7 +116,6 @@ pub fn slot_type_gpu_slot_exists_test() {
   let slot = resource_governor.GpuSlot
   case slot {
     resource_governor.GpuSlot -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 
@@ -130,16 +124,14 @@ pub fn slot_type_gpu_slot_exists_test() {
 pub fn slot_id_captures_id_string_test() {
   let slot_id = resource_governor.SlotId("mutator:1")
   case slot_id {
-    resource_governor.SlotId(id: "mutator:1") -> should.be_true(True)
-    _ -> should.fail()
+    resource_governor.SlotId(id: id) -> id |> should.equal("mutator:1")
   }
 }
 
 pub fn slot_id_can_have_loop_prefix_test() {
   let slot_id = resource_governor.SlotId("loop:42")
   case slot_id {
-    resource_governor.SlotId(id: "loop:42") -> should.be_true(True)
-    _ -> should.fail()
+    resource_governor.SlotId(id: id) -> id |> should.equal("loop:42")
   }
 }
 
@@ -149,7 +141,6 @@ pub fn resource_error_exhausted_exists_test() {
   let err = resource_governor.ResourceExhausted
   case err {
     resource_governor.ResourceExhausted -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 
@@ -157,7 +148,6 @@ pub fn resource_error_insufficient_ram_exists_test() {
   let err = resource_governor.InsufficientRam
   case err {
     resource_governor.InsufficientRam -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 
@@ -165,7 +155,6 @@ pub fn resource_error_timeout_exists_test() {
   let err = resource_governor.Timeout
   case err {
     resource_governor.Timeout -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 

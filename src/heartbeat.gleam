@@ -135,14 +135,18 @@ fn handle_tick(
     False -> {
       let new_status = run_tests(state.config)
       let new_state = update_status(state, new_status)
-      let _ = case state.timer_ref {
-        Some(timer) -> cancel_timer(timer)
-        None -> process.Cancelled(0)
-      }
+      let _ = cancel_existing_timer(state.timer_ref)
       let new_timer_ref =
         schedule_tick(state.self_subject, state.config.interval_ms)
       actor.continue(HeartbeatState(..new_state, timer_ref: new_timer_ref))
     }
+  }
+}
+
+fn cancel_existing_timer(timer_ref: Option(Timer)) -> process.Cancelled {
+  case timer_ref {
+    Some(timer) -> cancel_timer(timer)
+    None -> process.Cancelled(0)
   }
 }
 
@@ -159,13 +163,7 @@ fn handle_stream_progress(
 fn handle_shutdown(
   state: HeartbeatState,
 ) -> actor.Next(HeartbeatState, HeartbeatMessage) {
-  case state.timer_ref {
-    Some(timer) -> {
-      let _cancel_result = cancel_timer(timer)
-      Nil
-    }
-    None -> Nil
-  }
+  let _ = cancel_existing_timer(state.timer_ref)
   logging.log(logging.Info, "Heartbeat shutting down", dict.new())
   actor.stop()
 }

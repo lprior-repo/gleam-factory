@@ -5,7 +5,6 @@ pub fn gauntlet_stage_build_exists_test() {
   let stage = verification_gauntlet.Build
   case stage {
     verification_gauntlet.Build -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 
@@ -13,7 +12,6 @@ pub fn gauntlet_stage_test_exists_test() {
   let stage = verification_gauntlet.Test
   case stage {
     verification_gauntlet.Test -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 
@@ -21,7 +19,6 @@ pub fn gauntlet_stage_lint_exists_test() {
   let stage = verification_gauntlet.Lint
   case stage {
     verification_gauntlet.Lint -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 
@@ -29,7 +26,6 @@ pub fn gauntlet_stage_format_exists_test() {
   let stage = verification_gauntlet.Format
   case stage {
     verification_gauntlet.Format -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 
@@ -37,7 +33,6 @@ pub fn gauntlet_result_passed_captures_stages_test() {
   let result = verification_gauntlet.Passed(stages_run: 3)
   case result {
     verification_gauntlet.Passed(stages_run: 3) -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 
@@ -49,7 +44,6 @@ pub fn gauntlet_result_failed_captures_stage_test() {
   case result {
     verification_gauntlet.Failed(stage: verification_gauntlet.Build, ..) ->
       should.be_true(True)
-    _ -> should.fail()
   }
 }
 
@@ -57,7 +51,6 @@ pub fn gauntlet_result_failed_captures_error_test() {
   let result = verification_gauntlet.Failed(stage: verification_gauntlet.Test, error: "test error")
   case result {
     verification_gauntlet.Failed(error: "test error", ..) -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 
@@ -100,7 +93,6 @@ pub fn passed_with_zero_stages_test() {
   let result = verification_gauntlet.Passed(stages_run: 0)
   case result {
     verification_gauntlet.Passed(stages_run: 0) -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 
@@ -108,7 +100,6 @@ pub fn passed_with_multiple_stages_test() {
   let result = verification_gauntlet.Passed(stages_run: 10)
   case result {
     verification_gauntlet.Passed(stages_run: 10) -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 

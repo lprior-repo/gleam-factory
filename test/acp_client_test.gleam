@@ -8,7 +8,6 @@ pub fn session_status_running_exists_test() {
   let status = acp_client.Running
   case status {
     acp_client.Running -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 
@@ -16,7 +15,6 @@ pub fn session_status_stopped_exists_test() {
   let status = acp_client.Stopped
   case status {
     acp_client.Stopped -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 
@@ -60,7 +58,6 @@ pub fn permission_result_granted_exists_test() {
   let result = acp_client.Granted
   case result {
     acp_client.Granted -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 
@@ -68,7 +65,6 @@ pub fn permission_result_denied_exists_test() {
   let result = acp_client.Denied
   case result {
     acp_client.Denied -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 

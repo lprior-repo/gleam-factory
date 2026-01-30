@@ -8,7 +8,6 @@ pub fn priority_p1_is_highest_priority_test() {
   let priority = config.P1
   case priority {
     config.P1 -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 
@@ -16,7 +15,6 @@ pub fn priority_p2_is_medium_priority_test() {
   let priority = config.P2
   case priority {
     config.P2 -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 
@@ -24,7 +22,6 @@ pub fn priority_p3_is_lowest_priority_test() {
   let priority = config.P3
   case priority {
     config.P3 -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 
@@ -39,16 +36,15 @@ pub fn default_config_uses_factory_data_directory_test() {
 pub fn default_config_uses_p2_as_default_priority_test() {
   let cfg = config.default_config()
   case cfg {
-    config.Config(default_priority: config.P2, ..) -> should.be_true(True)
-    _ -> should.fail()
+    config.Config(default_priority: priority, ..) ->
+      priority |> should.equal(config.P2)
   }
 }
 
 pub fn default_config_has_verbose_disabled_test() {
   let cfg = config.default_config()
   case cfg {
-    config.Config(verbose: False, ..) -> should.be_true(True)
-    _ -> should.fail()
+    config.Config(verbose: verbose, ..) -> verbose |> should.equal(False)
   }
 }
 
@@ -62,10 +58,12 @@ pub fn config_can_be_created_with_custom_data_dir_test() {
 
 pub fn config_preserves_all_field_values_test() {
   let cfg = config.Config(data_dir: "/tmp", default_priority: config.P3, verbose: True)
+  config.get_data_dir(cfg) |> should.equal("/tmp")
   case cfg {
-    config.Config(data_dir: "/tmp", default_priority: config.P3, verbose: True) ->
-      should.be_true(True)
-    _ -> should.fail()
+    config.Config(default_priority: priority, verbose: verbose, ..) -> {
+      priority |> should.equal(config.P3)
+      verbose |> should.equal(True)
+    }
   }
 }
 

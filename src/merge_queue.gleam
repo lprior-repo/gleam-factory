@@ -6,6 +6,8 @@ import logging
 import signal_bus
 import signals
 
+const query_timeout_ms = 5000
+
 type MergeQueueState {
   MergeQueueState(
     absorbing: Bool,
@@ -92,40 +94,10 @@ fn handle_message(
     }
     PatchTestResult(hash, passed) -> {
       case passed, state.current_patch_hash {
-        True, Some(current) if hash == current -> {
-          logging.log(
-            logging.Info,
-            "Patch accepted: " <> hash,
-            dict.from_list([#("status", "passed")]),
-          )
-          let patch_accepted =
-            signals.PatchAccepted(
-              hash: signals.hash(hash),
-              merged_at: signals.timestamp(erlang_system_time_ms()),
-            )
-          signal_bus.broadcast(
-            state.signal_bus,
-            signal_bus.PatchAccepted(patch_accepted),
-          )
-          actor.continue(
-            MergeQueueState(..state, absorbing: False, current_patch_hash: None),
-          )
-        }
-        False, Some(current) if hash == current -> {
-          let reason = "Tests failed for patch " <> hash
-          logging.log(
-            logging.Error,
-            "Patch rejected: " <> reason,
-            dict.from_list([#("status", "failed")]),
-          )
-          signal_bus.broadcast(
-            state.signal_bus,
-            signal_bus.PatchRejected(reason:),
-          )
-          actor.continue(
-            MergeQueueState(..state, absorbing: False, current_patch_hash: None),
-          )
-        }
+        True, Some(current) if hash == current ->
+          handle_patch_accepted(state, hash)
+        False, Some(current) if hash == current ->
+          handle_patch_rejected(state, hash)
         _, _ -> actor.continue(state)
       }
     }
@@ -135,7 +107,7 @@ fn handle_message(
 pub fn is_absorbing(queue: Subject(MergeQueueMessage)) -> Bool {
   let reply = process.new_subject()
   process.send(queue, GetAbsorbing(reply_with: reply))
-  case process.receive(reply, 5000) {
+  case process.receive(reply, query_timeout_ms) {
     Ok(absorbing) -> absorbing
     Error(Nil) -> False
   }
@@ -144,7 +116,7 @@ pub fn is_absorbing(queue: Subject(MergeQueueMessage)) -> Bool {
 pub fn get_current_patch(queue: Subject(MergeQueueMessage)) -> String {
   let reply = process.new_subject()
   process.send(queue, GetCurrentPatch(reply_with: reply))
-  case process.receive(reply, 5000) {
+  case process.receive(reply, query_timeout_ms) {
     Ok(patch) -> patch
     Error(Nil) -> ""
   }
@@ -164,6 +136,42 @@ pub fn report_test_result(
 
 pub fn shutdown(queue: Subject(MergeQueueMessage)) -> Nil {
   process.send(queue, Shutdown)
+}
+
+fn handle_patch_accepted(
+  state: MergeQueueState,
+  hash: String,
+) -> actor.Next(MergeQueueState, MergeQueueMessage) {
+  logging.log(
+    logging.Info,
+    "Patch accepted: " <> hash,
+    dict.from_list([#("status", "passed")]),
+  )
+  let patch_accepted =
+    signals.PatchAccepted(
+      hash: signals.hash(hash),
+      merged_at: signals.timestamp(erlang_system_time_ms()),
+    )
+  signal_bus.broadcast(state.signal_bus, signal_bus.PatchAccepted(patch_accepted))
+  actor.continue(
+    MergeQueueState(..state, absorbing: False, current_patch_hash: None),
+  )
+}
+
+fn handle_patch_rejected(
+  state: MergeQueueState,
+  hash: String,
+) -> actor.Next(MergeQueueState, MergeQueueMessage) {
+  let reason = "Tests failed for patch " <> hash
+  logging.log(
+    logging.Error,
+    "Patch rejected: " <> reason,
+    dict.from_list([#("status", "failed")]),
+  )
+  signal_bus.broadcast(state.signal_bus, signal_bus.PatchRejected(reason:))
+  actor.continue(
+    MergeQueueState(..state, absorbing: False, current_patch_hash: None),
+  )
 }
 
 @external(erlang, "logging_ffi", "system_time_ms")

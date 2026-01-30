@@ -9,7 +9,6 @@ pub fn role_auditor_exists_test() {
   let role = llm.Auditor
   case role {
     llm.Auditor -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 
@@ -17,7 +16,6 @@ pub fn role_implementer_exists_test() {
   let role = llm.Implementer
   case role {
     llm.Implementer -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 
@@ -25,7 +23,6 @@ pub fn role_architect_exists_test() {
   let role = llm.Architect
   case role {
     llm.Architect -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 
@@ -33,7 +30,6 @@ pub fn role_reviewer_exists_test() {
   let role = llm.Reviewer
   case role {
     llm.Reviewer -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 
@@ -42,40 +38,35 @@ pub fn role_reviewer_exists_test() {
 pub fn new_request_sets_model_test() {
   let req = llm.new_request("claude-3", "prompt", 100)
   case req {
-    llm.LLMRequest(model: "claude-3", ..) -> should.be_true(True)
-    _ -> should.fail()
+    llm.LLMRequest(model: model, ..) -> model |> should.equal("claude-3")
   }
 }
 
 pub fn new_request_sets_prompt_test() {
   let req = llm.new_request("m", "my prompt text", 100)
   case req {
-    llm.LLMRequest(prompt: "my prompt text", ..) -> should.be_true(True)
-    _ -> should.fail()
+    llm.LLMRequest(prompt: prompt, ..) -> prompt |> should.equal("my prompt text")
   }
 }
 
 pub fn new_request_sets_max_tokens_test() {
   let req = llm.new_request("m", "p", 4096)
   case req {
-    llm.LLMRequest(max_tokens: 4096, ..) -> should.be_true(True)
-    _ -> should.fail()
+    llm.LLMRequest(max_tokens: max_tokens, ..) -> max_tokens |> should.equal(4096)
   }
 }
 
 pub fn new_request_has_no_system_prompt_by_default_test() {
   let req = llm.new_request("m", "p", 100)
   case req {
-    llm.LLMRequest(system_prompt: None, ..) -> should.be_true(True)
-    _ -> should.fail()
+    llm.LLMRequest(system_prompt: system_prompt, ..) -> system_prompt |> should.equal(None)
   }
 }
 
 pub fn new_request_has_default_temperature_test() {
   let req = llm.new_request("m", "p", 100)
   case req {
-    llm.LLMRequest(temperature: 0.7, ..) -> should.be_true(True)
-    _ -> should.fail()
+    llm.LLMRequest(temperature: temperature, ..) -> temperature |> should.equal(0.7)
   }
 }
 
@@ -86,9 +77,8 @@ pub fn with_system_prompt_adds_system_prompt_test() {
     llm.new_request("m", "p", 100)
     |> llm.with_system_prompt("You are helpful")
   case req {
-    llm.LLMRequest(system_prompt: Some("You are helpful"), ..) ->
-      should.be_true(True)
-    _ -> should.fail()
+    llm.LLMRequest(system_prompt: system_prompt, ..) ->
+      system_prompt |> should.equal(Some("You are helpful"))
   }
 }
 
@@ -97,8 +87,7 @@ pub fn with_temperature_changes_temperature_test() {
     llm.new_request("m", "p", 100)
     |> llm.with_temperature(0.0)
   case req {
-    llm.LLMRequest(temperature: 0.0, ..) -> should.be_true(True)
-    _ -> should.fail()
+    llm.LLMRequest(temperature: temperature, ..) -> temperature |> should.equal(0.0)
   }
 }
 
@@ -109,13 +98,18 @@ pub fn modifiers_can_be_chained_test() {
     |> llm.with_temperature(0.5)
   case req {
     llm.LLMRequest(
-      model: "model",
-      prompt: "prompt",
-      max_tokens: 500,
-      system_prompt: Some("system"),
-      temperature: 0.5,
-    ) -> should.be_true(True)
-    _ -> should.fail()
+      model: model,
+      prompt: prompt,
+      max_tokens: max_tokens,
+      system_prompt: system_prompt,
+      temperature: temperature,
+    ) -> {
+      model |> should.equal("model")
+      prompt |> should.equal("prompt")
+      max_tokens |> should.equal(500)
+      system_prompt |> should.equal(Some("system"))
+      temperature |> should.equal(0.5)
+    }
   }
 }
 
@@ -226,32 +220,28 @@ pub fn system_prompt_reviewer_mentions_verdict_test() {
 pub fn llm_error_network_error_captures_message_test() {
   let err = llm.NetworkError("connection refused")
   case err {
-    llm.NetworkError("connection refused") -> should.be_true(True)
-    _ -> should.fail()
+    llm.NetworkError(msg) -> msg |> should.equal("connection refused")
   }
 }
 
 pub fn llm_error_parse_error_captures_message_test() {
   let err = llm.ParseError("invalid json")
   case err {
-    llm.ParseError("invalid json") -> should.be_true(True)
-    _ -> should.fail()
+    llm.ParseError(msg) -> msg |> should.equal("invalid json")
   }
 }
 
 pub fn llm_error_rate_limit_captures_retry_after_test() {
   let err = llm.RateLimitError(60)
   case err {
-    llm.RateLimitError(60) -> should.be_true(True)
-    _ -> should.fail()
+    llm.RateLimitError(retry) -> retry |> should.equal(60)
   }
 }
 
 pub fn llm_error_auth_error_captures_message_test() {
   let err = llm.AuthError("invalid api key")
   case err {
-    llm.AuthError("invalid api key") -> should.be_true(True)
-    _ -> should.fail()
+    llm.AuthError(msg) -> msg |> should.equal("invalid api key")
   }
 }
 
@@ -261,29 +251,30 @@ pub fn llm_response_captures_all_fields_test() {
   let usage = llm.TokenUsage(prompt_tokens: 10, completion_tokens: 50, total_tokens: 60)
   let response = llm.LLMResponse(content: "Hello", finish_reason: "stop", usage: usage)
   case response {
-    llm.LLMResponse(content: "Hello", finish_reason: "stop", usage: u) -> {
+    llm.LLMResponse(content: content, finish_reason: finish_reason, usage: u) -> {
+      content |> should.equal("Hello")
+      finish_reason |> should.equal("stop")
       case u {
-        llm.TokenUsage(prompt_tokens: 10, completion_tokens: 50, total_tokens: 60) ->
-          should.be_true(True)
-        _ -> should.fail()
+        llm.TokenUsage(prompt_tokens: pt, completion_tokens: ct, total_tokens: tt) -> {
+          pt |> should.equal(10)
+          ct |> should.equal(50)
+          tt |> should.equal(60)
+        }
       }
     }
-    _ -> should.fail()
   }
 }
 
 pub fn token_usage_tracks_prompt_tokens_test() {
   let usage = llm.TokenUsage(prompt_tokens: 100, completion_tokens: 0, total_tokens: 100)
   case usage {
-    llm.TokenUsage(prompt_tokens: 100, ..) -> should.be_true(True)
-    _ -> should.fail()
+    llm.TokenUsage(prompt_tokens: tokens, ..) -> tokens |> should.equal(100)
   }
 }
 
 pub fn token_usage_tracks_completion_tokens_test() {
   let usage = llm.TokenUsage(prompt_tokens: 0, completion_tokens: 200, total_tokens: 200)
   case usage {
-    llm.TokenUsage(completion_tokens: 200, ..) -> should.be_true(True)
-    _ -> should.fail()
+    llm.TokenUsage(completion_tokens: tokens, ..) -> tokens |> should.equal(200)
   }
 }

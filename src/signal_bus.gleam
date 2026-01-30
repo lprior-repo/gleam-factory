@@ -8,6 +8,8 @@ import logging
 
 import signals
 
+const startup_timeout_ms = 5000
+
 /// Signal types that can be published/subscribed.
 pub type Signal {
   TestFailure
@@ -92,7 +94,7 @@ pub fn start_link() -> Result(Subject(SignalBusMessage), SignalBusError) {
     })
   let _ = process.link(pid)
 
-  case process.receive(parent_subject, 5000) {
+  case process.receive(parent_subject, startup_timeout_ms) {
     Ok(child_subject) -> {
       logging.log(logging.Info, "Signal bus started", dict.new())
       Ok(child_subject)

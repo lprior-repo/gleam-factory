@@ -16,7 +16,6 @@ pub fn dispatcher_message_stop_exists_test() {
   let msg = factory_dispatcher.Stop
   case msg {
     factory_dispatcher.Stop -> should.be_true(True)
-    _ -> should.fail()
   }
 }
 
