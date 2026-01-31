@@ -1,17 +1,25 @@
-$schema: 'https://moonrepo.dev/schemas/workspace.json'
+$schema: "https://moonrepo.dev/schemas/workspace.json"
 
+# Project locations
 projects:
-  - '.'
+  globs:
+    - "crates/*"
 
-# Local bazel-remote cache (hyper-fast, zero network latency)
-# Ensure bazel-remote is running: bazel-remote --dir ~/.cache/moon --max_size 20 --storage_mode zstd --grpc_address 127.0.0.1:9092
+# VCS configuration
+vcs:
+  manager: "git"
+  defaultBranch: "main"
+
+# Version constraint
+versionConstraint: ">=1.20.0"
+
+# HYPER-FAST LOCAL CACHE CONFIGURATION
+# Remote cache runs locally on this machine for zero network latency
 unstable_remote:
   host: 'grpc://localhost:9092'
   cache:
     compression: 'zstd'
 
-# Performance optimizations
+# Hasher performance optimization
 hasher:
   optimization: 'performance'
-
-versionConstraint: '>=1.30.0'
