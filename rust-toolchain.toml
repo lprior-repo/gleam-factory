@@ -1,0 +1,7 @@
+# Factory Rust Toolchain Configuration
+# Uses nightly for functional programming features
+
+[toolchain]
+channel = "nightly"
+components = ["rustfmt", "clippy", "rust-analyzer"]
+targets = ["x86_64-unknown-linux-gnu"]
